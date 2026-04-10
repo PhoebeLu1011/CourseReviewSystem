@@ -17,12 +17,24 @@ class User:
 
 
 class Student(User):
-    def __init__(self, id, name, email, profilePicURL, department, studentID, reviewCount=0):
+    def __init__(
+        self,
+        id,
+        name,
+        email,
+        profilePicURL,
+        department,
+        studentID,
+        reviewCount=0,
+        replyCount=0,
+        applyCount=0
+    ):
         super().__init__(id, name, email, profilePicURL, "student")
         self.department = department
         self.studentID = studentID
         self.reviewCount = reviewCount
         self.replyCount = replyCount
+        self.applyCount = applyCount
 
     def to_dict(self):
         data = super().to_dict()
@@ -30,7 +42,8 @@ class Student(User):
             "department": self.department,
             "studentID": self.studentID,
             "reviewCount": self.reviewCount,
-            "replyCount": self.replyCount
+            "replyCount": self.replyCount,
+            "applyCount": self.applyCount
         })
         return data
 
