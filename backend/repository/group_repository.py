@@ -1,6 +1,5 @@
 from models.group import Group
- 
- 
+
 class GroupRepository:
     def __init__(self, db):
         self.collection = db["groups"]

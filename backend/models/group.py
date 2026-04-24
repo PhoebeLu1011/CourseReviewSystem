@@ -11,6 +11,8 @@ class Group:
         members: list[str] | None = None,
         status: str = "open",   # open | closed
         recruitment_deadline: datetime | None = None,
+        description: str | None = None,
+        tags: list[str] | None = None,
     ):
         if max_members <= 0:
             raise ValueError("max_members must be greater than 0.")
@@ -22,6 +24,10 @@ class Group:
         self.max_members = max_members
         self.status = status
         self.recruitment_deadline = recruitment_deadline
+        self.description = description
+        # [discussion] tags are used for recommendation score calculation 
+        # or are free-form labels set by the leader (used as bonus criteria in recommendation scoring, not the primary match factor)
+        self.tags = tags or []
         self.members = self._normalize_members(leader_id, members)
 
         self._validate()
@@ -88,6 +94,8 @@ class Group:
         group_name: str | None = None,
         max_members: int | None = None,
         recruitment_deadline: datetime | None = None,
+        description: str | None = None,
+        tags: list[str] | None = None,
     ) -> None:
         if group_name is not None:
             if not group_name.strip():
@@ -102,6 +110,12 @@ class Group:
         if recruitment_deadline is not None:
             self.recruitment_deadline = recruitment_deadline
 
+        if description is not None:
+            self.description = description
+
+        if tags is not None:
+            self.tags = tags
+
     def to_dict(self) -> dict:
         return {
             "group_id": self.group_id,
@@ -115,4 +129,6 @@ class Group:
                 self.recruitment_deadline.isoformat()
                 if self.recruitment_deadline else None
             ),
+            "description": self.description,
+            "tags": self.tags,
         }
