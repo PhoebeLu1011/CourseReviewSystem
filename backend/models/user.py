@@ -70,7 +70,6 @@ class Student(User):
         )
         return new_report
 
-
 class Admin(User):
     def __init__(self, id, name, email, profilePicURL, role="admin"):
         super().__init__(id, name, email, profilePicURL, role)
