@@ -1,4 +1,5 @@
 from models.review import Review
+from models.report import Report
 class User:
     def __init__(self, id, name, email, profilePicURL, role):
         self.id = id
@@ -28,9 +29,11 @@ class Student(User):
         studentID,
         reviewCount=0,
         replyCount=0,
-        applyCount=0
+        applyCount=0,
+        role="student"
+
     ):
-        super().__init__(id, name, email, profilePicURL, "student")
+        super().__init__(id, name, email, profilePicURL, role)
         self.department = department
         self.studentID = studentID
         self.reviewCount = reviewCount
@@ -69,5 +72,5 @@ class Student(User):
 
 
 class Admin(User):
-    def __init__(self, id, name, email, profilePicURL):
-        super().__init__(id, name, email, profilePicURL, "admin")
+    def __init__(self, id, name, email, profilePicURL, role="admin"):
+        super().__init__(id, name, email, profilePicURL, role)
