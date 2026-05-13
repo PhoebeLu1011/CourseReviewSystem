@@ -1,6 +1,4 @@
-// src/models/Review.ts
 
-// 1. Replaced the enum with an erasable Union Type
 export type VisibilityState = "VISIBLE" | "HIDDEN" | "UNDER_REVIEW";
 
 export class Review {

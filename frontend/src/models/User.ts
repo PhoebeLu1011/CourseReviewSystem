@@ -17,11 +17,13 @@ export class Student extends User {
     public department: string;
     protected studentID: string;
     reviewCount: number;
+    replyCount: number;
     constructor(id: number, name: string, email: string, profilePicURL: string, department: string, studentID: string) {
         super(id, name, email, profilePicURL);
         this.department = department;
         this.studentID = studentID;
         this.reviewCount = 0;
+        this.replyCount = 0;
     }
     getRole(): string {
         return "Student";
