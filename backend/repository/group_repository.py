@@ -4,7 +4,8 @@ from datetime import datetime
 class GroupRepository:
     def __init__(self, db):
         self.collection = db["groups"]
-    #database -> object
+
+    # database -> object
     def _to_group(self, data):
         if not data:
             return None
@@ -21,12 +22,9 @@ class GroupRepository:
     # using "group_id" to find the group
     def find_by_id(self, group_id):
         data = self.collection.find_one({"group_id": group_id})
-        if not data:
-            return None
-        data.pop("_id", None)
-        return Group(**data)
-    
-    #find the joinable group 
+        return self._to_group(data)
+
+    # find the joinable group
     def find_joinable_by_course(self, course_id: str) -> list[Group]:
         cursor = self.collection.find({"course_id": course_id})
 
@@ -38,6 +36,18 @@ class GroupRepository:
                 groups.append(group)
 
         return groups
+
+    def find_by_course_and_member(
+        self,
+        course_id: str,
+        student_id: str
+    ):
+        data = self.collection.find_one({
+            "course_id": course_id,
+            "members": student_id
+        })
+
+        return self._to_group(data)
 
     def save(self, group: Group):
         self.collection.update_one(
