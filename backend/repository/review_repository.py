@@ -23,3 +23,21 @@ class ReviewRepository:
             {"$set": review.to_dict()},
             upsert=True
         )
+        
+    def find_by_course_id(self, course_id, sort_by="newest", limit=10, skip=0):
+        query = {
+            "courseID": course_id,
+            "visibilityState": "VISIBLE"
+        }
+
+        if sort_by == "popular":
+            sort_logic = [("likeCount", -1), ("timestamp", -1)]
+        else:
+            sort_logic = [("timestamp", -1)]
+
+        cursor = self.collection.find(query).sort(sort_logic).skip(skip).limit(limit)
+        reviews = []
+        for data in cursor:
+            data.pop("_id", None)  # Remove MongoDB's internal ID before returning
+            reviews.append(review(**data))
+        return reviews
