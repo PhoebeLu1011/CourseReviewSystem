@@ -68,6 +68,11 @@ class ApplicationService:
         application.approve()
         group.add_member(application.student_id)
 
+        group_is_full = group.is_full()
+
+        if group_is_full:
+            group.close_recruitment()        
+
         self.application_repo.save(application)
         self.group_repo.save(group)
 
@@ -77,6 +82,13 @@ class ApplicationService:
             group_id=group.group_id,
             approved_application_id=application.application_id,
         )
+
+        if group_is_full:
+            self._notify_recruitment_closed_because_group_full(group)
+            self._reject_other_pending_applications_if_group_full(
+                group_id=group.group_id,
+                approved_application_id=application.application_id,
+            )
 
         return application
 
@@ -202,4 +214,12 @@ class ApplicationService:
             content="Your application has been rejected because the group is full.",
             type="group_full_auto_rejected",
             related_id=application.application_id,
+        )
+
+    def _notify_recruitment_closed_because_group_full(self, group) -> None:
+        self.notification_service.create_notification(
+            receiver_id=group.leader_id,
+            content="Your group is full. Recruitment has been closed automatically.",
+            type="group_full_recruitment_closed",
+            related_id=group.group_id,
         )
