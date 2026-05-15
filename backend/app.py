@@ -5,14 +5,18 @@ from pymongo import MongoClient
 from repository.group_repository import GroupRepository
 from repository.application_repository import ApplicationRepository
 from repository.notification_repository import NotificationRepository
+from repository.student_repository import StudentRepository
+from repository.badge_repository import BadgeRepository
 
 from services.application_service import ApplicationService
 from services.notification_service import NotificationService
 from services.group_recommendation_service import GroupRecommendationService
+from services.achievement_service import AchievementService
 
 from routes.application_routes import create_application_routes
 from routes.group_routes import create_group_routes
 from routes.notification_routes import create_notification_routes
+from routes.achievement_routes import create_achievement_routes
 
 
 def create_app():
@@ -25,18 +29,26 @@ def create_app():
     group_repo = GroupRepository(db)
     application_repo = ApplicationRepository(db)
     notification_repo = NotificationRepository(db)
+    student_repo = StudentRepository(db)
+    badge_repo = BadgeRepository(db)
 
     notification_service = NotificationService(notification_repo)
+    achievement_service = AchievementService(badge_repo)
+
     application_service = ApplicationService(
         application_repo=application_repo,
         group_repo=group_repo,
+        student_repo=student_repo,
         notification_service=notification_service,
+        achievement_service=achievement_service,
     )
+
     group_recommendation_service = GroupRecommendationService(group_repo)
 
     app.register_blueprint(create_application_routes(application_service))
     app.register_blueprint(create_group_routes(group_recommendation_service))
     app.register_blueprint(create_notification_routes(notification_service))
+    app.register_blueprint(create_achievement_routes(achievement_service, student_repo))
 
     return app
 
