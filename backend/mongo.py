@@ -14,4 +14,3 @@ client = MongoClient(
 )
 
 db = client[os.getenv("DB_NAME")]
-users_collection = db["users"]

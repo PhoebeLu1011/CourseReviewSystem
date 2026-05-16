@@ -1,8 +1,5 @@
-<<<<<<< Updated upstream
-=======
-from .review import Review
-from .report import Report
->>>>>>> Stashed changes
+from models.review import Review
+from models.report import Report
 class User:
     def __init__(self, id, name, email, profilePicURL, role):
         self.id = id
@@ -32,9 +29,11 @@ class Student(User):
         studentID,
         reviewCount=0,
         replyCount=0,
-        applyCount=0
+        applyCount=0,
+        role="student"
+
     ):
-        super().__init__(id, name, email, profilePicURL, "student")
+        super().__init__(id, name, email, profilePicURL, role)
         self.department = department
         self.studentID = studentID
         self.reviewCount = reviewCount
@@ -51,8 +50,26 @@ class Student(User):
             "applyCount": self.applyCount
         })
         return data
+    
+    def leave_review(self, courseID, content, sweetnessScore, workloadScore):
+        new_review = Review(
+            authorID=self.studentID, 
+            courseID=courseID, 
+            content=content, 
+            sweetnessScore=sweetnessScore, 
+            workloadScore=workloadScore
+        )
+        self.reviewCount += 1
+        return new_review
 
+    def file_report(self, target_review_id, reason):
+        new_report = Report(
+            reviewID=target_review_id,
+            reporterID=self.studentID,
+            reason=reason
+        )
+        return new_report
 
 class Admin(User):
-    def __init__(self, id, name, email, profilePicURL):
-        super().__init__(id, name, email, profilePicURL, "admin")
+    def __init__(self, id, name, email, profilePicURL, role="admin"):
+        super().__init__(id, name, email, profilePicURL, role)
