@@ -1,3 +1,8 @@
+<<<<<<< Updated upstream
+=======
+from .review import Review
+from .report import Report
+>>>>>>> Stashed changes
 class User:
     def __init__(self, id, name, email, profilePicURL, role):
         self.id = id
