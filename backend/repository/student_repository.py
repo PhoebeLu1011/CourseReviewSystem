@@ -19,3 +19,9 @@ class StudentRepository:
             {"$set": student.to_dict()},
             upsert=True
         )
+    def find_by_email(self, email: str):
+        data = self.collection.find_one({"email": email})
+        if not data:
+            return None
+        data.pop("_id", None)
+        return Student(**data)
