@@ -1,4 +1,4 @@
-from models.review import review
+from models.review import Review
 class ReviewRepository:
     def __init__(self,db):
         self.collection = db["reviews"]
@@ -14,10 +14,10 @@ class ReviewRepository:
         data = self.collection.find_one({"reviewID":review_id})
         if not data: return None
         data.pop("_id", None)  # Remove MongoDB's internal ID before returning
-        return review(**data)
+        return Review(**data)
     
 
-    def save(self, review: review): #Find a review by its ID. If it exists, update it. If it doesn’t, create it.
+    def save(self, review: Review): #Find a review by its ID. If it exists, update it. If it doesn’t, create it.
         self.collection.update_one(
             {"reviewID": review.reviewID},
             {"$set": review.to_dict()},
@@ -39,5 +39,5 @@ class ReviewRepository:
         reviews = []
         for data in cursor:
             data.pop("_id", None)  # Remove MongoDB's internal ID before returning
-            reviews.append(review(**data))
+            reviews.append(Review(**data))
         return reviews
