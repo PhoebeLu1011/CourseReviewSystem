@@ -9,6 +9,8 @@ from repository.student_repository import StudentRepository
 from repository.badge_repository import BadgeRepository
 from repository.review_repository import ReviewRepository
 from repository.course_repository import CourseRepository
+from repository.discussion_repository import DiscussionRepository
+from repository.reply_repository import ReplyRepository
 
 from services.application_service import ApplicationService
 from services.notification_service import NotificationService
@@ -16,6 +18,7 @@ from services.group_recommendation_service import GroupRecommendationService
 from services.achievement_service import AchievementService
 from services.course_service import CourseService 
 from services.review_service import ReviewService
+from services.discussion_service import DiscussionService
 
 
 from routes.application_routes import create_application_routes
@@ -24,7 +27,7 @@ from routes.notification_routes import create_notification_routes
 from routes.achievement_routes import create_achievement_routes
 from routes.review_routes import create_review_routes
 from routes.course_routes import create_course_routes
-
+from routes.discussion_routes import create_discussion_routes
 
 def create_app():
     app = Flask(__name__)
@@ -40,11 +43,21 @@ def create_app():
     badge_repo = BadgeRepository(db)
     review_repo = ReviewRepository(db)
     course_repo = CourseRepository(db) 
+    discussion_repo = DiscussionRepository(db)
+    reply_repo = ReplyRepository(db)
+    
 
     notification_service = NotificationService(notification_repo)
     achievement_service = AchievementService(badge_repo)
     review_service = ReviewService(review_repo, student_repo)
     course_service = CourseService(course_repo)
+
+    discussion_service = DiscussionService(
+        discussion_repo=discussion_repo,
+        reply_repo=reply_repo,
+        student_repo=student_repo,
+        course_service=course_service
+    )
 
 
     application_service = ApplicationService(
@@ -62,6 +75,8 @@ def create_app():
     app.register_blueprint(create_notification_routes(notification_service))
     app.register_blueprint(create_achievement_routes(achievement_service, student_repo))
     app.register_blueprint(create_review_routes(review_service))
+    app.register_blueprint(create_course_routes(course_service)) 
+    app.register_blueprint(create_discussion_routes(discussion_service))
 
     return app
 
