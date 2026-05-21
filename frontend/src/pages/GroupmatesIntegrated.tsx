@@ -1,4 +1,4 @@
-//還沒拆檔案只是先確定前端可以跑起來
+// 還沒拆檔案，只是先確定前端可以跑起來
 
 import { useEffect, useMemo, useState } from "react";
 import type { Group } from "../models/Group";
@@ -16,35 +16,6 @@ const mockCourses = [
   { id: "CS101", code: "CS101", name: "Introduction to Computer Science" },
   { id: "OOAD", code: "OOAD", name: "Object-Oriented Analysis and Design" },
   { id: "DBMS", code: "DBMS", name: "Database Management Systems" },
-];
-
-const mockGroups: Group[] = [
-  {
-    group_id: "g-001",
-    group_name: "OOAD Final Project Group",
-    course_id: "OOAD",
-    leader_id: "41271120A",
-    max_members: 5,
-    members: ["41271120A", "41271121B"],
-    status: "open",
-    recruitment_deadline: new Date(Date.now() + 5 * 86400000).toISOString(),
-    description: "Looking for frontend and backend collaborators.",
-    tags: ["frontend", "backend", "project"],
-    recommendation_score: 42,
-  },
-  {
-    group_id: "g-002",
-    group_name: "Database Study Group",
-    course_id: "DBMS",
-    leader_id: "41271123C",
-    max_members: 4,
-    members: ["41271123C"],
-    status: "open",
-    recruitment_deadline: new Date(Date.now() + 2 * 86400000).toISOString(),
-    description: "Review SQL, ER model, normalization, and final project.",
-    tags: ["SQL", "study", "database"],
-    recommendation_score: 35,
-  },
 ];
 
 export default function GroupmatesIntegrated() {
@@ -73,16 +44,17 @@ export default function GroupmatesIntegrated() {
         `${API_BASE_URL}/courses/${selectedCourseId}/groups/recommended?student_id=${studentId}`
       );
 
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        throw new Error("Backend groups API failed");
+        throw new Error(data?.message || "Backend groups API failed");
       }
 
-      const data: Group[] = await res.json();
-      setGroups(data);
+      setGroups(data as Group[]);
     } catch (error) {
       console.warn(error);
-      setGroups(mockGroups.filter((group) => group.course_id === selectedCourseId));
-      setNotice("目前使用 mock groups。後端 API 接好後會自動改用後端資料。");
+      setGroups([]);
+      setNotice("無法載入推薦小組，請確認後端與資料庫是否已啟動。");
     } finally {
       setIsLoadingGroups(false);
     }
@@ -94,12 +66,13 @@ export default function GroupmatesIntegrated() {
         `${API_BASE_URL}/students/${studentId}/applications/pending`
       );
 
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        throw new Error("Backend applications API failed");
+        throw new Error(data?.message || "Backend applications API failed");
       }
 
-      const data: Application[] = await res.json();
-      setPendingApplications(data);
+      setPendingApplications(data as Application[]);
     } catch (error) {
       console.warn(error);
       setPendingApplications([]);
@@ -168,33 +141,19 @@ export default function GroupmatesIntegrated() {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        setNotice(data.message || "申請失敗，請稍後再試。");
+        setNotice(data?.message || "申請失敗，請稍後再試。");
         return;
       }
 
       setNotice("申請已送出！");
-      setPendingApplications((prev) => [...prev, data]);
+      setPendingApplications((prev) => [...prev, data as Application]);
       setMessageByGroupId((prev) => ({ ...prev, [group.group_id]: "" }));
     } catch (error) {
       console.warn(error);
-
-      const mockApplication: Application = {
-        application_id: `mock-app-${Date.now()}`,
-        student_id: studentId,
-        group_id: group.group_id,
-        message,
-        status: "pending",
-        apply_time: new Date().toISOString(),
-        reviewed_time: null,
-        reject_reason: null,
-      };
-
-      setPendingApplications((prev) => [...prev, mockApplication]);
-      setMessageByGroupId((prev) => ({ ...prev, [group.group_id]: "" }));
-      setNotice("後端尚未連線，已用 mock pending 狀態模擬送出申請。");
+      setNotice("申請失敗，請確認後端與資料庫是否已啟動。");
     } finally {
       setIsSubmittingGroupId(null);
     }
@@ -206,10 +165,10 @@ export default function GroupmatesIntegrated() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Find Groupmates</h1>
           <p className="mt-2 text-slate-600">
-            先用推薦小組與申請流程跑起來，之後再接正式登入與後端資料。
+            目前小組推薦與申請流程會從後端 API 取得資料。
           </p>
           <p className="mt-1 text-sm text-slate-500">
-            Current mock user: {mockUser.name} / {studentId}
+            Current user: {mockUser.name} / {studentId}
           </p>
         </div>
 
@@ -256,7 +215,8 @@ export default function GroupmatesIntegrated() {
             const full = isGroupFull(group);
             const member = isAlreadyMember(group);
             const leader = isLeader(group);
-            const disabled = !canApply(group) || isSubmittingGroupId === group.group_id;
+            const disabled =
+              !canApply(group) || isSubmittingGroupId === group.group_id;
 
             return (
               <div

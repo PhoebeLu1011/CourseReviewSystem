@@ -19,6 +19,9 @@ export default function Layout() {
             <Link to="/achievements" className="hover:text-foreground">
               Achievements
             </Link>
+            <Link to="/profile" className="hover:text-foreground">
+              Profile
+            </Link>
           </nav>
         </div>
       </header>

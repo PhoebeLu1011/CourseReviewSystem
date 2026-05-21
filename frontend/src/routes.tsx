@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import CourseCatalog from "./pages/CourseCatalog";
 import GroupmatesIntegrated from "./pages/GroupmatesIntegrated";
+import UserProfile from "./pages/UserProfile";
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -47,6 +48,10 @@ export const router = createBrowserRouter([
       {
         path: "discussions",
         element: <PlaceholderPage title="Discussions" />,
+      },
+      {
+        path: "profile",
+        element: <UserProfile />,
       },
     ],
   },
