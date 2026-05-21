@@ -11,6 +11,8 @@ from repository.review_repository import ReviewRepository
 from repository.course_repository import CourseRepository
 from repository.discussion_repository import DiscussionRepository
 from repository.reply_repository import ReplyRepository
+from repository.bookmark_repository import BookmarkRepository
+from repository.report_repository import ReportRepository
 
 from services.application_service import ApplicationService
 from services.notification_service import NotificationService
@@ -19,7 +21,8 @@ from services.achievement_service import AchievementService
 from services.course_service import CourseService 
 from services.review_service import ReviewService
 from services.discussion_service import DiscussionService
-
+from services.favorite_service import FavoriteService
+from services.report_service import ReportService
 
 from routes.application_routes import create_application_routes
 from routes.group_routes import create_group_routes
@@ -28,6 +31,8 @@ from routes.achievement_routes import create_achievement_routes
 from routes.review_routes import create_review_routes
 from routes.course_routes import create_course_routes
 from routes.discussion_routes import create_discussion_routes
+from routes.bookmark_routes import create_bookmark_routes
+from routes.report_routes import create_report_routes
 
 def create_app():
     app = Flask(__name__)
@@ -45,7 +50,8 @@ def create_app():
     course_repo = CourseRepository(db) 
     discussion_repo = DiscussionRepository(db)
     reply_repo = ReplyRepository(db)
-    
+    bookmark_repo = BookmarkRepository(db)
+    report_repo = ReportRepository(db)
 
     notification_service = NotificationService(notification_repo)
     achievement_service = AchievementService(badge_repo)
@@ -58,7 +64,8 @@ def create_app():
         student_repo=student_repo,
         course_service=course_service
     )
-
+    favorite_service = FavoriteService(bookmark_repo)
+    report_service = ReportService(report_repo)
 
     application_service = ApplicationService(
         application_repo=application_repo,
@@ -77,6 +84,8 @@ def create_app():
     app.register_blueprint(create_review_routes(review_service))
     app.register_blueprint(create_course_routes(course_service)) 
     app.register_blueprint(create_discussion_routes(discussion_service))
+    app.register_blueprint(create_bookmark_routes(favorite_service))
+    app.register_blueprint(create_report_routes(report_service))
 
     return app
 
