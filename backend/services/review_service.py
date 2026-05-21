@@ -28,3 +28,7 @@ class ReviewService:
 
         self.review_repo.save(review)
         return review.likeCount
+    
+
+    def get_reviews_by_course(self, course_id, sort_by="newest", limit=10, skip=0):
+        return self.review_repo.find_by_course_id(course_id, sort_by, limit, skip)

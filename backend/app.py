@@ -7,16 +7,23 @@ from repository.application_repository import ApplicationRepository
 from repository.notification_repository import NotificationRepository
 from repository.student_repository import StudentRepository
 from repository.badge_repository import BadgeRepository
+from repository.review_repository import ReviewRepository
+from repository.course_repository import CourseRepository
 
 from services.application_service import ApplicationService
 from services.notification_service import NotificationService
 from services.group_recommendation_service import GroupRecommendationService
 from services.achievement_service import AchievementService
+from services.course_service import CourseService 
+from services.review_service import ReviewService
+
 
 from routes.application_routes import create_application_routes
 from routes.group_routes import create_group_routes
 from routes.notification_routes import create_notification_routes
 from routes.achievement_routes import create_achievement_routes
+from routes.review_routes import create_review_routes
+from routes.course_routes import create_course_routes
 
 
 def create_app():
@@ -31,9 +38,14 @@ def create_app():
     notification_repo = NotificationRepository(db)
     student_repo = StudentRepository(db)
     badge_repo = BadgeRepository(db)
+    review_repo = ReviewRepository(db)
+    course_repo = CourseRepository(db) 
 
     notification_service = NotificationService(notification_repo)
     achievement_service = AchievementService(badge_repo)
+    review_service = ReviewService(review_repo, student_repo)
+    course_service = CourseService(course_repo)
+
 
     application_service = ApplicationService(
         application_repo=application_repo,
@@ -49,6 +61,7 @@ def create_app():
     app.register_blueprint(create_group_routes(group_recommendation_service))
     app.register_blueprint(create_notification_routes(notification_service))
     app.register_blueprint(create_achievement_routes(achievement_service, student_repo))
+    app.register_blueprint(create_review_routes(review_service))
 
     return app
 
