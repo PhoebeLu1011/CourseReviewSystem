@@ -26,7 +26,7 @@ const mockUser = {
   department: "Computer Science",
   studentID: "41271122H",
   profilePicURL: "",
-  bio: "I am interested in software engineering, music technology, and course reviews.",
+  bio: "I am interested in software engineering, and course reviews.",
   birthday: "2003-05-12",
   interests: ["AI", "Web Development", "Music Tech"],
   reviewCount: 8,
