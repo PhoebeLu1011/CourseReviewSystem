@@ -1,106 +1,86 @@
-from flask import Flask, jsonify, request
+from flask import Flask
 from flask_cors import CORS
-from db.mongo import db
+from pymongo import MongoClient
 
-# ====================== Repositories ======================
-from repository.report_repository import ReportRepository
-from repository.announcement_repository import AnnouncementRepository
+from repository.group_repository import GroupRepository
+from repository.application_repository import ApplicationRepository
+from repository.notification_repository import NotificationRepository
+from repository.student_repository import StudentRepository
+from repository.badge_repository import BadgeRepository
 from repository.review_repository import ReviewRepository
+from repository.course_repository import CourseRepository
+from repository.discussion_repository import DiscussionRepository
+from repository.reply_repository import ReplyRepository
 
-# ====================== Services ======================
-from services.admin_service import AdminService
-from services.announcement_service import AnnouncementService
+from services.application_service import ApplicationService
+from services.notification_service import NotificationService
+from services.group_recommendation_service import GroupRecommendationService
+from services.achievement_service import AchievementService
+from services.course_service import CourseService 
+from services.review_service import ReviewService
+from services.discussion_service import DiscussionService
 
-app = Flask(__name__)
-CORS(app)  # 允許 React 前端跨域請求
 
-# ====================== 初始化 ======================
-report_repo = ReportRepository(db)
-announcement_repo = AnnouncementRepository(db)
-review_repo = ReviewRepository(db)
+from routes.application_routes import create_application_routes
+from routes.group_routes import create_group_routes
+from routes.notification_routes import create_notification_routes
+from routes.achievement_routes import create_achievement_routes
+from routes.review_routes import create_review_routes
+from routes.course_routes import create_course_routes
+from routes.discussion_routes import create_discussion_routes
 
-admin_service = AdminService(report_repo, review_repo)
-announcement_service = AnnouncementService(announcement_repo)
+def create_app():
+    app = Flask(__name__)
+    CORS(app)
 
-# ====================== UC9：管理員審核檢舉 ======================
-@app.route('/admin/reports', methods=['GET'])
-def get_reports():
-    """取得所有待處理的檢舉案件"""
-    try:
-        reports = admin_service.get_report_queue()
-        return jsonify([report.to_dict() for report in reports]), 200
-    except Exception as e:
-        return jsonify({"error": "取得檢舉案件失敗", "message": str(e)}), 500
+    client = MongoClient("mongodb://localhost:27017/")
+    db = client["course_system"]
 
-@app.route('/admin/reports/<report_id>/resolve', methods=['POST'])
-def resolve_report(report_id):
-    """管理員處理檢舉案件"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "缺少請求資料"}), 400
+    group_repo = GroupRepository(db)
+    application_repo = ApplicationRepository(db)
+    notification_repo = NotificationRepository(db)
+    student_repo = StudentRepository(db)
+    badge_repo = BadgeRepository(db)
+    review_repo = ReviewRepository(db)
+    course_repo = CourseRepository(db) 
+    discussion_repo = DiscussionRepository(db)
+    reply_repo = ReplyRepository(db)
+    
 
-        decision = data.get('decision')          # "DELETE_REVIEW", "HIDE_REVIEW", "DISMISS_REPORT"
-        handler_id = data.get('handler_id')
-        resolution = data.get('resolution')
+    notification_service = NotificationService(notification_repo)
+    achievement_service = AchievementService(badge_repo)
+    review_service = ReviewService(review_repo, student_repo)
+    course_service = CourseService(course_repo)
 
-        if not decision or not handler_id:
-            return jsonify({"error": "缺少 decision 或 handler_id"}), 400
+    discussion_service = DiscussionService(
+        discussion_repo=discussion_repo,
+        reply_repo=reply_repo,
+        student_repo=student_repo,
+        course_service=course_service
+    )
 
-        report = admin_service.process_report(report_id, decision, handler_id, resolution)
-        return jsonify({
-            "message": "檢舉處理成功",
-            "report": report.to_dict()
-        }), 200
 
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        return jsonify({"error": "處理檢舉失敗", "message": str(e)}), 500
+    application_service = ApplicationService(
+        application_repo=application_repo,
+        group_repo=group_repo,
+        student_repo=student_repo,
+        notification_service=notification_service,
+        achievement_service=achievement_service,
+    )
 
-# ====================== UC10：管理員發佈公告 ======================
-@app.route('/admin/announcements', methods=['GET'])
-def get_announcements():
-    """取得所有公告"""
-    try:
-        announcements = announcement_service.get_all_announcements()
-        return jsonify([ann.to_dict() for ann in announcements]), 200
-    except Exception as e:
-        return jsonify({"error": "取得公告失敗", "message": str(e)}), 500
+    group_recommendation_service = GroupRecommendationService(group_repo)
 
-@app.route('/admin/announcements', methods=['POST'])
-def create_announcement():
-    """發佈新公告"""
-    try:
-        data = request.get_json()
-        if not data or not data.get('title') or not data.get('content'):
-            return jsonify({"error": "標題與內容為必填"}), 400
+    app.register_blueprint(create_application_routes(application_service))
+    app.register_blueprint(create_group_routes(group_recommendation_service))
+    app.register_blueprint(create_notification_routes(notification_service))
+    app.register_blueprint(create_achievement_routes(achievement_service, student_repo))
+    app.register_blueprint(create_review_routes(review_service))
+    app.register_blueprint(create_course_routes(course_service)) 
+    app.register_blueprint(create_discussion_routes(discussion_service))
 
-        announcement = announcement_service.create_announcement(
-            title=data['title'],
-            content=data['content'],
-            tags=data.get('tags'),
-            target=data.get('target', 'all'),
-            is_pinned=data.get('is_pinned', False),
-            scheduled_at=data.get('scheduled_at'),
-            created_by=data.get('created_by')
-        )
-        return jsonify({
-            "message": "公告發布成功",
-            "announcement": announcement.to_dict()
-        }), 201
+    return app
 
-    except Exception as e:
-        return jsonify({"error": "發布公告失敗", "message": str(e)}), 500
 
-# ====================== 測試路由 ======================
-@app.route('/')
-def home():
-    return jsonify({
-        "message": "CourseReviewSystem Backend 運行中！",
-        "status": "OK",
-        "admin_api": "UC9 & UC10 已就緒"
-    })
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+if __name__ == "__main__":
+    app = create_app()
+    app.run(debug=True)

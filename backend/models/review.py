@@ -8,8 +8,8 @@ class Review:
         self.authorID = authorID
         self.courseID = courseID # Don't forget to link the course!
         self.content = content
-        self.sweetnessScore = sweetnessScore
-        self.workloadScore = workloadScore
+        self.sweetnessScore = max(1, min(5, sweetnessScore))  # Ensure score is between 1 and 5
+        self.workloadScore = max(1, min(5, workloadScore))  # Ensure score is between 1 and 5
         self.visibilityState = visibilityState
         self.reportCount = reportCount
         self.timestamp = datetime.now()

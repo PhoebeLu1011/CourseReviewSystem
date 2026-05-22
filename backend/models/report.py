@@ -1,5 +1,16 @@
 import uuid
 from datetime import datetime
+from enum import Enum
+
+
+class ReportReason(Enum):
+    SPAM = "SPAM"
+    HARASSMENT = "HARASSMENT"
+    OFFENSIVE_CONTENT = "OFFENSIVE_CONTENT"
+    FALSE_INFORMATION = "FALSE_INFORMATION"
+    INAPPROPRIATE_LANGUAGE = "INAPPROPRIATE_LANGUAGE"
+    OTHER = "OTHER"
+
 
 class Report:
     def __init__(

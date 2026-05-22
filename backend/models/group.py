@@ -25,8 +25,6 @@ class Group:
         self.status = status
         self.recruitment_deadline = recruitment_deadline
         self.description = description
-        # [discussion] tags are used for recommendation score calculation 
-        # or are free-form labels set by the leader (used as bonus criteria in recommendation scoring, not the primary match factor)
         self.tags = tags or []
         self.members = self._normalize_members(leader_id, members)
 
