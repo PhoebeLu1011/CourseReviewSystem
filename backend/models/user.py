@@ -1,7 +1,9 @@
 from models.review import Review
 from models.report import Report
+
 class User:
-    def __init__(self, id, name, email, profilePicURL, role):
+    # 💡 把 profilePicURL 放後面，並給予預設值 None
+    def __init__(self, id, name, email, role, profilePicURL=None):
         self.id = id
         self.name = name
         self.email = email
@@ -24,18 +26,20 @@ class Student(User):
         id,
         name,
         email,
-        profilePicURL,
-        department,
-        studentID,
+        password,       # 💡 把必填的 password 往前挪
+        department,     # 💡 必填
+        studentID,      # 💡 必填
+        profilePicURL=None, # 💡 選填放後面，給預設值
         reviewCount=0,
         replyCount=0,
         applyCount=0,
         role="student"
-
     ):
-        super().__init__(id, name, email, profilePicURL, role)
+        # 💡 呼叫父類別時，對應調整順序
+        super().__init__(id=id, name=name, email=email, role=role, profilePicURL=profilePicURL)
         self.department = department
         self.studentID = studentID
+        self.password = password
         self.reviewCount = reviewCount
         self.replyCount = replyCount
         self.applyCount = applyCount
@@ -46,6 +50,7 @@ class Student(User):
             "department": self.department,
             "studentID": self.studentID,
             "reviewCount": self.reviewCount,
+            "password": self.password,
             "replyCount": self.replyCount,
             "applyCount": self.applyCount
         })
@@ -71,5 +76,5 @@ class Student(User):
         return new_report
 
 class Admin(User):
-    def __init__(self, id, name, email, profilePicURL, role="admin"):
-        super().__init__(id, name, email, profilePicURL, role)
+    def __init__(self, id, name, email, role="admin", profilePicURL=None):
+        super().__init__(id=id, name=name, email=email, role=role, profilePicURL=profilePicURL)
