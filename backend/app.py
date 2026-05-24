@@ -5,6 +5,9 @@ from pymongo import MongoClient
 from services.auth_service import AuthService
 from routes.auth_routes import create_auth_routes
 
+from services.user_service import UserService       
+from routes.user_routes import create_user_routes
+
 from repository.group_repository import GroupRepository
 from repository.application_repository import ApplicationRepository
 from repository.notification_repository import NotificationRepository
@@ -36,6 +39,7 @@ def create_app():
     badge_repo = BadgeRepository(db)
 
     auth_service = AuthService(student_repo)
+    user_service = UserService(student_repo)
 
     notification_service = NotificationService(notification_repo)
     achievement_service = AchievementService(badge_repo)
@@ -55,6 +59,7 @@ def create_app():
     app.register_blueprint(create_notification_routes(notification_service))
     app.register_blueprint(create_achievement_routes(achievement_service, student_repo))
     app.register_blueprint(create_auth_routes(auth_service), url_prefix='/api/auth')
+    app.register_blueprint(create_user_routes(user_service), url_prefix='/api/user')
     
     return app
 

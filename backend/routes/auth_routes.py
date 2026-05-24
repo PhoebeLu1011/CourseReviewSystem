@@ -18,13 +18,8 @@ def create_auth_routes(auth_service: AuthService):
         result = auth_service.login_student(email)
         return jsonify(result)
 
-    @auth_bp.route('/profile/<student_id>', methods=['GET'])
-    def get_profile(student_id):
-        result = auth_service.get_profile(student_id)
-        return jsonify(result)
-
     @auth_bp.route('/test', methods=['GET'])
     def test_route():
         return jsonify({"message": "恭喜你！Auth 路由完美連通了！"})
 
-    return auth_bp  
+    return auth_bp

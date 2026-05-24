@@ -6,18 +6,15 @@ class AuthService:
         self.student_repo = student_repo
 
     def register_student(self, student_data: dict):
-        """ Use Case 1: 學生註冊 """
-        # 1. 檢查這個 Email 是不是已經被註冊過了
+        """ Use Case: 學生註冊 """
         existing_student = self.student_repo.find_by_email(student_data.get("email"))
         if existing_student:
             return {"success": False, "message": "該 Email 已被註冊"}
 
-        # 2. 檢查學號是不是重複了
         existing_id = self.student_repo.find_by_id(student_data.get("studentID"))
         if existing_id:
             return {"success": False, "message": "該學號已被註冊"}
 
-        # 3. 呼叫組員的 Student Model 建立新物件
         new_student = Student(
             id=None,
             name=student_data.get("name"),
@@ -27,7 +24,6 @@ class AuthService:
             studentID=student_data.get("studentID")
         )
 
-        # 4. 寫入資料庫
         try:
             self.student_repo.save(new_student)
             return {"success": True, "message": "註冊成功！"}
@@ -44,13 +40,5 @@ class AuthService:
         return {
             "success": True, 
             "message": "登入成功", 
-            "student": student.to_dict() # 轉成字典傳給前端
+            "student": student.to_dict() 
         }
-
-    def get_profile(self, student_id: str):
-        """ Use Case 3: 帳號管理（讀取個人資料） """
-        student = self.student_repo.find_by_id(student_id)
-        if not student:
-            return {"success": False, "message": "找不到該學生資料"}
-        
-        return {"success": True, "data": student.to_dict()}
