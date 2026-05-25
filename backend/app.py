@@ -29,9 +29,6 @@ def create_app():
     app = Flask(__name__)
     CORS(app)
 
-    client = MongoClient("mongodb+srv://waynebadu_db_user:yjes101019@course01.oij95kr.mongodb.net/")
-    db = client["Course"]
-    
     group_repo = GroupRepository(db)
     application_repo = ApplicationRepository(db)
     notification_repo = NotificationRepository(db)
