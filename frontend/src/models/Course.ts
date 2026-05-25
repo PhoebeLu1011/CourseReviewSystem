@@ -1,39 +1,30 @@
-import {Review} from "./Review";
-
-export class Course{
+export class Course {
     public courseID: string;
-    public courseName: string;  
-    public reviews: Review[];
+    public title: string;
+    public serialNumber: string;
+    public department: string;
+    public professors: string;
+    public timeAndLocation: string;
+    public academicYear: string;
+    public semester: string;
+    public syllabusURL: string;
     public averageSweetness: number;
     public averageWorkload: number;
-    constructor(courseID: string, courseName: string) {
-        this.courseID = courseID;
-        this.courseName = courseName;
-        this.reviews = [];
-        this.averageSweetness = 0;
-        this.averageWorkload = 0;
-    }
+    public reviewCount: number;
 
-    public addReview(review: Review): void {
-        this.reviews.push(review);
-        this.calculateAverages();
-    }
-    private calculateAverages(): void {
-        const visibleReviews = this.getVisibleReviews();
-        if (visibleReviews.length === 0) return;
-        let totalSweetness = 0;
-        let totalWorkload = 0;
-        visibleReviews.forEach(r => {
-            totalSweetness += r.sweetnessScore;
-            totalWorkload += r.workloadScore;
-        });
-
-        this.averageSweetness = totalSweetness / visibleReviews.length;
-        this.averageWorkload = totalWorkload / visibleReviews.length;
-
-
-    }
-    public getVisibleReviews(): Review[] {
-        return this.reviews.filter(r => r.isVisible());
+    constructor(data: any) {
+        this.courseID = data.courseID;
+        this.title = data.title;
+        this.serialNumber = data.serialNumber;
+        this.department = data.department;
+        this.professors = data.professors;
+        this.timeAndLocation = data.timeAndLocation;
+        this.academicYear = data.academicYear;
+        this.semester = data.semester;
+        this.syllabusURL = data.syllabusURL || "";
+        
+        this.averageSweetness = Number(data.averageSweetness) || 0.0;
+        this.averageWorkload = Number(data.averageWorkload) || 0.0;
+        this.reviewCount = Number(data.reviewCount) || 0;
     }
 }
