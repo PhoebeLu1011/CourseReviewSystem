@@ -11,4 +11,5 @@ pymongo==4.16.0
 python-dotenv==1.0.1
 Werkzeug==3.1.8
 bcrypt==4.2.0
-PyJWT==2.10.1   certifi
+PyJWT==2.10.1   
+certifi
