@@ -52,14 +52,19 @@ load_dotenv()
 def create_app():
     app = Flask(__name__)
 
+    # ====== CORS 設定 ======
+    # 從環境變數讀取允許的前端 URL（部署後填入 Vercel URL）
+    # 本地開發：FRONTEND_URL 不設定時預設允許 localhost:5173
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
     CORS(app, origins=[frontend_url, "http://localhost:5173"])
 
+    # ====== MongoDB 連線 ======
     mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
     db_name = os.getenv("DB_NAME", "course_system")
     client = MongoClient(mongo_uri)
     db = client[db_name]
 
+    # ====== Repositories ======
     group_repo = GroupRepository(db)
     application_repo = ApplicationRepository(db)
     notification_repo = NotificationRepository(db)
@@ -72,6 +77,7 @@ def create_app():
     report_repo = ReportRepository(db)
     announcement_repo = AnnouncementRepository(db)
 
+    # ====== Services ======
     password_service = PasswordService()
     token_service = TokenService()
 
@@ -83,8 +89,8 @@ def create_app():
     user_service = UserService(student_repo=student_repo, auth_service=auth_service)
     notification_service = NotificationService(notification_repo)
     achievement_service = AchievementService(badge_repo)
-    review_service = ReviewService(review_repo, student_repo)
     course_service = CourseService(course_repo)
+    review_service = ReviewService(review_repo, student_repo, course_service)
     discussion_service = DiscussionService(
         discussion_repo=discussion_repo,
         reply_repo=reply_repo,
