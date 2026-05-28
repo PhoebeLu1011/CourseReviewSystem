@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   BookOpen,
   Calendar,
@@ -8,36 +7,7 @@ import {
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent } from "../components/ui/card";
-
-// ─── Types ───────────────────────────────────────────────────
-interface ScheduledCourse {
-  courseID: string;
-  serialNumber: string;
-  title: string;
-  department: string;
-  credits: number;
-  professor: string;
-  schedule: string;        // e.g. "Mon, Wed, Fri • 1:00 PM - 2:15 PM"
-  location: string;
-  days: string[];          // ["Mon", "Wed", "Fri"]
-  timeSlot: string;        // "1:00 PM - 2:15 PM"
-}
-
-// ─── Mock Data ───────────────────────────────────────────────
-const initialSchedule: ScheduledCourse[] = [
-  {
-    courseID: "MATH201",
-    serialNumber: "MATH 201",
-    title: "Calculus II",
-    department: "Mathematics",
-    credits: 4,
-    professor: "Dr. Emily Rodriguez",
-    schedule: "Mon, Wed, Fri • 1:00 PM - 2:15 PM",
-    location: "Science Hall, Room 150",
-    days: ["Mon", "Wed", "Fri"],
-    timeSlot: "1:00 PM - 2:15 PM",
-  },
-];
+import { useSchedule } from "../context/ScheduleContext";
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
@@ -63,13 +33,11 @@ function CreditBadge({ total }: { total: number }) {
 
 // ─── Main Component ───────────────────────────────────────────
 export default function Schedule() {
-  const [scheduled, setScheduled] = useState<ScheduledCourse[]>(initialSchedule);
+  const { scheduled, removeFromSchedule } = useSchedule();
 
   const totalCredits = scheduled.reduce((s, c) => s + c.credits, 0);
 
-  const removeCourse = (courseID: string) => {
-    setScheduled((prev) => prev.filter((c) => c.courseID !== courseID));
-  };
+  const removeCourse = (courseID: string) => removeFromSchedule(courseID);
 
   const creditNotice = () => {
     if (totalCredits === 0) return "You haven't added any courses yet.";

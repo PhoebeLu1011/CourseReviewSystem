@@ -18,6 +18,7 @@ import { Input } from "../components/ui/input";
 import { Card, CardContent } from "../components/ui/card";
 import { useAuth } from "../context/AuthContext";
 import { addBookmark, removeBookmark, isBookmarked } from "../api/bookmarkApi";
+import { useSchedule, parseSchedule } from "../context/ScheduleContext";
 
 // ─── Mock Data ───────────────────────────────────────────────
 interface MockCourse {
@@ -172,6 +173,7 @@ function StarRating({ rating }: { rating: number }) {
 
 export default function CourseCatalog() {
   const { user } = useAuth();
+  const { addToSchedule, isScheduled } = useSchedule();
 
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("All Departments");
@@ -430,9 +432,34 @@ export default function CourseCatalog() {
                       )}
 
                       {/* Add to Schedule */}
-                      <div className="pt-1" onClick={(e) => e.preventDefault()}>
-                        <Button className="w-full font-semibold" size="sm">
-                          Add to Schedule
+                      <div
+                        className="pt-1"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const { days, timeSlot } = parseSchedule(course.schedule);
+                          addToSchedule({
+                            courseID: course.courseID,
+                            serialNumber: course.serialNumber,
+                            title: course.title,
+                            department: course.department,
+                            credits: course.credits,
+                            professor: course.professor,
+                            schedule: course.schedule,
+                            location: course.location,
+                            days,
+                            timeSlot,
+                          });
+                        }}
+                      >
+                        <Button
+                          className={`w-full font-semibold transition-colors ${
+                            isScheduled(course.courseID)
+                              ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+                              : ""
+                          }`}
+                          size="sm"
+                        >
+                          {isScheduled(course.courseID) ? "✓ Added to Schedule" : "Add to Schedule"}
                         </Button>
                       </div>
                     </CardContent>

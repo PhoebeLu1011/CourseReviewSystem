@@ -21,6 +21,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { useAuth } from "../context/AuthContext";
 import { addBookmark, removeBookmark, isBookmarked } from "../api/bookmarkApi";
+import { useSchedule, parseSchedule } from "../context/ScheduleContext";
 
 // ─── Types ───────────────────────────────────────────────────
 interface CourseDetail {
@@ -601,6 +602,7 @@ function DiscussionsTab({ discussions, courseID }: { discussions: Discussion[]; 
 export default function CourseDetail() {
   const { courseID } = useParams<{ courseID: string }>();
   const { user } = useAuth();
+  const { addToSchedule, isScheduled } = useSchedule();
 
   const [isSaved, setIsSaved] = useState(false);
   const [loadingSave, setLoadingSave] = useState(false);
@@ -688,7 +690,31 @@ export default function CourseDetail() {
           >
             {isSaved ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
           </button>
-          <Button className="font-semibold">Add to Schedule</Button>
+          <Button
+            className={`font-semibold transition-colors ${
+              course && isScheduled(course.courseID)
+                ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+                : ""
+            }`}
+            onClick={() => {
+              if (!course) return;
+              const { days, timeSlot } = parseSchedule(`${course.schedule} • 9:00 AM - 10:15 AM`);
+              addToSchedule({
+                courseID: course.courseID,
+                serialNumber: course.serialNumber,
+                title: course.title,
+                department: course.department,
+                credits: course.credits,
+                professor: course.professor,
+                schedule: course.schedule,
+                location: course.location,
+                days,
+                timeSlot,
+              });
+            }}
+          >
+            {course && isScheduled(course.courseID) ? "✓ Added" : "Add to Schedule"}
+          </Button>
         </div>
       </div>
 
