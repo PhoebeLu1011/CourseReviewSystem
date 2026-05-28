@@ -1,6 +1,5 @@
 from repository.report_repository import ReportRepository
 from repository.review_repository import ReviewRepository
-from datetime import datetime
 
 
 class AdminService:
@@ -30,7 +29,9 @@ class AdminService:
             self.report_repo.update_status(report_id, "RESOLVED", handler_id, "deleted")
 
         elif decision == "HIDE_REVIEW":
-            self.review_repo.reset_visibility(report.reviewID)
+            # 修正：原本錯誤呼叫 reset_visibility（解除隱藏），
+            # 現在改為呼叫 hide_review（真正隱藏）
+            self.review_repo.hide_review(report.reviewID)
             self.report_repo.update_status(report_id, "RESOLVED", handler_id, "hidden")
 
         elif decision == "DISMISS_REPORT":
