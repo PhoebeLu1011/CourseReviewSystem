@@ -286,7 +286,7 @@ export default function CourseCatalog() {
                 to={`/courses/${course.courseID}`}
                 className="block group"
               >
-                <Card className="overflow-hidden shadow-sm transition-all group-hover:shadow-md group-hover:border-primary/30">
+                <Card className="overflow-hidden rounded-2xl border-slate-100 bg-white shadow-sm transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-slate-200">
                   <CardContent className="p-6 space-y-4">
                     {/* Top */}
                     <div className="flex items-start justify-between gap-3">
