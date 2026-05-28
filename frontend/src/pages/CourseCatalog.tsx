@@ -208,7 +208,7 @@ export default function CourseCatalog() {
       </div>
 
       {/* Search + Filters */}
-      <Card className="shadow-sm">
+      <Card className="border-slate-100 shadow-sm">
         <CardContent className="p-6 space-y-5">
           <div className="relative">
             <Search
@@ -216,7 +216,7 @@ export default function CourseCatalog() {
               size={18}
             />
             <Input
-              className="pl-10 h-11 text-base"
+              className="pl-10 h-11 text-base border-slate-100"
               placeholder="Search by course name, code, instructor, or keywords..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -247,7 +247,7 @@ export default function CourseCatalog() {
                   </label>
                   <div className="relative">
                     <select
-                      className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 py-2.5 pr-9 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      className="w-full appearance-none rounded-lg border border-slate-100 bg-white px-4 py-2.5 pr-9 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-slate-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       value={filter.value}
                       onChange={(e) => filter.setter(e.target.value as any)}
                     >
@@ -276,13 +276,13 @@ export default function CourseCatalog() {
           No courses match your search.
         </div>
       ) : (
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="md:columns-2 gap-5">
           {filtered.map((course) => {
             const spots = course.capacity - course.enrolled;
             const isAlmostFull = spots <= 10;
             return (
+              <div key={course.courseID} className="break-inside-avoid mb-5">
               <Link
-                key={course.courseID}
                 to={`/courses/${course.courseID}`}
                 className="block group"
               >
@@ -362,6 +362,7 @@ export default function CourseCatalog() {
                   </CardContent>
                 </Card>
               </Link>
+              </div>
             );
           })}
         </div>
