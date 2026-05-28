@@ -14,6 +14,8 @@ import {
   PenLine,
   Bookmark,
   BookmarkCheck,
+  Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -21,32 +23,16 @@ import { Card, CardContent } from "../components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { useAuth } from "../context/AuthContext";
 import { addBookmark, removeBookmark, isBookmarked } from "../api/bookmarkApi";
-import { useSchedule, parseSchedule } from "../context/ScheduleContext";
+import { useSchedule } from "../context/ScheduleContext";
+import { getCourse, parseNTNUSchedule, type Course as APICourse } from "../api/courseApi";
 
-// ─── Types ───────────────────────────────────────────────────
-interface CourseDetail {
-  courseID: string;
-  serialNumber: string;
-  title: string;
-  department: string;
-  level: string;
-  credits: number;
-  professor: string;
-  schedule: string;
-  location: string;
-  enrolled: number;
-  capacity: number;
-  rating: number;
-  reviewCount: number;
-  description: string;
-  genEd: string[];
-  prerequisites: string[];
-  // Syllabus
-  overview: string;
-  learningObjectives: string[];
-  topics: string[];
-  gradingPolicy: { label: string; pct: number }[];
-  textbooks: string[];
+// Re-use the API Course type; add parsed convenience fields
+interface CourseView extends APICourse {
+  professor: string;   // professors joined
+  schedule: string;    // English-style schedule
+  location: string;    // location string
+  days: string[];
+  timeSlot: string;
 }
 
 interface Review {
@@ -74,59 +60,7 @@ interface Discussion {
   latestReply: { author: string; date: string; content: string } | null;
 }
 
-// ─── Mock Data ───────────────────────────────────────────────
-const mockCourseDetails: Record<string, CourseDetail> = {
-  CS101: {
-    courseID: "CS101",
-    serialNumber: "CS 101",
-    title: "Introduction to Computer Science",
-    department: "Computer Science",
-    level: "Undergraduate",
-    credits: 4,
-    professor: "Dr. Sarah Johnson",
-    schedule: "Mon, Wed, Fri",
-    location: "Engineering Building, Room 201",
-    enrolled: 98,
-    capacity: 120,
-    rating: 4.5,
-    reviewCount: 127,
-    description:
-      "An introduction to the intellectual enterprises of computer science and the art of programming. Topics include abstraction, algorithms, data structures, and software engineering.",
-    genEd: ["Quantitative Reasoning"],
-    prerequisites: [],
-    overview:
-      "This course provides a comprehensive introduction to computer science and programming. Students will learn fundamental concepts including problem-solving, abstraction, algorithms, and data structures through hands-on coding projects.",
-    learningObjectives: [
-      "Understand fundamental programming concepts and constructs",
-      "Design and implement algorithms to solve computational problems",
-      "Apply abstraction and decomposition to manage complexity",
-      "Develop debugging and testing strategies",
-      "Collaborate effectively on software projects",
-    ],
-    topics: [
-      "Introduction to Programming and Python",
-      "Variables, Data Types, and Operators",
-      "Control Flow and Conditionals",
-      "Functions and Modular Design",
-      "Data Structures: Lists, Dictionaries, Sets",
-      "Object-Oriented Programming Basics",
-      "File I/O and Exception Handling",
-      "Algorithm Analysis and Complexity",
-      "Recursion",
-      "Final Project Development",
-    ],
-    gradingPolicy: [
-      { label: "Assignments", pct: 40 },
-      { label: "Midterm Exam", pct: 20 },
-      { label: "Final Exam", pct: 30 },
-      { label: "Participation", pct: 10 },
-    ],
-    textbooks: [
-      "Introduction to Python Programming by John Zelle",
-      "Think Python: How to Think Like a Computer Scientist by Allen Downey",
-    ],
-  },
-};
+// No more mock course data — loaded from API
 
 const mockReviews: Record<string, Review[]> = {
   CS101: [
@@ -244,141 +178,108 @@ function ProgressBar({ pct, color = "bg-primary" }: { pct: number; color?: strin
 }
 
 // ─── Overview Tab ─────────────────────────────────────────────
-function OverviewTab({ course }: { course: CourseDetail }) {
-  const spots = course.capacity - course.enrolled;
-  const enrollPct = Math.round((course.enrolled / course.capacity) * 100);
+function OverviewTab({ course }: { course: CourseView }) {
   return (
     <Card className="border-slate-100 shadow-sm">
       <CardContent className="p-6 space-y-6">
-        <div>
-          <h3 className="text-base font-bold text-slate-800 mb-2">Course Information</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">{course.description}</p>
-        </div>
-
-        <div className="grid gap-6 sm:grid-cols-2 border-t border-slate-100 pt-6">
+        <div className="grid gap-6 sm:grid-cols-2">
           <div className="space-y-1">
             <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
-              <BookOpen size={15} /> Instructor
+              <BookOpen size={15} /> 授課教師
             </div>
-            <p className="text-sm text-muted-foreground pl-5">{course.professor}</p>
+            <p className="text-sm text-muted-foreground pl-5">
+              {course.professor || "未知"}
+            </p>
           </div>
 
           <div className="space-y-1">
             <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
-              <Calendar size={15} /> Schedule
+              <Calendar size={15} /> 上課時間
             </div>
-            <p className="text-sm text-muted-foreground pl-5">{course.schedule}</p>
-            <p className="text-sm text-muted-foreground pl-5">9:00 AM - 10:15 AM</p>
+            <p className="text-sm text-muted-foreground pl-5">{course.timeAndLocation}</p>
+            <p className="text-sm text-muted-foreground pl-5 text-xs">
+              {course.schedule}
+            </p>
           </div>
 
           <div className="space-y-1">
             <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
-              <MapPin size={15} /> Location
+              <MapPin size={15} /> 上課地點
             </div>
             <p className="text-sm text-muted-foreground pl-5">{course.location}</p>
           </div>
 
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
-              <Users size={15} /> Enrollment
+          {course.capacity > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
+                <Users size={15} /> 課程名額
+              </div>
+              <p className="text-sm text-muted-foreground pl-5">{course.capacity} 人</p>
             </div>
-            <p className="text-sm text-muted-foreground pl-5">
-              {course.enrolled} / {course.capacity} students ({spots} spots left)
-            </p>
-            <div className="pl-5 w-48">
-              <ProgressBar pct={enrollPct} />
-            </div>
-          </div>
+          )}
         </div>
 
-        {course.genEd.length > 0 && (
-          <div className="border-t border-slate-100 pt-5">
-            <h3 className="text-base font-bold text-slate-800 mb-3">
-              General Education Requirements
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {course.genEd.map((g) => (
-                <Badge key={g} variant="outline" className="text-sm">
-                  {g}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
+        <div className="border-t border-slate-100 pt-5 flex flex-wrap gap-4 text-sm text-muted-foreground">
+          <span>學年：{course.academicYear}</span>
+          <span>學期：{course.semester === "1" ? "第一學期" : "第二學期"}</span>
+          <span>開課序號：{course.serialNumber}</span>
+        </div>
       </CardContent>
     </Card>
   );
 }
 
 // ─── Syllabus Tab ─────────────────────────────────────────────
-function SyllabusTab({ course }: { course: CourseDetail }) {
+function SyllabusTab({ course }: { course: CourseView }) {
   return (
     <div className="space-y-5">
       <Card className="border-slate-100 shadow-sm">
-        <CardContent className="p-6">
-          <h3 className="text-base font-bold text-slate-800 mb-3">Course Overview</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">{course.overview}</p>
+        <CardContent className="p-6 space-y-4">
+          <h3 className="text-base font-bold text-slate-800">官方課程大綱</h3>
+          <p className="text-sm text-muted-foreground">
+            詳細課程大綱、評分標準、指定教材等資訊請參閱師大官方選課系統。
+          </p>
+          {course.syllabusURL ? (
+            <a
+              href={course.syllabusURL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10 transition-colors"
+            >
+              <ExternalLink size={15} />
+              前往課程大綱頁面
+            </a>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">此課程無大綱連結。</p>
+          )}
         </CardContent>
       </Card>
 
       <Card className="border-slate-100 shadow-sm">
-        <CardContent className="p-6">
-          <h3 className="text-base font-bold text-slate-800 mb-4">Learning Objectives</h3>
+        <CardContent className="p-6 space-y-3">
+          <h3 className="text-base font-bold text-slate-800">授課資訊</h3>
           <ul className="space-y-2">
-            {course.learningObjectives.map((obj, i) => (
-              <li key={i} className="flex items-start gap-3 text-sm text-muted-foreground">
-                <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-primary" />
-                {obj}
+            <li className="flex items-start gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
+              <span>授課教師：{course.professor || "未知"}</span>
+            </li>
+            <li className="flex items-start gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
+              <span>上課時間：{course.timeAndLocation}</span>
+            </li>
+            <li className="flex items-start gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
+              <span>開課系所：{course.department}</span>
+            </li>
+            {course.capacity > 0 && (
+              <li className="flex items-start gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
+                <span>課程名額：{course.capacity} 人</span>
               </li>
-            ))}
+            )}
           </ul>
         </CardContent>
       </Card>
-
-      <Card className="border-slate-100 shadow-sm">
-        <CardContent className="p-6">
-          <h3 className="text-base font-bold text-slate-800 mb-4">Course Topics</h3>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {course.topics.map((topic, i) => (
-              <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                <span className="shrink-0 font-semibold text-slate-500 w-5">{i + 1}</span>
-                {topic}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Card className="border-slate-100 shadow-sm">
-          <CardContent className="p-6 space-y-4">
-            <h3 className="text-base font-bold text-slate-800">Grading Policy</h3>
-            {course.gradingPolicy.map((item) => (
-              <div key={item.label} className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{item.label}</span>
-                  <span className="font-bold text-slate-800">{item.pct}%</span>
-                </div>
-                <ProgressBar pct={item.pct} />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-100 shadow-sm">
-          <CardContent className="p-6 space-y-3">
-            <h3 className="text-base font-bold text-slate-800">Required Textbooks</h3>
-            <ul className="space-y-2">
-              {course.textbooks.map((book, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <BookOpen size={14} className="mt-0.5 shrink-0 text-primary" />
-                  {book}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
@@ -604,13 +505,40 @@ export default function CourseDetail() {
   const { user } = useAuth();
   const { addToSchedule, isScheduled } = useSchedule();
 
+  const [course, setCourse] = useState<CourseView | null>(null);
+  const [loadingCourse, setLoadingCourse] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
   const [isSaved, setIsSaved] = useState(false);
   const [loadingSave, setLoadingSave] = useState(false);
 
-  const course = courseID ? mockCourseDetails[courseID] : null;
+  // Keep using mock reviews / discussions until those features are wired to backend
   const reviews = courseID ? (mockReviews[courseID] ?? []) : [];
   const discussions = courseID ? (mockDiscussions[courseID] ?? []) : [];
 
+  // ─── Load real course from API ────────────────────────────
+  useEffect(() => {
+    if (!courseID) return;
+    setLoadingCourse(true);
+    setNotFound(false);
+
+    getCourse(courseID)
+      .then((data) => {
+        const parsed = parseNTNUSchedule(data.timeAndLocation);
+        setCourse({
+          ...data,
+          professor: data.professors.join("、"),
+          schedule: parsed.schedule,
+          location: parsed.location,
+          days: parsed.days,
+          timeSlot: parsed.timeSlot,
+        });
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoadingCourse(false));
+  }, [courseID]);
+
+  // ─── Bookmark state ───────────────────────────────────────
   useEffect(() => {
     if (!user || !courseID) return;
     isBookmarked(user.id, courseID)
@@ -636,12 +564,21 @@ export default function CourseDetail() {
     }
   };
 
-  if (!course) {
+  // ─── Loading / not-found states ───────────────────────────
+  if (loadingCourse) {
+    return (
+      <div className="py-20 flex justify-center">
+        <Loader2 size={32} className="animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (notFound || !course) {
     return (
       <div className="py-20 text-center space-y-4">
-        <p className="text-xl font-semibold text-slate-700">Course not found.</p>
+        <p className="text-xl font-semibold text-slate-700">找不到這門課程。</p>
         <Link to="/courses" className="text-primary hover:underline text-sm">
-          ← Back to Catalog
+          ← 回到課程目錄
         </Link>
       </div>
     );
@@ -654,27 +591,25 @@ export default function CourseDetail() {
         to="/courses"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ArrowLeft size={15} /> Back to Catalog
+        <ArrowLeft size={15} /> 回到課程目錄
       </Link>
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900">{course.serialNumber}</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900">{course.courseID}</h1>
           <p className="mt-1 text-lg text-muted-foreground">{course.title}</p>
           <div className="mt-3 flex items-center gap-2 flex-wrap">
-            <Badge className="bg-primary text-primary-foreground">
-              {course.credits} Credits
-            </Badge>
-            <Badge variant="outline">{course.level}</Badge>
             <Badge variant="outline">{course.department}</Badge>
-            <span className="flex items-center gap-1 text-sm font-semibold text-amber-500">
-              <Star size={14} className="fill-amber-400 text-amber-400" />
-              {course.rating.toFixed(1)}
-              <span className="font-normal text-muted-foreground">
-                ({reviews.length} reviews)
+            {course.reviewCount > 0 && (
+              <span className="flex items-center gap-1 text-sm font-semibold text-amber-500">
+                <Star size={14} className="fill-amber-400 text-amber-400" />
+                {course.averageSweetness.toFixed(1)}
+                <span className="font-normal text-muted-foreground">
+                  ({course.reviewCount} 則評論)
+                </span>
               </span>
-            </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -692,28 +627,26 @@ export default function CourseDetail() {
           </button>
           <Button
             className={`font-semibold transition-colors ${
-              course && isScheduled(course.courseID)
+              isScheduled(course.courseID)
                 ? "bg-emerald-500 hover:bg-emerald-600 text-white"
                 : ""
             }`}
             onClick={() => {
-              if (!course) return;
-              const { days, timeSlot } = parseSchedule(`${course.schedule} • 9:00 AM - 10:15 AM`);
               addToSchedule({
                 courseID: course.courseID,
-                serialNumber: course.serialNumber,
+                serialNumber: course.courseID,
                 title: course.title,
                 department: course.department,
                 credits: course.credits,
                 professor: course.professor,
                 schedule: course.schedule,
                 location: course.location,
-                days,
-                timeSlot,
+                days: course.days,
+                timeSlot: course.timeSlot,
               });
             }}
           >
-            {course && isScheduled(course.courseID) ? "✓ Added" : "Add to Schedule"}
+            {isScheduled(course.courseID) ? "✓ 已加入課表" : "加入課表"}
           </Button>
         </div>
       </div>
@@ -722,16 +655,16 @@ export default function CourseDetail() {
       <Tabs defaultValue="overview">
         <TabsList className="w-full rounded-xl bg-slate-100 p-1">
           <TabsTrigger value="overview" className="flex-1 rounded-lg">
-            Overview
+            課程資訊
           </TabsTrigger>
           <TabsTrigger value="syllabus" className="flex-1 rounded-lg">
-            Syllabus
+            課程大綱
           </TabsTrigger>
           <TabsTrigger value="reviews" className="flex-1 rounded-lg">
-            Reviews{reviews.length > 0 && ` ${reviews.length}`}
+            評論{reviews.length > 0 && ` (${reviews.length})`}
           </TabsTrigger>
           <TabsTrigger value="discussions" className="flex-1 rounded-lg">
-            Discussions{discussions.length > 0 && ` ${discussions.length}`}
+            討論{discussions.length > 0 && ` (${discussions.length})`}
           </TabsTrigger>
         </TabsList>
 

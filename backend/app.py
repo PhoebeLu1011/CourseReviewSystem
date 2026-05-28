@@ -53,7 +53,12 @@ def create_app():
     app = Flask(__name__)
 
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    CORS(app, origins=[frontend_url, "http://localhost:5173"])
+    CORS(app, origins=[
+        frontend_url,
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+    ])
 
     mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
     db_name = os.getenv("DB_NAME", "course_system")
@@ -83,8 +88,8 @@ def create_app():
     user_service = UserService(student_repo=student_repo, auth_service=auth_service)
     notification_service = NotificationService(notification_repo)
     achievement_service = AchievementService(badge_repo)
-    review_service = ReviewService(review_repo, student_repo)
     course_service = CourseService(course_repo)
+    review_service = ReviewService(review_repo, student_repo, course_service)
     discussion_service = DiscussionService(
         discussion_repo=discussion_repo,
         reply_repo=reply_repo,

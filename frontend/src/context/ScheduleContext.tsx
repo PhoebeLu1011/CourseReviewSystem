@@ -22,7 +22,8 @@ interface ScheduleContextType {
 
 const ScheduleContext = createContext<ScheduleContextType | null>(null);
 
-// 解析 "Mon, Wed, Fri • 1:00 PM - 2:15 PM" → { days, timeSlot }
+// 解析 "Mon, Wed, Fri • 13:10–16:00" → { days, timeSlot }
+// Also accepts raw NTNU format "一 6-8 校外 教室自排" by delegating to parseNTNUSchedule
 export function parseSchedule(scheduleStr: string): { days: string[]; timeSlot: string } {
   const parts = scheduleStr.split(" • ");
   if (parts.length < 2) return { days: [], timeSlot: scheduleStr };
