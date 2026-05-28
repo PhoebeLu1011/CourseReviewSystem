@@ -1,238 +1,398 @@
-import { useState, useEffect } from "react";
-import { Bookmark, BookmarkCheck, Flag, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Link } from "react-router";
+import {
+  Search,
+  BookOpen,
+  Calendar,
+  MapPin,
+  Users,
+  Star,
+  ChevronRight,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
 import { Card, CardContent } from "../components/ui/card";
-import { useAuth } from "../context/AuthContext";
-import { addBookmark, removeBookmark, isBookmarked } from "../api/bookmarkApi";
-import { submitReport } from "../api/reportApi";
-import type { ReportReason } from "../models/Report";
 
-const mockCourses = [
+// ─── Mock Data ───────────────────────────────────────────────
+interface MockCourse {
+  courseID: string;
+  serialNumber: string;
+  title: string;
+  department: string;
+  level: "Undergraduate" | "Graduate";
+  credits: number;
+  professor: string;
+  schedule: string;
+  location: string;
+  enrolled: number;
+  capacity: number;
+  rating: number;
+  reviewCount: number;
+  description: string;
+  genEd: string[];
+  prerequisites: string[];
+}
+
+const mockCourses: MockCourse[] = [
   {
     courseID: "CS101",
-    courseName: "Introduction to Computer Science",
+    serialNumber: "CS 101",
+    title: "Introduction to Computer Science",
     department: "Computer Science",
-    teacher: "Prof. Wang",
-    reviews: [
-      { reviewID: "r001", author: "Alice", content: "很棒的課程，老師解釋得很清楚！", sweetness: 4, workload: 3 },
-      { reviewID: "r002", author: "Bob", content: "作業有點多，但收穫很大。", sweetness: 3, workload: 4 },
-    ],
+    level: "Undergraduate",
+    credits: 4,
+    professor: "Dr. Sarah Johnson",
+    schedule: "Mon, Wed, Fri • 9:00 AM - 10:15 AM",
+    location: "Engineering Building, Room 201",
+    enrolled: 98,
+    capacity: 120,
+    rating: 4.5,
+    reviewCount: 127,
+    description:
+      "An introduction to the intellectual enterprises of computer science and the art of programming. Topics include abstraction, algorithms, data structures, and software engineering.",
+    genEd: ["Quantitative Reasoning"],
+    prerequisites: [],
   },
   {
-    courseID: "CE201",
-    courseName: "Engineering Mechanics",
-    department: "Civil Engineering",
-    teacher: "Prof. Lin",
-    reviews: [
-      { reviewID: "r003", author: "Carol", content: "期中考很難，建議早點準備。", sweetness: 2, workload: 5 },
-    ],
+    courseID: "CS202",
+    serialNumber: "CS 202",
+    title: "Data Structures and Algorithms",
+    department: "Computer Science",
+    level: "Undergraduate",
+    credits: 4,
+    professor: "Prof. Michael Chen",
+    schedule: "Tue, Thu • 11:00 AM - 12:30 PM",
+    location: "Engineering Building, Room 305",
+    enrolled: 75,
+    capacity: 80,
+    rating: 4.7,
+    reviewCount: 94,
+    description:
+      "Study of fundamental data structures and algorithms. Includes arrays, linked lists, trees, graphs, sorting, searching, and algorithm analysis.",
+    genEd: ["Quantitative Reasoning"],
+    prerequisites: ["CS 101"],
+  },
+  {
+    courseID: "MATH201",
+    serialNumber: "MATH 201",
+    title: "Calculus II",
+    department: "Mathematics",
+    level: "Undergraduate",
+    credits: 4,
+    professor: "Dr. Emily Rodriguez",
+    schedule: "Mon, Wed, Fri • 1:00 PM - 2:15 PM",
+    location: "Science Hall, Room 150",
+    enrolled: 85,
+    capacity: 100,
+    rating: 3.9,
+    reviewCount: 76,
+    description:
+      "Continuation of Calculus I. Topics include integration techniques, applications of integration, sequences and parametric equations.",
+    genEd: [],
+    prerequisites: ["MATH 101"],
+  },
+  {
+    courseID: "PHYS101",
+    serialNumber: "PHYS 101",
+    title: "General Physics I",
+    department: "Physics",
+    level: "Undergraduate",
+    credits: 4,
+    professor: "Prof. David Anderson",
+    schedule: "Tue, Thu • 2:00 PM - 3:30 PM",
+    location: "Physics Building, Room 101",
+    enrolled: 72,
+    capacity: 90,
+    rating: 4.1,
+    reviewCount: 68,
+    description:
+      "Introduction to classical mechanics. Topics include kinematics, dynamics, energy, and rotational motion.",
+    genEd: ["Natural Science"],
+    prerequisites: [],
+  },
+  {
+    courseID: "ENG301",
+    serialNumber: "ENG 301",
+    title: "Technical Writing",
+    department: "English",
+    level: "Undergraduate",
+    credits: 3,
+    professor: "Dr. Laura Kim",
+    schedule: "Mon, Wed • 10:00 AM - 11:30 AM",
+    location: "Humanities Building, Room 202",
+    enrolled: 30,
+    capacity: 35,
+    rating: 4.3,
+    reviewCount: 55,
+    description:
+      "Develops writing skills for technical and professional contexts. Covers reports, documentation, and presentation.",
+    genEd: ["Communication"],
+    prerequisites: [],
+  },
+  {
+    courseID: "CS350",
+    serialNumber: "CS 350",
+    title: "Software Engineering",
+    department: "Computer Science",
+    level: "Undergraduate",
+    credits: 3,
+    professor: "Prof. James Wu",
+    schedule: "Tue, Thu • 9:00 AM - 10:30 AM",
+    location: "Engineering Building, Room 410",
+    enrolled: 60,
+    capacity: 65,
+    rating: 4.6,
+    reviewCount: 88,
+    description:
+      "Principles and practices of software engineering including design patterns, testing, and agile methodology.",
+    genEd: [],
+    prerequisites: ["CS 202"],
   },
 ];
 
-const REPORT_REASONS: { value: ReportReason; label: string }[] = [
-  { value: "SPAM", label: "垃圾內容" },
-  { value: "HARASSMENT", label: "騷擾" },
-  { value: "OFFENSIVE_CONTENT", label: "不當內容" },
-  { value: "FALSE_INFORMATION", label: "錯誤資訊" },
-  { value: "INAPPROPRIATE_LANGUAGE", label: "不適當語言" },
-  { value: "OTHER", label: "其他" },
-];
+const DEPARTMENTS = ["All Departments", "Computer Science", "Mathematics", "Physics", "English"];
+const GEN_ED_CATEGORIES = ["All Categories", "Quantitative Reasoning", "Natural Science", "Communication"];
+const CREDIT_OPTIONS = ["All Credits", "3 Credits", "4 Credits"];
+const LEVEL_OPTIONS = ["All Levels", "Undergraduate", "Graduate"];
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <span className="flex items-center gap-1 text-sm font-semibold text-amber-500">
+      <Star size={14} className="fill-amber-400 text-amber-400" />
+      {rating.toFixed(1)}
+    </span>
+  );
+}
 
 export default function CourseCatalog() {
-  const { user } = useAuth();
-  const [bookmarked, setBookmarked] = useState<Record<string, boolean>>({});
-  const [loadingBookmark, setLoadingBookmark] = useState<Record<string, boolean>>({});
-  const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
+  const [query, setQuery] = useState("");
+  const [department, setDepartment] = useState("All Departments");
+  const [genEd, setGenEd] = useState("All Categories");
+  const [credits, setCredits] = useState("All Credits");
+  const [level, setLevel] = useState("All Levels");
+  const [showFilters, setShowFilters] = useState(true);
 
-  // 檢舉 modal 狀態
-  const [reportModal, setReportModal] = useState<{ open: boolean; reviewID: string }>({
-    open: false,
-    reviewID: "",
-  });
-  const [reportReason, setReportReason] = useState<ReportReason>("SPAM");
-  const [reportMsg, setReportMsg] = useState("");
-
-  useEffect(() => {
-    if (!user) return;
-    mockCourses.forEach(async (course) => {
-      try {
-        const res = await isBookmarked(user.id, course.courseID);
-        setBookmarked((prev) => ({ ...prev, [course.courseID]: res.isBookmarked }));
-      } catch {
-        // 忽略錯誤
-      }
+  const filtered = useMemo(() => {
+    return mockCourses.filter((c) => {
+      const q = query.toLowerCase();
+      const matchQuery =
+        !q ||
+        c.title.toLowerCase().includes(q) ||
+        c.serialNumber.toLowerCase().includes(q) ||
+        c.professor.toLowerCase().includes(q) ||
+        c.department.toLowerCase().includes(q);
+      const matchDept = department === "All Departments" || c.department === department;
+      const matchGenEd = genEd === "All Categories" || c.genEd.includes(genEd);
+      const matchCredits = credits === "All Credits" || c.credits === parseInt(credits);
+      const matchLevel = level === "All Levels" || c.level === level;
+      return matchQuery && matchDept && matchGenEd && matchCredits && matchLevel;
     });
-  }, [user]);
-
-  const handleBookmark = async (courseID: string) => {
-    if (!user) return alert("請先登入");
-    setLoadingBookmark((prev) => ({ ...prev, [courseID]: true }));
-    try {
-      if (bookmarked[courseID]) {
-        await removeBookmark(user.id, courseID);
-        setBookmarked((prev) => ({ ...prev, [courseID]: false }));
-      } else {
-        await addBookmark(user.id, { courseId: courseID });
-        setBookmarked((prev) => ({ ...prev, [courseID]: true }));
-      }
-    } catch {
-      alert("操作失敗，請稍後再試");
-    } finally {
-      setLoadingBookmark((prev) => ({ ...prev, [courseID]: false }));
-    }
-  };
-
-  const handleReport = async () => {
-    if (!user) return alert("請先登入");
-    try {
-      await submitReport({
-        reporterID: user.id,
-        reviewID: reportModal.reviewID,
-        reason: reportReason,
-      });
-      setReportMsg("檢舉已送出，感謝您的回報！");
-    } catch (e: any) {
-      setReportMsg(
-        e.message === "Already reported this review"
-          ? "你已經檢舉過這則評論。"
-          : "檢舉失敗，請稍後再試。"
-      );
-    }
-  };
+  }, [query, department, genEd, credits, level]);
 
   return (
-    <section>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Course Catalog</h1>
-        <p className="mt-2 text-muted-foreground">
-          Browse courses and read student reviews.
+    <div className="space-y-8 pb-12">
+      {/* Hero */}
+      <div className="flex flex-col items-center gap-3 py-8 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+          <BookOpen className="h-8 w-8 text-primary" />
+        </div>
+        <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
+          Find Your Perfect Courses
+        </h1>
+        <p className="max-w-xl text-base text-muted-foreground">
+          Explore {mockCourses.length} courses for Spring 2026. Search by keyword, filter by
+          department, or browse general education requirements.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {mockCourses.map((course) => (
-          <Card key={course.courseID}>
-            <CardContent className="p-5">
-              {/* 課程資訊 + 收藏按鈕 */}
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold">{course.courseName}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{course.department}</p>
-                  <p className="mt-3 text-sm">Instructor: {course.teacher}</p>
-                  <p className="mt-1 text-sm">Course ID: {course.courseID}</p>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={loadingBookmark[course.courseID]}
-                  onClick={() => handleBookmark(course.courseID)}
-                  title={bookmarked[course.courseID] ? "取消收藏" : "收藏"}
-                >
-                  {bookmarked[course.courseID]
-                    ? <BookmarkCheck className="text-rose-600" size={20} />
-                    : <Bookmark size={20} />}
-                </Button>
-              </div>
-
-              {/* 展開/收合評論 */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-4 w-full text-muted-foreground gap-1"
-                onClick={() =>
-                  setExpandedReviews((prev) => ({
-                    ...prev,
-                    [course.courseID]: !prev[course.courseID],
-                  }))
-                }
-              >
-                {expandedReviews[course.courseID] ? (
-                  <><ChevronUp size={14} /> 收合評論</>
-                ) : (
-                  <><ChevronDown size={14} /> 查看評論 ({course.reviews.length})</>
-                )}
-              </Button>
-
-              {/* 評論列表 */}
-              {expandedReviews[course.courseID] && (
-                <div className="mt-3 flex flex-col gap-3">
-                  {course.reviews.map((review) => (
-                    <div key={review.reviewID} className="rounded-lg bg-muted/50 p-3 text-sm">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium">{review.author}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs text-muted-foreground hover:text-red-500 gap-1"
-                          onClick={() => {
-                            setReportModal({ open: true, reviewID: review.reviewID });
-                            setReportMsg("");
-                            setReportReason("SPAM");
-                          }}
-                        >
-                          <Flag size={12} />
-                          檢舉
-                        </Button>
-                      </div>
-                      <p className="text-muted-foreground">{review.content}</p>
-                      <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
-                        <span>甜度 {'⭐'.repeat(review.sweetness)}</span>
-                        <span>涼度 {'😅'.repeat(review.workload)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* 檢舉 Modal */}
-      {reportModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">檢舉評論</h2>
-
-            {reportMsg ? (
-              <p className="text-sm text-center py-4">{reportMsg}</p>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground mb-3">請選擇檢舉原因：</p>
-                <div className="flex flex-col gap-2 mb-6">
-                  {REPORT_REASONS.map((r) => (
-                    <label key={r.value} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="radio"
-                        name="reason"
-                        value={r.value}
-                        checked={reportReason === r.value}
-                        onChange={() => setReportReason(r.value)}
-                      />
-                      {r.label}
-                    </label>
-                  ))}
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" onClick={() => setReportModal({ open: false, reviewID: "" })}>
-                    取消
-                  </Button>
-                  <Button variant="destructive" onClick={handleReport}>
-                    送出檢舉
-                  </Button>
-                </div>
-              </>
-            )}
-
-            {reportMsg && (
-              <div className="flex justify-end mt-4">
-                <Button onClick={() => setReportModal({ open: false, reviewID: "" })}>關閉</Button>
-              </div>
-            )}
+      {/* Search + Filters */}
+      <Card className="shadow-sm">
+        <CardContent className="p-6 space-y-5">
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              size={18}
+            />
+            <Input
+              className="pl-10 h-11 text-base"
+              placeholder="Search by course name, code, instructor, or keywords..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
+
+          <button
+            onClick={() => setShowFilters((v) => !v)}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <SlidersHorizontal size={15} />
+            Advanced Filters
+          </button>
+
+          {showFilters && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Department
+                </label>
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                >
+                  {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  General Education
+                </label>
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={genEd}
+                  onChange={(e) => setGenEd(e.target.value)}
+                >
+                  {GEN_ED_CATEGORIES.map((g) => <option key={g}>{g}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Credits
+                </label>
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={credits}
+                  onChange={(e) => setCredits(e.target.value)}
+                >
+                  {CREDIT_OPTIONS.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Level
+                </label>
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
+                >
+                  {LEVEL_OPTIONS.map((l) => <option key={l}>{l}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Results count */}
+      <p className="text-xl font-bold text-slate-800">
+        {filtered.length} Course{filtered.length !== 1 ? "s" : ""} Found
+      </p>
+
+      {/* Course Cards */}
+      {filtered.length === 0 ? (
+        <div className="rounded-2xl border bg-card p-12 text-center text-muted-foreground">
+          No courses match your search.
+        </div>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2">
+          {filtered.map((course) => {
+            const spots = course.capacity - course.enrolled;
+            const isAlmostFull = spots <= 10;
+            return (
+              <Card
+                key={course.courseID}
+                className="overflow-hidden shadow-sm transition-shadow hover:shadow-md"
+              >
+                <CardContent className="p-6 space-y-4">
+                  {/* Top */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-base font-bold text-slate-700">
+                          {course.serialNumber}
+                        </span>
+                        <StarRating rating={course.rating} />
+                        <span className="text-xs text-muted-foreground">
+                          ({course.reviewCount})
+                        </span>
+                      </div>
+                      <h2 className="mt-1 text-lg font-bold text-slate-900 leading-snug">
+                        {course.title}
+                      </h2>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <Badge className="bg-primary text-primary-foreground text-xs whitespace-nowrap">
+                        {course.credits} Credits
+                      </Badge>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {course.level}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Info */}
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <BookOpen size={14} className="shrink-0" />
+                      <span>{course.professor}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar size={14} className="shrink-0" />
+                      <span>{course.schedule}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin size={14} className="shrink-0" />
+                      <span>{course.location}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users size={14} className="shrink-0" />
+                      <span className={isAlmostFull ? "font-semibold text-rose-500" : ""}>
+                        {course.enrolled}/{course.capacity} enrolled ({spots} spots left)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {course.description}
+                  </p>
+
+                  {/* Gen Ed */}
+                  {course.genEd.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap text-sm">
+                      <span className="text-muted-foreground">Gen Ed:</span>
+                      {course.genEd.map((g) => (
+                        <Badge key={g} variant="secondary" className="text-xs">
+                          {g}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button className="flex-1 font-semibold" size="sm">
+                      Add to Schedule
+                    </Button>
+                    <Link
+                      to={`/courses/${course.courseID}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-secondary"
+                    >
+                      <ChevronRight size={18} />
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
-    </section>
+    </div>
   );
 }

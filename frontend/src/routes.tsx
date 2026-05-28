@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import CourseCatalog from "./pages/CourseCatalog";
+import CourseDetail from "./pages/CourseDetail";
 import GroupmatesIntegrated from "./pages/GroupmatesIntegrated";
 import UserProfile from "./pages/UserProfile";
 import AdminLayout from "./pages/admin/AdminLayout";  // 修正：補上 Admin 路由
@@ -29,6 +30,10 @@ export const router = createBrowserRouter([
       {
         path: "courses",
         element: <CourseCatalog />,
+      },
+      {
+        path: "courses/:courseID",
+        element: <CourseDetail />,
       },
       {
         path: "groups",
