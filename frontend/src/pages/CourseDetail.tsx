@@ -676,16 +676,18 @@ export default function CourseDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="icon"
+          <button
             disabled={loadingSave}
             onClick={handleBookmark}
-            className={`border-slate-100 ${isSaved ? "text-rose-500 hover:text-rose-600" : "text-muted-foreground hover:text-rose-400"}`}
+            className={`rounded-full p-1.5 transition-colors ${
+              isSaved
+                ? "text-rose-500 hover:text-rose-600"
+                : "text-muted-foreground hover:text-rose-400"
+            }`}
             title={isSaved ? "取消收藏" : "收藏"}
           >
-            {isSaved ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
-          </Button>
+            {isSaved ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
+          </button>
           <Button className="font-semibold">Add to Schedule</Button>
         </div>
       </div>
