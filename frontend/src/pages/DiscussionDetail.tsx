@@ -160,7 +160,7 @@ export default function DiscussionDetail() {
       </div>
 
       {/* Main Post */}
-      <Card>
+      <Card className="border-slate-100 shadow-sm">
         <CardContent className="p-6 space-y-4">
           {/* Header */}
           <div className="flex items-start gap-3">
@@ -193,7 +193,7 @@ export default function DiscussionDetail() {
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-between border-t pt-4">
+          <div className="flex items-center justify-between border-t border-slate-100 pt-4">
             <div className="flex items-center gap-4">
               <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-slate-100 hover:text-slate-800">
                 <ThumbsUp size={15} /> {post.likes}
@@ -240,7 +240,7 @@ export default function DiscussionDetail() {
       </div>
 
       {/* Post a Reply */}
-      <Card>
+      <Card className="border-slate-100 shadow-sm">
         <CardContent className="p-5 space-y-3">
           <h3 className="font-bold text-slate-800">Post a Reply</h3>
           <textarea
@@ -259,7 +259,7 @@ export default function DiscussionDetail() {
       </Card>
 
       {/* Footer */}
-      <footer className="border-t pt-6 text-center text-xs text-muted-foreground space-y-1">
+      <footer className="border-t border-slate-100 pt-6 text-center text-xs text-muted-foreground space-y-1">
         <p className="font-semibold">NTNU Course Selection Toolbox</p>
         <p>Spring 2026 • Academic Year 2025-2026</p>
       </footer>

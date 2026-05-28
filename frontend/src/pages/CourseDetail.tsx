@@ -242,14 +242,14 @@ function OverviewTab({ course }: { course: CourseDetail }) {
   const spots = course.capacity - course.enrolled;
   const enrollPct = Math.round((course.enrolled / course.capacity) * 100);
   return (
-    <Card>
+    <Card className="border-slate-100 shadow-sm">
       <CardContent className="p-6 space-y-6">
         <div>
           <h3 className="text-base font-bold text-slate-800 mb-2">Course Information</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">{course.description}</p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 border-t pt-6">
+        <div className="grid gap-6 sm:grid-cols-2 border-t border-slate-100 pt-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
               <BookOpen size={15} /> Instructor
@@ -286,7 +286,7 @@ function OverviewTab({ course }: { course: CourseDetail }) {
         </div>
 
         {course.genEd.length > 0 && (
-          <div className="border-t pt-5">
+          <div className="border-t border-slate-100 pt-5">
             <h3 className="text-base font-bold text-slate-800 mb-3">
               General Education Requirements
             </h3>
@@ -308,14 +308,14 @@ function OverviewTab({ course }: { course: CourseDetail }) {
 function SyllabusTab({ course }: { course: CourseDetail }) {
   return (
     <div className="space-y-5">
-      <Card>
+      <Card className="border-slate-100 shadow-sm">
         <CardContent className="p-6">
           <h3 className="text-base font-bold text-slate-800 mb-3">Course Overview</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">{course.overview}</p>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-slate-100 shadow-sm">
         <CardContent className="p-6">
           <h3 className="text-base font-bold text-slate-800 mb-4">Learning Objectives</h3>
           <ul className="space-y-2">
@@ -329,7 +329,7 @@ function SyllabusTab({ course }: { course: CourseDetail }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-slate-100 shadow-sm">
         <CardContent className="p-6">
           <h3 className="text-base font-bold text-slate-800 mb-4">Course Topics</h3>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -344,7 +344,7 @@ function SyllabusTab({ course }: { course: CourseDetail }) {
       </Card>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Card>
+        <Card className="border-slate-100 shadow-sm">
           <CardContent className="p-6 space-y-4">
             <h3 className="text-base font-bold text-slate-800">Grading Policy</h3>
             {course.gradingPolicy.map((item) => (
@@ -359,7 +359,7 @@ function SyllabusTab({ course }: { course: CourseDetail }) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-slate-100 shadow-sm">
           <CardContent className="p-6 space-y-3">
             <h3 className="text-base font-bold text-slate-800">Required Textbooks</h3>
             <ul className="space-y-2">
@@ -408,7 +408,7 @@ function ReviewsTab({ reviews }: { reviews: Review[] }) {
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Rating Summary */}
-        <Card className="lg:col-span-1">
+        <Card className="lg:col-span-1 border-slate-100 shadow-sm">
           <CardContent className="p-6 space-y-5">
             <h3 className="text-base font-bold text-slate-800">Rating Summary</h3>
 
@@ -435,7 +435,7 @@ function ReviewsTab({ reviews }: { reviews: Review[] }) {
               ))}
             </div>
 
-            <div className="space-y-3 border-t pt-4">
+            <div className="space-y-3 border-t border-slate-100 pt-4">
               <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-muted-foreground">Difficulty</span>
@@ -507,7 +507,7 @@ function ReviewsTab({ reviews }: { reviews: Review[] }) {
                     <span className="font-semibold">{review.workload}/5</span>
                   </span>
                   {review.recommends && (
-                    <span className="flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium">
+                    <span className="flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 font-medium">
                       <CheckCircle2 size={11} className="text-primary" /> Recommends
                     </span>
                   )}
@@ -520,7 +520,7 @@ function ReviewsTab({ reviews }: { reviews: Review[] }) {
           ))}
 
           {reviews.length === 0 && (
-            <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">
+            <div className="rounded-xl border border-slate-100 bg-card p-8 text-center text-muted-foreground text-sm">
               No reviews yet. Be the first to write one!
             </div>
           )}
@@ -535,7 +535,7 @@ function DiscussionsTab({ discussions, courseID }: { discussions: Discussion[]; 
   return (
     <div className="space-y-4">
       {discussions.map((d) => (
-        <Card key={d.discussionID} className="transition-shadow hover:shadow-md">
+        <Card key={d.discussionID} className="border-slate-100 shadow-sm transition-shadow hover:shadow-md">
           <CardContent className="p-5 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -679,7 +679,7 @@ export default function CourseDetail() {
       </Tabs>
 
       {/* Footer */}
-      <footer className="border-t pt-8 text-center text-xs text-muted-foreground space-y-1">
+      <footer className="border-t border-slate-100 pt-8 text-center text-xs text-muted-foreground space-y-1">
         <p className="font-semibold">NTNU Course Selection Toolbox</p>
         <p>Spring 2026 • Academic Year 2025-2026</p>
       </footer>
