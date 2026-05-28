@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -11,11 +12,15 @@ import {
   MessageSquare,
   CheckCircle2,
   PenLine,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent } from "../components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
+import { useAuth } from "../context/AuthContext";
+import { addBookmark, removeBookmark, isBookmarked } from "../api/bookmarkApi";
 
 // ─── Types ───────────────────────────────────────────────────
 interface CourseDetail {
@@ -595,10 +600,39 @@ function DiscussionsTab({ discussions, courseID }: { discussions: Discussion[]; 
 // ─── Main Component ───────────────────────────────────────────
 export default function CourseDetail() {
   const { courseID } = useParams<{ courseID: string }>();
+  const { user } = useAuth();
+
+  const [isSaved, setIsSaved] = useState(false);
+  const [loadingSave, setLoadingSave] = useState(false);
 
   const course = courseID ? mockCourseDetails[courseID] : null;
   const reviews = courseID ? (mockReviews[courseID] ?? []) : [];
   const discussions = courseID ? (mockDiscussions[courseID] ?? []) : [];
+
+  useEffect(() => {
+    if (!user || !courseID) return;
+    isBookmarked(user.id, courseID)
+      .then((res) => setIsSaved(res.isBookmarked))
+      .catch(() => {});
+  }, [user, courseID]);
+
+  const handleBookmark = async () => {
+    if (!user) return alert("請先登入");
+    setLoadingSave(true);
+    try {
+      if (isSaved) {
+        await removeBookmark(user.id, courseID!);
+        setIsSaved(false);
+      } else {
+        await addBookmark(user.id, { courseId: courseID! });
+        setIsSaved(true);
+      }
+    } catch {
+      alert("操作失敗，請稍後再試");
+    } finally {
+      setLoadingSave(false);
+    }
+  };
 
   if (!course) {
     return (
@@ -641,7 +675,19 @@ export default function CourseDetail() {
             </span>
           </div>
         </div>
-        <Button className="font-semibold shrink-0">Add to Schedule</Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="icon"
+            disabled={loadingSave}
+            onClick={handleBookmark}
+            className={`border-slate-100 ${isSaved ? "text-rose-500 hover:text-rose-600" : "text-muted-foreground hover:text-rose-400"}`}
+            title={isSaved ? "取消收藏" : "收藏"}
+          >
+            {isSaved ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
+          </Button>
+          <Button className="font-semibold">Add to Schedule</Button>
+        </div>
       </div>
 
       {/* Tabs */}

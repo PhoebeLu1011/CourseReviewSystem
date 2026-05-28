@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router";
 import {
   Search,
@@ -9,11 +9,15 @@ import {
   Star,
   ChevronDown,
   SlidersHorizontal,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import { Card, CardContent } from "../components/ui/card";
+import { useAuth } from "../context/AuthContext";
+import { addBookmark, removeBookmark, isBookmarked } from "../api/bookmarkApi";
 
 // ─── Mock Data ───────────────────────────────────────────────
 interface MockCourse {
@@ -167,12 +171,51 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function CourseCatalog() {
+  const { user } = useAuth();
+
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("All Departments");
   const [genEd, setGenEd] = useState("All Categories");
   const [credits, setCredits] = useState("All Credits");
   const [level, setLevel] = useState("All Levels");
   const [showFilters, setShowFilters] = useState(true);
+  const [savedOnly, setSavedOnly] = useState(false);
+
+  const [bookmarked, setBookmarked] = useState<Record<string, boolean>>({});
+  const [loadingBookmark, setLoadingBookmark] = useState<Record<string, boolean>>({});
+
+  // 初始化每堂課的收藏狀態
+  useEffect(() => {
+    if (!user) return;
+    mockCourses.forEach(async (course) => {
+      try {
+        const res = await isBookmarked(user.id, course.courseID);
+        setBookmarked((prev) => ({ ...prev, [course.courseID]: res.isBookmarked }));
+      } catch {
+        // ignore
+      }
+    });
+  }, [user]);
+
+  const handleBookmark = async (e: React.MouseEvent, courseID: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) return alert("請先登入");
+    setLoadingBookmark((prev) => ({ ...prev, [courseID]: true }));
+    try {
+      if (bookmarked[courseID]) {
+        await removeBookmark(user.id, courseID);
+        setBookmarked((prev) => ({ ...prev, [courseID]: false }));
+      } else {
+        await addBookmark(user.id, { courseId: courseID });
+        setBookmarked((prev) => ({ ...prev, [courseID]: true }));
+      }
+    } catch {
+      alert("操作失敗，請稍後再試");
+    } finally {
+      setLoadingBookmark((prev) => ({ ...prev, [courseID]: false }));
+    }
+  };
 
   const filtered = useMemo(() => {
     return mockCourses.filter((c) => {
@@ -187,9 +230,10 @@ export default function CourseCatalog() {
       const matchGenEd = genEd === "All Categories" || c.genEd.includes(genEd);
       const matchCredits = credits === "All Credits" || c.credits === parseInt(credits);
       const matchLevel = level === "All Levels" || c.level === level;
-      return matchQuery && matchDept && matchGenEd && matchCredits && matchLevel;
+      const matchSaved = !savedOnly || !!bookmarked[c.courseID];
+      return matchQuery && matchDept && matchGenEd && matchCredits && matchLevel && matchSaved;
     });
-  }, [query, department, genEd, credits, level]);
+  }, [query, department, genEd, credits, level, savedOnly, bookmarked]);
 
   return (
     <div className="space-y-8 pb-12">
@@ -210,6 +254,7 @@ export default function CourseCatalog() {
       {/* Search + Filters */}
       <Card className="border-slate-100 shadow-sm">
         <CardContent className="p-6 space-y-5">
+          {/* Search */}
           <div className="relative">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -223,6 +268,22 @@ export default function CourseCatalog() {
             />
           </div>
 
+          {/* Saved Only toggle */}
+          <button
+            onClick={() => setSavedOnly((v) => !v)}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold transition-all ${
+              savedOnly
+                ? "border-rose-200 bg-rose-50 text-rose-600"
+                : "border-slate-100 bg-white text-muted-foreground hover:border-slate-200 hover:text-slate-700"
+            }`}
+          >
+            {savedOnly
+              ? <BookmarkCheck size={15} className="text-rose-500" />
+              : <Bookmark size={15} />}
+            Saved Courses
+          </button>
+
+          {/* Advanced Filters toggle */}
           <button
             onClick={() => setShowFilters((v) => !v)}
             className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -268,100 +329,115 @@ export default function CourseCatalog() {
       {/* Results count */}
       <p className="text-xl font-bold text-slate-800">
         {filtered.length} Course{filtered.length !== 1 ? "s" : ""} Found
+        {savedOnly && <span className="ml-2 text-sm font-normal text-rose-500">（已收藏）</span>}
       </p>
 
       {/* Course Cards */}
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border bg-card p-12 text-center text-muted-foreground">
-          No courses match your search.
+        <div className="rounded-2xl border border-slate-100 bg-card p-12 text-center text-muted-foreground">
+          {savedOnly ? "你還沒有收藏任何課程。" : "No courses match your search."}
         </div>
       ) : (
         <div className="md:columns-2 gap-5">
           {filtered.map((course) => {
             const spots = course.capacity - course.enrolled;
             const isAlmostFull = spots <= 10;
+            const isSaved = !!bookmarked[course.courseID];
             return (
               <div key={course.courseID} className="break-inside-avoid mb-5">
-              <Link
-                to={`/courses/${course.courseID}`}
-                className="block group"
-              >
-                <Card className="overflow-hidden rounded-2xl border-slate-100 bg-white shadow-sm transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-slate-200">
-                  <CardContent className="p-6 space-y-4">
-                    {/* Top */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-base font-bold text-slate-700">
-                            {course.serialNumber}
+                <Link to={`/courses/${course.courseID}`} className="block group">
+                  <Card className="overflow-hidden rounded-2xl border-slate-100 bg-white shadow-sm transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-slate-200">
+                    <CardContent className="p-6 space-y-4">
+                      {/* Top row: 課號+評分  |  學分+收藏 */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-base font-bold text-slate-700">
+                              {course.serialNumber}
+                            </span>
+                            <StarRating rating={course.rating} />
+                            <span className="text-xs text-muted-foreground">
+                              ({course.reviewCount})
+                            </span>
+                          </div>
+                          <h2 className="mt-1 text-lg font-bold text-slate-900 leading-snug group-hover:text-primary transition-colors">
+                            {course.title}
+                          </h2>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <Badge className="bg-primary text-primary-foreground text-xs whitespace-nowrap">
+                            {course.credits} Credits
+                          </Badge>
+                          <span className="text-xs text-muted-foreground font-medium">
+                            {course.level}
                           </span>
-                          <StarRating rating={course.rating} />
-                          <span className="text-xs text-muted-foreground">
-                            ({course.reviewCount})
+                          {/* 收藏按鈕 */}
+                          <button
+                            disabled={loadingBookmark[course.courseID]}
+                            onClick={(e) => handleBookmark(e, course.courseID)}
+                            className={`rounded-full p-1.5 transition-colors ${
+                              isSaved
+                                ? "text-rose-500 hover:text-rose-600"
+                                : "text-muted-foreground hover:text-rose-400"
+                            }`}
+                            title={isSaved ? "取消收藏" : "收藏"}
+                          >
+                            {isSaved
+                              ? <BookmarkCheck size={18} />
+                              : <Bookmark size={18} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <BookOpen size={14} className="shrink-0" />
+                          <span>{course.professor}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar size={14} className="shrink-0" />
+                          <span>{course.schedule}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin size={14} className="shrink-0" />
+                          <span>{course.location}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users size={14} className="shrink-0" />
+                          <span className={isAlmostFull ? "font-semibold text-rose-500" : ""}>
+                            {course.enrolled}/{course.capacity} enrolled ({spots} spots left)
                           </span>
                         </div>
-                        <h2 className="mt-1 text-lg font-bold text-slate-900 leading-snug group-hover:text-primary transition-colors">
-                          {course.title}
-                        </h2>
                       </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <Badge className="bg-primary text-primary-foreground text-xs whitespace-nowrap">
-                          {course.credits} Credits
-                        </Badge>
-                        <span className="text-xs text-muted-foreground font-medium">
-                          {course.level}
-                        </span>
-                      </div>
-                    </div>
 
-                    {/* Info */}
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <BookOpen size={14} className="shrink-0" />
-                        <span>{course.professor}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar size={14} className="shrink-0" />
-                        <span>{course.schedule}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin size={14} className="shrink-0" />
-                        <span>{course.location}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Users size={14} className="shrink-0" />
-                        <span className={isAlmostFull ? "font-semibold text-rose-500" : ""}>
-                          {course.enrolled}/{course.capacity} enrolled ({spots} spots left)
-                        </span>
-                      </div>
-                    </div>
+                      {/* Description */}
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {course.description}
+                      </p>
 
-                    {/* Description */}
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {course.description}
-                    </p>
+                      {/* Gen Ed */}
+                      {course.genEd.length > 0 && (
+                        <div className="flex items-center gap-2 flex-wrap text-sm">
+                          <span className="text-muted-foreground">Gen Ed:</span>
+                          {course.genEd.map((g) => (
+                            <Badge key={g} variant="secondary" className="text-xs">
+                              {g}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
 
-                    {/* Gen Ed */}
-                    {course.genEd.length > 0 && (
-                      <div className="flex items-center gap-2 flex-wrap text-sm">
-                        <span className="text-muted-foreground">Gen Ed:</span>
-                        {course.genEd.map((g) => (
-                          <Badge key={g} variant="secondary" className="text-xs">
-                            {g}
-                          </Badge>
-                        ))}
+                      {/* Add to Schedule */}
+                      <div className="pt-1" onClick={(e) => e.preventDefault()}>
+                        <Button className="w-full font-semibold" size="sm">
+                          Add to Schedule
+                        </Button>
                       </div>
-                    )}
-
-                    {/* Add to Schedule — stop propagation so clicking it doesn't navigate */}
-                    <div className="pt-1" onClick={(e) => e.preventDefault()}>
-                      <Button className="w-full font-semibold" size="sm">
-                        Add to Schedule
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                    </CardContent>
+                  </Card>
+                </Link>
               </div>
             );
           })}
