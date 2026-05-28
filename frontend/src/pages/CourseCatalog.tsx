@@ -338,13 +338,13 @@ export default function CourseCatalog() {
           {savedOnly ? "你還沒有收藏任何課程。" : "No courses match your search."}
         </div>
       ) : (
-        <div className="md:columns-2 gap-5">
+        <div className="grid gap-5 md:grid-cols-2 items-start">
           {filtered.map((course) => {
             const spots = course.capacity - course.enrolled;
             const isAlmostFull = spots <= 10;
             const isSaved = !!bookmarked[course.courseID];
             return (
-              <div key={course.courseID} className="break-inside-avoid mb-5 relative hover:z-10">
+              <div key={course.courseID}>
                 <Link to={`/courses/${course.courseID}`} className="block group">
                   <Card className="overflow-hidden rounded-2xl border-slate-100 bg-white shadow-sm transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-slate-200">
                     <CardContent className="p-6 space-y-4">
@@ -438,7 +438,7 @@ export default function CourseCatalog() {
                     </CardContent>
                   </Card>
                 </Link>
-              </div>
+            </div>
             );
           })}
         </div>
