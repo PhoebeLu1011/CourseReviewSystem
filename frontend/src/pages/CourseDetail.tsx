@@ -469,7 +469,7 @@ function ReviewsTab({ reviews }: { reviews: Review[] }) {
           </div>
 
           {reviews.map((review) => (
-            <Card key={review.reviewID}>
+            <Card key={review.reviewID} className="border-slate-100 shadow-sm">
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
