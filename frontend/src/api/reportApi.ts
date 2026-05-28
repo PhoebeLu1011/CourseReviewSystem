@@ -1,6 +1,7 @@
 import type { Report, SubmitReportRequest } from "../models/Report";
 
-const BASE_URL = "http://localhost:5000";
+import { API_BASE_URL } from "../config/api";
+const BASE_URL = API_BASE_URL;
 
 // 學生提交檢舉
 export async function submitReport(body: SubmitReportRequest): Promise<Report> {

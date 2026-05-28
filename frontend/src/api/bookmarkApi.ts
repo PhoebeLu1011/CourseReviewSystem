@@ -1,6 +1,7 @@
 import type { Bookmark, AddBookmarkRequest, BookmarkCountResponse, IsBookmarkedResponse } from "../models/Bookmark";
 
-const BASE_URL = "http://localhost:5000";
+import { API_BASE_URL } from "../config/api";
+const BASE_URL = API_BASE_URL;
 
 // 取得某學生的所有收藏
 export async function getBookmarks(studentId: string): Promise<Bookmark[]> {
