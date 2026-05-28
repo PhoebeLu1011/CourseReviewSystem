@@ -397,10 +397,10 @@ export default function CourseCatalog() {
                         )}
                       </div>
 
-                      {/* Serial number badge */}
+                      {/* Course code badge */}
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className="text-xs border-slate-200 text-muted-foreground">
-                          序號 {course.serialNumber}
+                          {course.courseCode}
                         </Badge>
                         {course.syllabusURL && (
                           <a

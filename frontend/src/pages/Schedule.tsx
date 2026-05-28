@@ -181,7 +181,7 @@ export default function Schedule() {
                       key={course.courseID}
                       className="rounded-lg bg-primary/10 border border-primary/20 px-2.5 py-2 text-xs"
                     >
-                      <p className="font-bold text-primary">{course.serialNumber}</p>
+                      <p className="font-bold text-primary line-clamp-2">{course.title}</p>
                       <p className="text-muted-foreground mt-0.5">{course.timeSlot}</p>
                     </div>
                   ))
