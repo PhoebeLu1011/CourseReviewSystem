@@ -1,3 +1,5 @@
+import re
+
 class StudentIdParser:
     PROGRAM_LEVEL_MAP = {
         "4": "bachelor",
@@ -10,8 +12,10 @@ class StudentIdParser:
         if not student_id:
             raise ValueError("Student ID is required.")
 
-        if len(student_id) != 9:
-            raise ValueError("Student ID must contain 9 characters.")
+        student_id = student_id.strip().upper()
+
+        if not re.match(r"^\d{8}[A-Z]$", student_id):
+            raise ValueError("Student ID format is invalid.")
 
         program_level_code = student_id[0]
 
@@ -19,6 +23,7 @@ class StudentIdParser:
             raise ValueError(f"Invalid program level code: {program_level_code}")
 
         return {
+            "student_id": student_id,
             "program_level": StudentIdParser.PROGRAM_LEVEL_MAP[program_level_code],
             "program_level_code": program_level_code,
             "admission_year": int(student_id[1:3]),

@@ -2,7 +2,7 @@ from models.review import Review
 from models.report import Report
 
 class User:
-    # 💡 把 profilePicURL 放後面，並給予預設值 None
+    
     def __init__(self, id, name, email, role, profilePicURL=None):
         self.id = id
         self.name = name
@@ -26,16 +26,16 @@ class Student(User):
         id,
         name,
         email,
-        password,       # 💡 把必填的 password 往前挪
-        department,     # 💡 必填
-        studentID,      # 💡 必填
-        profilePicURL=None, # 💡 選填放後面，給預設值
+        password,       
+        department,     # 必填
+        studentID,      # 必填
+        profilePicURL=None, # 選填放後面，給預設值
         reviewCount=0,
         replyCount=0,
         applyCount=0,
         role="student"
     ):
-        # 💡 呼叫父類別時，對應調整順序
+        
         super().__init__(id=id, name=name, email=email, role=role, profilePicURL=profilePicURL)
         self.department = department
         self.studentID = studentID
@@ -50,7 +50,6 @@ class Student(User):
             "department": self.department,
             "studentID": self.studentID,
             "reviewCount": self.reviewCount,
-            "password": self.password,
             "replyCount": self.replyCount,
             "applyCount": self.applyCount
         })

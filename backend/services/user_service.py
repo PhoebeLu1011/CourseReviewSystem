@@ -1,38 +1,44 @@
-import jwt
 from repository.student_repository import StudentRepository
+from services.auth_service import AuthService
 
 class UserService:
-    def __init__(self, student_repo: StudentRepository):
-        self.student_repo = student_repo
-        self.JWT_SECRET = "your_super_secret_key_12345" 
-        self.JWT_ALGORITHM = "HS256"
+    """
+    Handles authenticated user profile operations.
+    """
 
-    def verify_token(self, token: str):
-        """ 驗證 Token 是否合法的核心工具 """
-        try:
-            if token.startswith("Bearer "):
-                token = token.split(" ")[1]
-                
-            decoded = jwt.decode(token, self.JWT_SECRET, algorithms=[self.JWT_ALGORITHM])
-            return {"success": True, "studentID": decoded["studentID"]}
-        except jwt.ExpiredSignatureError:
-            return {"success": False, "message": "通行證已過期，請重新登入"}
-        except jwt.InvalidTokenError:
-            return {"success": False, "message": "無效的通行證，拒絕訪問"}
+    def __init__(
+        self,
+        student_repo: StudentRepository,
+        auth_service: AuthService
+    ):
+        self.student_repo = student_repo
+        self.auth_service = auth_service
 
     def get_profile(self, token: str):
-        """ 帳號管理：憑著通行證 (Token) 來獲取個人資料 """
-        
-        auth_result = self.verify_token(token)
-        if not auth_result["success"]:
-            return auth_result 
+        verify_result = self.auth_service.verify_token(token)
 
-        
-        student_id = auth_result["studentID"]
+        if not verify_result["success"]:
+            return verify_result
 
-       
+        payload = verify_result["payload"]
+        student_id = payload.get("studentID")
+
+        if not student_id:
+            return {
+                "success": False,
+                "message": "Token payload is missing studentID."
+            }
+
         student = self.student_repo.find_by_id(student_id)
+
         if not student:
-            return {"success": False, "message": "找不到該學生資料"}
-            
-        return {"success": True, "data": student.to_dict()}
+            return {
+                "success": False,
+                "message": "User not found."
+            }
+
+        return {
+            "success": True,
+            "message": "Profile retrieved successfully.",
+            "student": student.to_dict()
+        }
