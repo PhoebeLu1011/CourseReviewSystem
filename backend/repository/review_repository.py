@@ -1,29 +1,40 @@
 from models.review import Review
+
 class ReviewRepository:
-    def __init__(self,db):
+    def __init__(self, db):
         self.collection = db["reviews"]
+
     def delete_by_id(self, review_id):
         self.collection.delete_one({"reviewID": review_id})
+
+    def hide_review(self, review_id):
+        """隱藏評價（UC9 HIDE_REVIEW 使用）"""
+        self.collection.update_one(
+            {"reviewID": review_id},
+            {"$set": {"visibilityState": "HIDDEN"}}
+        )
+
     def reset_visibility(self, review_id):
+        """解除隱藏，恢復為可見（原本的方法，語意不變）"""
         self.collection.update_one(
             {"reviewID": review_id},
             {"$set": {"visibilityState": "VISIBLE", "reportCount": 0}}
         )
 
-    def find_by_id(self, review_id): #Find a review in the database by ID. If it exists, clean it up and turn it into a Review object. If not, return nothing.
-        data = self.collection.find_one({"reviewID":review_id})
-        if not data: return None
-        data.pop("_id", None)  # Remove MongoDB's internal ID before returning
+    def find_by_id(self, review_id):
+        data = self.collection.find_one({"reviewID": review_id})
+        if not data:
+            return None
+        data.pop("_id", None)
         return Review(**data)
-    
 
-    def save(self, review: Review): #Find a review by its ID. If it exists, update it. If it doesn’t, create it.
+    def save(self, review: Review):
         self.collection.update_one(
             {"reviewID": review.reviewID},
             {"$set": review.to_dict()},
             upsert=True
         )
-        
+
     def find_by_course_id(self, course_id, sort_by="newest", limit=10, skip=0):
         query = {
             "courseID": course_id,
@@ -38,6 +49,6 @@ class ReviewRepository:
         cursor = self.collection.find(query).sort(sort_logic).skip(skip).limit(limit)
         reviews = []
         for data in cursor:
-            data.pop("_id", None)  # Remove MongoDB's internal ID before returning
+            data.pop("_id", None)
             reviews.append(Review(**data))
         return reviews
