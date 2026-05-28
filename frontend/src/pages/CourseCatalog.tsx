@@ -344,7 +344,7 @@ export default function CourseCatalog() {
             const isAlmostFull = spots <= 10;
             const isSaved = !!bookmarked[course.courseID];
             return (
-              <div key={course.courseID} className="break-inside-avoid mb-5">
+              <div key={course.courseID} className="break-inside-avoid mb-5 relative hover:z-10">
                 <Link to={`/courses/${course.courseID}`} className="block group">
                   <Card className="overflow-hidden rounded-2xl border-slate-100 bg-white shadow-sm transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:border-slate-200">
                     <CardContent className="p-6 space-y-4">
