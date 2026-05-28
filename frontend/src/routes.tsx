@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import CourseCatalog from "./pages/CourseCatalog";
 import CourseDetail from "./pages/CourseDetail";
+import DiscussionDetail from "./pages/DiscussionDetail";
 import GroupmatesIntegrated from "./pages/GroupmatesIntegrated";
 import UserProfile from "./pages/UserProfile";
 import AdminLayout from "./pages/admin/AdminLayout";  // 修正：補上 Admin 路由
@@ -34,6 +35,10 @@ export const router = createBrowserRouter([
       {
         path: "courses/:courseID",
         element: <CourseDetail />,
+      },
+      {
+        path: "courses/:courseID/discussions/:discussionID",
+        element: <DiscussionDetail />,
       },
       {
         path: "groups",

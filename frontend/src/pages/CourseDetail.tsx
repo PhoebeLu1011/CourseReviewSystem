@@ -1,4 +1,3 @@
-// No useState needed — all state managed by Tabs component
 import { Link, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -532,11 +531,11 @@ function ReviewsTab({ reviews }: { reviews: Review[] }) {
 }
 
 // ─── Discussions Tab ──────────────────────────────────────────
-function DiscussionsTab({ discussions }: { discussions: Discussion[] }) {
+function DiscussionsTab({ discussions, courseID }: { discussions: Discussion[]; courseID: string }) {
   return (
     <div className="space-y-4">
       {discussions.map((d) => (
-        <Card key={d.discussionID}>
+        <Card key={d.discussionID} className="transition-shadow hover:shadow-md">
           <CardContent className="p-5 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -560,9 +559,12 @@ function DiscussionsTab({ discussions }: { discussions: Discussion[] }) {
                   </Badge>
                 ))}
               </div>
-              <button className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+              <Link
+                to={`/courses/${courseID}/discussions/${d.discussionID}`}
+                className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+              >
                 <MessageSquare size={14} /> {d.replyCount} Replies
-              </button>
+              </Link>
             </div>
 
             {d.latestReply && (
@@ -672,7 +674,7 @@ export default function CourseDetail() {
         </TabsContent>
 
         <TabsContent value="discussions" className="mt-5">
-          <DiscussionsTab discussions={discussions} />
+          <DiscussionsTab discussions={discussions} courseID={course.courseID} />
         </TabsContent>
       </Tabs>
 

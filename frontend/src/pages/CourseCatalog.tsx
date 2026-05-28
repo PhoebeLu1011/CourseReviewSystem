@@ -7,7 +7,7 @@ import {
   MapPin,
   Users,
   Star,
-  ChevronRight,
+  ChevronDown,
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -232,58 +232,34 @@ export default function CourseCatalog() {
           </button>
 
           {showFilters && (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Department
-                </label>
-                <select
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                >
-                  {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  General Education
-                </label>
-                <select
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  value={genEd}
-                  onChange={(e) => setGenEd(e.target.value)}
-                >
-                  {GEN_ED_CATEGORIES.map((g) => <option key={g}>{g}</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Credits
-                </label>
-                <select
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  value={credits}
-                  onChange={(e) => setCredits(e.target.value)}
-                >
-                  {CREDIT_OPTIONS.map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Level
-                </label>
-                <select
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  value={level}
-                  onChange={(e) => setLevel(e.target.value)}
-                >
-                  {LEVEL_OPTIONS.map((l) => <option key={l}>{l}</option>)}
-                </select>
-              </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 pt-1">
+              {(
+                [
+                  { label: "Department", value: department, setter: setDepartment, options: DEPARTMENTS },
+                  { label: "General Education", value: genEd, setter: setGenEd, options: GEN_ED_CATEGORIES },
+                  { label: "Credits", value: credits, setter: setCredits, options: CREDIT_OPTIONS },
+                  { label: "Level", value: level, setter: setLevel, options: LEVEL_OPTIONS },
+                ] as const
+              ).map((filter) => (
+                <div key={filter.label} className="space-y-2">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    {filter.label}
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 py-2.5 pr-9 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      value={filter.value}
+                      onChange={(e) => filter.setter(e.target.value as any)}
+                    >
+                      {filter.options.map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                    <ChevronDown
+                      size={15}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
@@ -305,90 +281,87 @@ export default function CourseCatalog() {
             const spots = course.capacity - course.enrolled;
             const isAlmostFull = spots <= 10;
             return (
-              <Card
+              <Link
                 key={course.courseID}
-                className="overflow-hidden shadow-sm transition-shadow hover:shadow-md"
+                to={`/courses/${course.courseID}`}
+                className="block group"
               >
-                <CardContent className="p-6 space-y-4">
-                  {/* Top */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-base font-bold text-slate-700">
-                          {course.serialNumber}
-                        </span>
-                        <StarRating rating={course.rating} />
-                        <span className="text-xs text-muted-foreground">
-                          ({course.reviewCount})
+                <Card className="overflow-hidden shadow-sm transition-all group-hover:shadow-md group-hover:border-primary/30">
+                  <CardContent className="p-6 space-y-4">
+                    {/* Top */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-base font-bold text-slate-700">
+                            {course.serialNumber}
+                          </span>
+                          <StarRating rating={course.rating} />
+                          <span className="text-xs text-muted-foreground">
+                            ({course.reviewCount})
+                          </span>
+                        </div>
+                        <h2 className="mt-1 text-lg font-bold text-slate-900 leading-snug group-hover:text-primary transition-colors">
+                          {course.title}
+                        </h2>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <Badge className="bg-primary text-primary-foreground text-xs whitespace-nowrap">
+                          {course.credits} Credits
+                        </Badge>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {course.level}
                         </span>
                       </div>
-                      <h2 className="mt-1 text-lg font-bold text-slate-900 leading-snug">
-                        {course.title}
-                      </h2>
                     </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <Badge className="bg-primary text-primary-foreground text-xs whitespace-nowrap">
-                        {course.credits} Credits
-                      </Badge>
-                      <span className="text-xs text-muted-foreground font-medium">
-                        {course.level}
-                      </span>
-                    </div>
-                  </div>
 
-                  {/* Info */}
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <BookOpen size={14} className="shrink-0" />
-                      <span>{course.professor}</span>
+                    {/* Info */}
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <BookOpen size={14} className="shrink-0" />
+                        <span>{course.professor}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar size={14} className="shrink-0" />
+                        <span>{course.schedule}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin size={14} className="shrink-0" />
+                        <span>{course.location}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Users size={14} className="shrink-0" />
+                        <span className={isAlmostFull ? "font-semibold text-rose-500" : ""}>
+                          {course.enrolled}/{course.capacity} enrolled ({spots} spots left)
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar size={14} className="shrink-0" />
-                      <span>{course.schedule}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin size={14} className="shrink-0" />
-                      <span>{course.location}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users size={14} className="shrink-0" />
-                      <span className={isAlmostFull ? "font-semibold text-rose-500" : ""}>
-                        {course.enrolled}/{course.capacity} enrolled ({spots} spots left)
-                      </span>
-                    </div>
-                  </div>
 
-                  {/* Description */}
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {course.description}
-                  </p>
+                    {/* Description */}
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {course.description}
+                    </p>
 
-                  {/* Gen Ed */}
-                  {course.genEd.length > 0 && (
-                    <div className="flex items-center gap-2 flex-wrap text-sm">
-                      <span className="text-muted-foreground">Gen Ed:</span>
-                      {course.genEd.map((g) => (
-                        <Badge key={g} variant="secondary" className="text-xs">
-                          {g}
-                        </Badge>
-                      ))}
+                    {/* Gen Ed */}
+                    {course.genEd.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap text-sm">
+                        <span className="text-muted-foreground">Gen Ed:</span>
+                        {course.genEd.map((g) => (
+                          <Badge key={g} variant="secondary" className="text-xs">
+                            {g}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add to Schedule — stop propagation so clicking it doesn't navigate */}
+                    <div className="pt-1" onClick={(e) => e.preventDefault()}>
+                      <Button className="w-full font-semibold" size="sm">
+                        Add to Schedule
+                      </Button>
                     </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <Button className="flex-1 font-semibold" size="sm">
-                      Add to Schedule
-                    </Button>
-                    <Link
-                      to={`/courses/${course.courseID}`}
-                      className="flex h-9 w-9 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-secondary"
-                    >
-                      <ChevronRight size={18} />
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Link>
             );
           })}
         </div>
