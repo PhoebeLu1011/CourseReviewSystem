@@ -1,6 +1,7 @@
 """
-POST /reports                - 學生提交檢舉
-GET  /reports/pending        - 取得待審核檢舉清單（Admin）
+POST /reports                        - 學生提交檢舉
+GET  /reports/pending                - 取得待審核檢舉清單（Admin）
+DELETE /reports/<report_id>/withdraw - 學生撤回自己的檢舉
 """
 from flask import Blueprint, request, jsonify
 from models.report import ReportReason
@@ -16,6 +17,7 @@ def create_report_routes(report_service):
             reporter_id = data.get("reporterID")
             review_id = data.get("reviewID")
             reason = data.get("reason")
+            description = data.get("description")
 
             if not all([reporter_id, review_id, reason]):
                 return jsonify({"message": "reporterID, reviewID, and reason are required."}), 400
@@ -26,7 +28,8 @@ def create_report_routes(report_service):
             report = report_service.submit_report(
                 reporterID=reporter_id,
                 reviewID=review_id,
-                reason=reason
+                reason=reason,
+                description=description
             )
 
             if not report:
@@ -39,7 +42,23 @@ def create_report_routes(report_service):
 
     @report_bp.route("/reports/pending", methods=["GET"])
     def get_pending_reports():
+        """取得待審核清單，回傳 dict list"""
         reports = report_service.get_pending_reports()
         return jsonify(reports), 200
+
+    @report_bp.route("/reports/<report_id>/withdraw", methods=["DELETE"])
+    def withdraw_report(report_id):
+        """學生撤回自己的檢舉"""
+        try:
+            data = request.get_json() or {}
+            reporter_id = data.get("reporterID")
+            if not reporter_id:
+                return jsonify({"message": "reporterID is required."}), 400
+
+            report_service.withdraw_report(report_id, reporter_id)
+            return jsonify({"message": "檢舉已撤回"}), 200
+
+        except ValueError as e:
+            return jsonify({"message": str(e)}), 404
 
     return report_bp

@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import CourseCatalog from "./pages/CourseCatalog";
 import GroupmatesIntegrated from "./pages/GroupmatesIntegrated";
 import UserProfile from "./pages/UserProfile";
+import AdminLayout from "./pages/admin/AdminLayout";  // 修正：補上 Admin 路由
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -54,5 +55,10 @@ export const router = createBrowserRouter([
         element: <UserProfile />,
       },
     ],
+  },
+  // 修正：Admin panel 是獨立的 layout（不套用一般 Layout）
+  {
+    path: "/admin",
+    element: <AdminLayout />,
   },
 ]);
