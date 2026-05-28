@@ -7,6 +7,7 @@ import DiscussionDetail from "./pages/DiscussionDetail";
 import GroupmatesIntegrated from "./pages/GroupmatesIntegrated";
 import UserProfile from "./pages/UserProfile";
 import AdminLayout from "./pages/admin/AdminLayout";  // 修正：補上 Admin 路由
+import Schedule from "./pages/Schedule";
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -50,7 +51,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "schedule",
-        element: <PlaceholderPage title="My Schedule" />,
+        element: <Schedule />,
       },
       {
         path: "reviews",
