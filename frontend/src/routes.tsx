@@ -2,9 +2,12 @@ import { createBrowserRouter } from "react-router";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import CourseCatalog from "./pages/CourseCatalog";
+import CourseDetail from "./pages/CourseDetail";
+import DiscussionDetail from "./pages/DiscussionDetail";
 import GroupmatesIntegrated from "./pages/GroupmatesIntegrated";
 import UserProfile from "./pages/UserProfile";
 import AdminLayout from "./pages/admin/AdminLayout";  // 修正：補上 Admin 路由
+import Schedule from "./pages/Schedule";
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -31,6 +34,14 @@ export const router = createBrowserRouter([
         element: <CourseCatalog />,
       },
       {
+        path: "courses/:courseID",
+        element: <CourseDetail />,
+      },
+      {
+        path: "courses/:courseID/discussions/:discussionID",
+        element: <DiscussionDetail />,
+      },
+      {
         path: "groups",
         element: <GroupmatesIntegrated />,
       },
@@ -40,7 +51,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "schedule",
-        element: <PlaceholderPage title="My Schedule" />,
+        element: <Schedule />,
       },
       {
         path: "reviews",

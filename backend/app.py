@@ -56,7 +56,12 @@ def create_app():
     # 從環境變數讀取允許的前端 URL（部署後填入 Vercel URL）
     # 本地開發：FRONTEND_URL 不設定時預設允許 localhost:5173
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    CORS(app, origins=[frontend_url, "http://localhost:5173"])
+    CORS(app, origins=[
+        frontend_url,
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+    ])
 
     # ====== MongoDB 連線 ======
     mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
