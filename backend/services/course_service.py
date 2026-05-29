@@ -34,11 +34,19 @@ class CourseService:
         )
 
     def update_course_ratings(self, course_id: str, new_sweetness: float, new_workload: float):
+        """
+        Triggered whenever a student leaves a brand new review.
+        Updates the averages running incrementally.
+        """
         course = self.course_repo.find_by_id(course_id)
         if not course:
             raise ValueError("Course not found to update scores.")
+        # Increment total count of reviews
         course.reviewCount += 1
+
+        # Incremental moving average formula
         course.averageSweetness += (new_sweetness - course.averageSweetness) / course.reviewCount
         course.averageWorkload  += (new_workload  - course.averageWorkload)  / course.reviewCount
+        
         self.course_repo.save(course)
         return course.to_dict()
