@@ -11,7 +11,7 @@ export function Login() {
   const navigate = useNavigate();
 
   const [role, setRole] = useState<Role>("Student");
-  const [email, setEmail] = useState(""); // 🔄 改為綁定 Email 登入
+  const [email, setEmail] = useState(""); 
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +28,7 @@ export function Login() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: email,       // 💡 對齊後端 login_student(self, email, input_password)
+          email: email,       
           password: password,
           role: role.toLowerCase()
         }),
@@ -40,7 +40,7 @@ export function Login() {
         throw new Error(data.message || data.error || "Login failed");
       }
 
-      // 🎉 登入成功：把後端回傳的 data.student 塞給 Context
+      
       login({
         id: data.student.studentID || data.student.id,
         name: data.student.name || "Student",

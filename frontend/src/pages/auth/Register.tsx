@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, User, Lock, Hash, Mail, Building, GraduationCap } from "lucide-react";
-import { useAuth } from "../../context/AuthContext"; // 💡 引入全域 Auth Context
+import { useAuth } from "../../context/AuthContext"; 
 
 const DEPARTMENTS = [
   "Computer Science",
@@ -17,7 +17,7 @@ const DEPARTMENTS = [
 ];
 
 export function Register() {
-  const { login } = useAuth(); // 💡 提取 login 函數
+  const { login } = useAuth(); 
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fullName: "",
@@ -67,8 +67,7 @@ export function Register() {
         throw new Error(data.message || data.error || "Registration failed");
       }
 
-      // 🎉 🎉 🎉 核心改動：註冊成功當場視同登入成功！
-      // 呼叫 Context 的 login，把後端剛發放的 Token 與學生個人資料存入 LocalStorage 與全域狀態中
+      
       login({
         id: data.student.studentID || data.student.id,
         name: data.student.name || "Student",
@@ -77,8 +76,7 @@ export function Register() {
         department: data.student.department
       }, data.token);
 
-      // 🧭 直接跳轉到編輯個人檔案的頁面！
-      // (💡 註：此處以大眾慣用的 "/profile" 為例，請根據你們 App.tsx 裡設定的個人頁路由名稱自行修正，例如 "/settings" 或 "/profile/edit")
+
       navigate("/profile"); 
 
     } catch (err: any) {

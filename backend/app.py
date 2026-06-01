@@ -136,7 +136,6 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     port = int(os.getenv("PORT", 5000))
-    # 💡 加上 threaded=False 與 host 改為 127.0.0.1，防止 Windows 噴出 10038 錯誤而斷線
     app.run(
         host="127.0.0.1", 
         port=port, 

@@ -82,9 +82,7 @@ export default function UserProfile() {
     interests: user.interests.join(", "),
   });
 
-  // 當全域登入用戶資料改變時，同步同步更新 Profile 狀態
-  // 🎯 修正後的 useEffect：登入或重新整理時，自動從後端撈取完整的個人檔案
-  // 🎯 修正後的 useEffect：加上型別守衛解決 ts(18047)
+  
   useEffect(() => {
     const fetchFullProfile = async () => {
       if (!authUser) return; 
@@ -102,7 +100,6 @@ export default function UserProfile() {
         const data = await response.json();
 
         if (response.ok && data.success) {
-          // 🎯 修正處：優先撈取後端傳來的 data.student
           const profile = data.student || data.user || data;
 
           setUser({
@@ -150,12 +147,10 @@ export default function UserProfile() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        // 將編輯表單的內容送出
         body: JSON.stringify({
           name: editForm.name,
           bio: editForm.bio,
           birthday: editForm.birthday,
-          // 如果興趣是用逗號分開的字串，轉回陣列送給後端
           interests: editForm.interests.split(",").map(i => i.trim()).filter(i => i !== "")
         })
       });
@@ -163,17 +158,16 @@ export default function UserProfile() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // 🎯 關鍵修正：將畫面的 user 狀態更新為「舊資料」+「新修改的表單資料」
         setUser((prevUser) => ({
-          ...prevUser,                          // 保留原本沒改的欄位（如 id, email, role 等）
-          name: editForm.name,                  // 更新為新名字
-          bio: editForm.bio,                    // 更新為新簡介
-          birthday: editForm.birthday,          // 更新為新生日
-          interests: editForm.interests.split(",").map(i => i.trim()).filter(i => i !== "") // 更新為新興趣陣列
+          ...prevUser,                        
+          name: editForm.name,                 
+          bio: editForm.bio,                    
+          birthday: editForm.birthday,         
+          interests: editForm.interests.split(",").map(i => i.trim()).filter(i => i !== "") 
         }));
 
         alert("個人檔案修改成功！");
-        setIsEditing(false); // 關閉編輯模式
+        setIsEditing(false); 
       } else {
         alert(data.message || "修改失敗");
       }
@@ -197,7 +191,7 @@ export default function UserProfile() {
         <CardContent className="relative z-10 p-8">
           <div className="flex flex-col gap-6 md:flex-row md:items-start">
             
-            {/* 💡 頭貼設計：告別性別刻板頭貼，使用現代感的「名字首字」漸層 Avatar */}
+            {}
             <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full border-4 border-background bg-gradient-to-tr from-rose-500 to-amber-400 shadow-md">
               {user.profilePicURL ? (
                 <img
@@ -211,7 +205,7 @@ export default function UserProfile() {
                 </div>
               )}
 
-              {/* 💡 隱藏的檔案選擇器 */}
+              {}
               <input
                 type="file"
                 ref={fileInputRef}
@@ -220,12 +214,12 @@ export default function UserProfile() {
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    // 限制圖片大小為 2MB
+                    
                     if (file.size > 2 * 1024 * 1024) {
                       alert("Image size should be less than 2MB");
                       return;
                     }
-                    // 產生前端預覽 URL
+                    
                     const previewURL = URL.createObjectURL(file);
                     setUser((prev) => ({ ...prev, profilePicURL: previewURL }));
                   }
@@ -237,7 +231,7 @@ export default function UserProfile() {
                   className="absolute bottom-1 right-1 rounded-full bg-slate-900 p-2 text-white shadow hover:bg-slate-800 transition-colors"
                   title="Upload photo"
                   type="button"
-                  onClick={() => fileInputRef.current?.click()} // 💡 觸發隱藏 input 的點擊
+                  onClick={() => fileInputRef.current?.click()} 
                 >
                   <Camera size={16} />
                 </button>
