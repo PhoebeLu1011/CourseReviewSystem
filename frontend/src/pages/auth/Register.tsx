@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link,useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ArrowLeft, User, Lock, Hash, Mail, Building, GraduationCap } from "lucide-react";
-import { clsx } from "clsx";
+import { useAuth } from "../../context/AuthContext"; // 💡 引入全域 Auth Context
 
 const DEPARTMENTS = [
   "Computer Science",
@@ -17,6 +17,8 @@ const DEPARTMENTS = [
 ];
 
 export function Register() {
+  const { login } = useAuth(); // 💡 提取 login 函數
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fullName: "",
     department: "",
@@ -26,7 +28,6 @@ export function Register() {
     confirmPassword: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -38,38 +39,47 @@ export function Register() {
     e.preventDefault();
     setErrorMsg("");
 
-    // 1. 檢查二次密碼是否一致
     if (formData.password !== formData.confirmPassword) {
       setErrorMsg("Passwords do not match");
       return;
     }
+    
     setIsSubmitting(true);
+
     try {
-      // 2. 🚀 發送註冊資料給 Flask 後端
       const response = await fetch("http://127.0.0.1:5000/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          // 💡 這裡精準對齊你的後端 Model 欄位名稱
-          studentID: formData.studentId,
-          password: formData.password,
+          studentID: formData.studentId, 
+          password: formData.password,   
           name: formData.fullName,
           email: formData.email,
           department: formData.department,
-          // profilePicURL: "" // 後端已經被你改成選填，所以不傳也沒關係！
         }),
       });
+
       const data = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok || data.success === false) {
         throw new Error(data.message || data.error || "Registration failed");
       }
 
-      // 3. 🎉 註冊成功
-      alert("Registration successful! Please login.");
-      navigate("/auth/login"); // 引導去登入頁
+      // 🎉 🎉 🎉 核心改動：註冊成功當場視同登入成功！
+      // 呼叫 Context 的 login，把後端剛發放的 Token 與學生個人資料存入 LocalStorage 與全域狀態中
+      login({
+        id: data.student.studentID || data.student.id,
+        name: data.student.name || "Student",
+        role: "Student",
+        email: data.student.email,
+        department: data.student.department
+      }, data.token);
+
+      // 🧭 直接跳轉到編輯個人檔案的頁面！
+      // (💡 註：此處以大眾慣用的 "/profile" 為例，請根據你們 App.tsx 裡設定的個人頁路由名稱自行修正，例如 "/settings" 或 "/profile/edit")
+      navigate("/profile"); 
 
     } catch (err: any) {
       console.error("Register Error:", err);
@@ -96,6 +106,12 @@ export function Register() {
         <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Create Account</h2>
         <p className="text-slate-500 mt-2 font-medium">Join NTNU Toolbox today</p>
       </div>
+
+      {errorMsg && (
+        <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg border border-red-200">
+          {errorMsg}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -208,12 +224,7 @@ export function Register() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className={clsx(
-                  "w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium bg-slate-50 focus:bg-white",
-                  formData.confirmPassword && formData.password !== formData.confirmPassword 
-                    ? "border-rose-400 text-rose-800 bg-rose-50/50" 
-                    : "text-slate-800"
-                )}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white"
                 required
               />
             </div>

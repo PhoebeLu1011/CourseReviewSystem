@@ -47,6 +47,7 @@ class Student(User):
     def to_dict(self):
         data = super().to_dict()
         data.update({
+            "password": self.password,
             "department": self.department,
             "studentID": self.studentID,
             "reviewCount": self.reviewCount,
