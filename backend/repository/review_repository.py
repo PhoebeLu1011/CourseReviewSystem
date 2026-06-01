@@ -52,3 +52,35 @@ class ReviewRepository:
             data.pop("_id", None)
             reviews.append(Review(**data))
         return reviews
+    
+    def find_all_reviews(self, search_query="", sort_by="newest", limit=20, skip=0):
+        # Base query: only visible reviews
+        query = {"visibilityState": "VISIBLE"}
+        
+        # If the user typed a search term, look in BOTH courseID and courseName
+        if search_query:
+            query["$or"] = [
+                {"courseID": {"$regex": search_query, "$options": "i"}},
+                {"courseName": {"$regex": search_query, "$options": "i"}}
+            ]
+
+        if sort_by == "popular":
+            sort_logic = [("likeCount", -1), ("timestamp", -1)]
+        else:
+            sort_logic = [("timestamp", -1)]
+
+        cursor = self.collection.find(query).sort(sort_logic).skip(skip).limit(limit)
+        reviews = []
+        for data in cursor:
+            data.pop("_id", None)
+            reviews.append(Review(**data))
+        return reviews
+    
+    def has_user_reviewed_course(self, student_id, course_id):
+        # Counts how many reviews match BOTH the student and the course
+        # Returns True if they already reviewed it, False if they haven't
+        count = self.collection.count_documents({
+            "authorID": student_id,
+            "courseID": course_id
+        })
+        return count > 0
