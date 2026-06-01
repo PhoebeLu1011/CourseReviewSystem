@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link,useNavigate } from "react-router";
 import { ArrowLeft, User, Lock, Hash, Mail, Building, GraduationCap } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -26,26 +26,57 @@ export function Register() {
     confirmPassword: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg("");
+
+    // 1. 檢查二次密碼是否一致
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      setErrorMsg("Passwords do not match");
       return;
     }
-    
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // 2. 🚀 發送註冊資料給 Flask 後端
+      const response = await fetch("http://127.0.0.1:5000/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          // 💡 這裡精準對齊你的後端 Model 欄位名稱
+          studentID: formData.studentId,
+          password: formData.password,
+          name: formData.fullName,
+          email: formData.email,
+          department: formData.department,
+          // profilePicURL: "" // 後端已經被你改成選填，所以不傳也沒關係！
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || "Registration failed");
+      }
+
+      // 3. 🎉 註冊成功
+      alert("Registration successful! Please login.");
+      navigate("/auth/login"); // 引導去登入頁
+
+    } catch (err: any) {
+      console.error("Register Error:", err);
+      setErrorMsg(err.message || "Connection refused by backend server.");
+    } finally {
       setIsSubmitting(false);
-      console.log("Registering student:", formData);
-      alert("Registration successful!");
-    }, 1000);
+    }
   };
 
   return (

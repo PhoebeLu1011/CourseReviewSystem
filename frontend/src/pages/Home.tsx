@@ -14,10 +14,7 @@ import {
 import { clsx } from "clsx";
 import { useState } from "react";
 
-const mockUser = {
-  role: "Student",
-  name: "Test Student",
-};
+
 
 const announcements = [
   {
@@ -50,7 +47,8 @@ const announcements = [
 ];
 
 export default function Home() {
-  const user = mockUser;
+  const storedUser = localStorage.getItem("user");
+  const user = storedUser ? JSON.parse(storedUser) : { role: "Guest", name: "Guest User" };
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<
     (typeof announcements)[0] | null
   >(null);
