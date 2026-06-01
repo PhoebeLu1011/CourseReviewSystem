@@ -83,79 +83,103 @@ export default function UserProfile() {
   });
 
   // 當全域登入用戶資料改變時，同步同步更新 Profile 狀態
+  // 🎯 修正後的 useEffect：登入或重新整理時，自動從後端撈取完整的個人檔案
+  // 🎯 修正後的 useEffect：加上型別守衛解決 ts(18047)
   useEffect(() => {
+    const fetchFullProfile = async () => {
+      if (!authUser) return; 
+
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const response = await fetch("http://127.0.0.1:5000/api/user/profile", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          // 🎯 修正處：優先撈取後端傳來的 data.student
+          const profile = data.student || data.user || data;
+
+          setUser({
+            id: authUser.id,
+            name: profile.name || authUser.name,
+            email: authUser.email || profile.email,
+            role: authUser.role || "Student",
+            department: profile.department || authUser.department,
+            studentID: authUser.id,
+            profilePicURL: profile.profilePicURL || "",
+            bio: profile.bio || "No bio provided yet.",
+            birthday: profile.birthday || "2000-01-01",
+            interests: profile.interests || [],
+            reviewCount: profile.reviewCount || 0,
+            replyCount: profile.replyCount || 0,
+            applyCount: profile.applyCount || 0,
+          });
+
+          setEditForm({
+            name: profile.name || authUser.name,
+            bio: profile.bio || "",
+            birthday: profile.birthday || "2000-01-01",
+            interests: (profile.interests || []).join(", "),
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load backend profile data:", err);
+      }
+    };
+
     if (authUser) {
-      setUser(prev => ({
-        ...prev,
-        id: authUser.id,
-        name: authUser.name,
-        email: authUser.email || prev.email,
-        department: authUser.department || prev.department,
-        studentID: authUser.id,
-      }));
-      setEditForm(prev => ({
-        ...prev,
-        name: authUser.name
-      }));
+      fetchFullProfile();
     }
   }, [authUser]);
 
   const handleSave = async () => {
-    setIsLoading(true);
-    setErrorMsg("");
-
-    const updatedInterests = editForm.interests
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    if (!authUser) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
     try {
-      // 💡 串接後端更新 API：利用當前使用者的 studentID 作為動態路由
-      const response = await fetch(`http://127.0.0.1:5000/api/user/${user.studentID}`, {
+      const response = await fetch(`http://127.0.0.1:5000/api/user/${authUser.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}` 
+          "Authorization": `Bearer ${token}`
         },
+        // 將編輯表單的內容送出
         body: JSON.stringify({
           name: editForm.name,
           bio: editForm.bio,
           birthday: editForm.birthday,
-          interests: updatedInterests,
-        }),
+          // 如果興趣是用逗號分開的字串，轉回陣列送給後端
+          interests: editForm.interests.split(",").map(i => i.trim()).filter(i => i !== "")
+        })
       });
 
       const data = await response.json();
 
-      if (!response.ok || data.success === false) {
-        throw new Error(data.message || "Failed to update profile");
+      if (response.ok && data.success) {
+        // 🎯 關鍵修正：將畫面的 user 狀態更新為「舊資料」+「新修改的表單資料」
+        setUser((prevUser) => ({
+          ...prevUser,                          // 保留原本沒改的欄位（如 id, email, role 等）
+          name: editForm.name,                  // 更新為新名字
+          bio: editForm.bio,                    // 更新為新簡介
+          birthday: editForm.birthday,          // 更新為新生日
+          interests: editForm.interests.split(",").map(i => i.trim()).filter(i => i !== "") // 更新為新興趣陣列
+        }));
+
+        alert("個人檔案修改成功！");
+        setIsEditing(false); // 關閉編輯模式
+      } else {
+        alert(data.message || "修改失敗");
       }
-
-      // 儲存前端記憶體狀態
-      setUser({
-        ...user,
-        name: editForm.name,
-        bio: editForm.bio,
-        birthday: editForm.birthday,
-        interests: updatedInterests,
-      });
-
-      // 同步更新全域的 AuthContext，這樣右上角的導航列名字才會即時變更！
-      if (authUser) {
-        login({
-          ...authUser,
-          name: editForm.name
-        }, localStorage.getItem("token") || "");
-      }
-
-      setIsEditing(false);
-      alert("Profile updated successfully!");
-
-    } catch (err: any) {
-      console.error("Update Profile Error:", err);
-      setErrorMsg(err.message || "Failed to connect to server.");
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      alert("網路連線錯誤，修改失敗");
     }
   };
 
