@@ -1,5 +1,9 @@
+from models.review import Review
+from models.report import Report
+
 class User:
-    def __init__(self, id, name, email, profilePicURL, role):
+    
+    def __init__(self, id, name, email, role, profilePicURL=None):
         self.id = id
         self.name = name
         self.email = email
@@ -22,16 +26,20 @@ class Student(User):
         id,
         name,
         email,
-        profilePicURL,
-        department,
-        studentID,
+        password,       
+        department,     # 必填
+        studentID,      # 必填
+        profilePicURL=None, # 選填放後面，給預設值
         reviewCount=0,
         replyCount=0,
-        applyCount=0
+        applyCount=0,
+        role="student"
     ):
-        super().__init__(id, name, email, profilePicURL, "student")
+        
+        super().__init__(id=id, name=name, email=email, role=role, profilePicURL=profilePicURL)
         self.department = department
         self.studentID = studentID
+        self.password = password
         self.reviewCount = reviewCount
         self.replyCount = replyCount
         self.applyCount = applyCount
@@ -46,8 +54,26 @@ class Student(User):
             "applyCount": self.applyCount
         })
         return data
+    
+    def leave_review(self, courseID, content, sweetnessScore, workloadScore):
+        new_review = Review(
+            authorID=self.studentID, 
+            courseID=courseID, 
+            content=content, 
+            sweetnessScore=sweetnessScore, 
+            workloadScore=workloadScore
+        )
+        self.reviewCount += 1
+        return new_review
 
+    def file_report(self, target_review_id, reason):
+        new_report = Report(
+            reviewID=target_review_id,
+            reporterID=self.studentID,
+            reason=reason
+        )
+        return new_report
 
 class Admin(User):
-    def __init__(self, id, name, email, profilePicURL):
-        super().__init__(id, name, email, profilePicURL, "admin")
+    def __init__(self, id, name, email, role="admin", profilePicURL=None):
+        super().__init__(id=id, name=name, email=email, role=role, profilePicURL=profilePicURL)

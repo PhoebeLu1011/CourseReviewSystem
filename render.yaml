@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: course-review-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:create_app() --bind 0.0.0.0:$PORT
+    envVars:
+      - key: MONGO_URI
+        sync: false          # 在 Render dashboard 手動填入，不存進 git
+      - key: DB_NAME
+        value: course_system
+      - key: FRONTEND_URL
+        sync: false          # 填入 Vercel 部署後給你的 URL
+      - key: FLASK_ENV
+        value: production
