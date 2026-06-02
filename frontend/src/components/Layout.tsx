@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router";
+import { useAuth } from "../context/AuthContext"; // 🔄 引入文傑寫好的 Auth 全域狀態
 import {
   BookOpen,
   Star,
@@ -6,23 +7,27 @@ import {
   Users,
   Calendar,
   LogOut,
+  LogIn,
 } from "lucide-react";
 
 export default function Layout() {
   const location = useLocation();
+  const { user, logout } = useAuth(); // 🔄 直接從全域狀態拿 user (目前登入者) 與 logout (登出函數)
 
   const navItems = [
     { path: "/courses", label: "Courses", icon: BookOpen },
     { path: "/reviews", label: "Reviews", icon: Star },
     { path: "/discussions", label: "Discussions", icon: MessageSquare },
     { path: "/groups", label: "Find Groupmates", icon: Users },
-    { path: "/schedule", label: "My Schedule", icon: Calendar },
+    // 💡 只有當 user 存在（代表已登入）時，才在導覽列顯示「My Schedule (我的課表)」
+    ...(user ? [{ path: "/schedule", label: "My Schedule", icon: Calendar }] : []),
   ];
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-5">
+          {/* 左側 Logo 區塊 */}
           <Link to="/" className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-sm">
               <BookOpen className="h-7 w-7 text-primary-foreground" />
@@ -40,6 +45,7 @@ export default function Layout() {
             </div>
           </Link>
 
+          {/* 中間主導覽列選單 */}
           <nav className="hidden items-center gap-8 md:flex">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -62,35 +68,55 @@ export default function Layout() {
             })}
           </nav>
 
+          {/* 右側使用者狀態與登入/登出按鈕區塊 */}
           <div className="hidden items-center gap-6 border-l pl-8 md:flex">
-            <Link
-              to="/profile"
-              className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-secondary"
-            >
-              <img
-                src="https://i.pravatar.cc/100?img=12"
-                alt="User avatar"
-                className="h-10 w-10 rounded-full object-cover shadow-sm"
-              />
+            {user ? (
+              <>
+                {/* 👤 登入狀態：動態顯示目前登入使用者的名字與頭像 */}
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-secondary"
+                >
+                  <img
+                    src="https://i.pravatar.cc/100?img=12" // 預設頭像
+                    alt="User avatar"
+                    className="h-10 w-10 rounded-full object-cover shadow-sm"
+                  />
 
-              <span className="text-base font-bold leading-tight text-foreground">
-                Alex
-                <br />
-                Johnson
-              </span>
-            </Link>
+                  <span className="text-base font-bold leading-tight text-foreground">
+                    {user.name}
+                    <br />
+                    <span className="text-xs font-normal text-muted-foreground">({user.role})</span>
+                  </span>
+                </Link>
 
-            <button
-              type="button"
-              className="text-muted-foreground transition-colors hover:text-destructive"
-              title="Log out"
-            >
-              <LogOut className="h-6 w-6" />
-            </button>
+                {/* 🚪 登出按鈕：點擊執行真正清除狀態的 logout 函數 */}
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="text-muted-foreground transition-colors hover:text-destructive"
+                  title="Log out"
+                >
+                  <LogOut className="h-6 w-6" />
+                </button>
+              </>
+            ) : (
+              <>
+                {/* 🔑 未登入狀態：顯示 Sign In 按鈕引導進入登入頁面 */}
+                <Link
+                  to="/auth/login"
+                  className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-base font-bold text-primary-foreground shadow-sm transition-all hover:opacity-90"
+                >
+                  <LogIn className="h-5 w-5" />
+                  Sign In
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
 
+      {/* 頁面主要內容顯示區 */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-8 py-8">
         <Outlet />
       </main>

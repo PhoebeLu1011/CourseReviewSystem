@@ -53,6 +53,8 @@ def create_app():
     app = Flask(__name__)
 
     # ====== CORS 設定 ======
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    # 💡 升級為資源明確放行模式，允許 PUT 方法與 Authorization 標頭
     # 從環境變數讀取允許的前端 URL（部署後填入 Vercel URL）
     # 本地開發：FRONTEND_URL 不設定時預設允許 localhost:5173
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -134,4 +136,10 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=os.getenv("FLASK_ENV") != "production")
+    app.run(
+        host="127.0.0.1", 
+        port=port, 
+        debug=os.getenv("FLASK_ENV") != "production",
+        threaded=False,
+        use_reloader=False
+    )

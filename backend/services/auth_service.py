@@ -86,9 +86,16 @@ class AuthService:
 
             self.student_repo.save(new_student)
 
+            token = self.token_service.generate_student_token(new_student)
+            
+            student_data = new_student.to_dict()
+            student_data.pop("password", None)  # 安全起見，把密碼欄位拔掉
+
             return {
                 "success": True,
-                "message": "Registration successful."
+                "message": "Registration successful.",
+                "token": token,         # 👈 把 Token 傳給前端
+                "student": student_data # 👈 把剛建好的學生資料傳給前端
             }
 
         except Exception as e:

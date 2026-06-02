@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ArrowLeft, User, Lock, Hash, Mail, Building, GraduationCap } from "lucide-react";
-import { clsx } from "clsx";
+import { useAuth } from "../../context/AuthContext"; 
 
 const DEPARTMENTS = [
   "Computer Science",
@@ -17,6 +17,8 @@ const DEPARTMENTS = [
 ];
 
 export function Register() {
+  const { login } = useAuth(); 
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fullName: "",
     department: "",
@@ -26,26 +28,63 @@ export function Register() {
     confirmPassword: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg("");
+
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      setErrorMsg("Passwords do not match");
       return;
     }
     
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
+
+    try {
+      const response = await fetch("http://127.0.0.1:5000/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studentID: formData.studentId, 
+          password: formData.password,   
+          name: formData.fullName,
+          email: formData.email,
+          department: formData.department,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.message || data.error || "Registration failed");
+      }
+
+      
+      login({
+        id: data.student.studentID || data.student.id,
+        name: data.student.name || "Student",
+        role: "Student",
+        email: data.student.email,
+        department: data.student.department
+      }, data.token);
+
+
+      navigate("/profile"); 
+
+    } catch (err: any) {
+      console.error("Register Error:", err);
+      setErrorMsg(err.message || "Connection refused by backend server.");
+    } finally {
       setIsSubmitting(false);
-      console.log("Registering student:", formData);
-      alert("Registration successful!");
-    }, 1000);
+    }
   };
 
   return (
@@ -65,6 +104,12 @@ export function Register() {
         <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Create Account</h2>
         <p className="text-slate-500 mt-2 font-medium">Join NTNU Toolbox today</p>
       </div>
+
+      {errorMsg && (
+        <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg border border-red-200">
+          {errorMsg}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -177,12 +222,7 @@ export function Register() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className={clsx(
-                  "w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium bg-slate-50 focus:bg-white",
-                  formData.confirmPassword && formData.password !== formData.confirmPassword 
-                    ? "border-rose-400 text-rose-800 bg-rose-50/50" 
-                    : "text-slate-800"
-                )}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white"
                 required
               />
             </div>
