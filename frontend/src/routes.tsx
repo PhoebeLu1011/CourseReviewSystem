@@ -9,6 +9,8 @@ import UserProfile from "./pages/UserProfile";
 import AdminLayout from "./pages/admin/AdminLayout";  // 修正：補上 Admin 路由
 import Schedule from "./pages/Schedule";
 import Reviews from "./pages/Reviews";
+import { Login } from "./pages/auth/Login"; 
+import { Register }from "./pages/auth/Register";
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -29,6 +31,14 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <Home />,
+      },
+      {
+        path: "auth/login",
+        element: <Login />,
+      },
+      {
+        path: "auth/register",
+        element: <Register />,
       },
       {
         path: "courses",
