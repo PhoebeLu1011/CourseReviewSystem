@@ -17,7 +17,7 @@ export abstract class User{
 
 export class Student extends User {
     public department: string;
-    protected studentID: string;
+    public studentID: string;
     reviewCount: number;
     replyCount: number;
     public applyCount: number;
