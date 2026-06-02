@@ -98,7 +98,7 @@ def create_app():
     group_recommendation_service = GroupRecommendationService(group_repo)
 
     app.register_blueprint(create_application_routes(application_service))
-    app.register_blueprint(create_group_routes(group_recommendation_service))
+    app.register_blueprint(create_group_routes(group_recommendation_service, course_service))
     app.register_blueprint(create_notification_routes(notification_service))
     app.register_blueprint(create_achievement_routes(achievement_service, student_repo))
     app.register_blueprint(create_review_routes(review_service))

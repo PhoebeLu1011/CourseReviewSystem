@@ -1,6 +1,20 @@
 from flask import Blueprint, request, jsonify
 
-def create_group_routes(group_recommendation_service):
+def _course_summary(course_data):
+    if not course_data:
+        return None
+
+    return {
+        "courseID": course_data.get("courseID"),
+        "title": course_data.get("title"),
+        "department": course_data.get("department"),
+        "professors": course_data.get("professors"),
+        "academicYear": course_data.get("academicYear"),
+        "semester": course_data.get("semester"),
+    }
+
+
+def create_group_routes(group_recommendation_service, course_service=None):
     group_bp = Blueprint("groups", __name__)
 
     @group_bp.route("/courses/<course_id>/groups/recommended", methods=["GET"])
@@ -16,9 +30,19 @@ def create_group_routes(group_recommendation_service):
                 course_id=course_id,
             )
 
+            course_summary = None
+            if course_service:
+                try:
+                    course_summary = _course_summary(
+                        course_service.get_course(course_id)
+                    )
+                except ValueError:
+                    course_summary = None
+
             result = []
             for group in groups:
                 group_data = group.to_dict()
+                group_data["course"] = course_summary
                 group_data["recommendation_score"] = (
                     group_recommendation_service.calculate_match_score(
                         student_id=student_id,

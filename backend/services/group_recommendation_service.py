@@ -1,5 +1,4 @@
 from datetime import datetime
-from models.user import Student
 from models.group import Group
 from utils.student_id_parser import StudentIdParser
 
@@ -7,18 +6,18 @@ class GroupRecommendationService:
     def __init__(self, group_repo):
         self.group_repo = group_repo
 
-    def recommend_groups(self, student: Student, course_id: str) -> list[Group]:
+    def recommend_groups(self, student_id: str, course_id: str) -> list[Group]:
         groups = self.group_repo.find_joinable_by_course(course_id)
-        return self.sort_groups_by_score(groups, student)
+        return self.sort_groups_by_score(groups, student_id)
 
-    def calculate_match_score(self, student: Student, group: Group) -> float:
+    def calculate_match_score(self, student_id: str, group: Group) -> float:
         leader_similarity_score = self.calculate_student_similarity(
-            student.studentID,
+            student_id,
             group.leader_id
         )
 
         average_member_similarity_score = self.calculate_average_member_similarity(
-            student.studentID,
+            student_id,
             group
         )
 
@@ -88,9 +87,9 @@ class GroupRecommendationService:
         else:
             return 0
 
-    def sort_groups_by_score(self, groups: list[Group], student: Student) -> list[Group]:
+    def sort_groups_by_score(self, groups: list[Group], student_id: str) -> list[Group]:
         return sorted(
             groups,
-            key=lambda group: self.calculate_match_score(student, group),
+            key=lambda group: self.calculate_match_score(student_id, group),
             reverse=True
         )
