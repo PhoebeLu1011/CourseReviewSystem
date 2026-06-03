@@ -32,12 +32,22 @@ import {
 
 const PAGE_SIZE = 20;
 
-function StarRating({ rating }: { rating: number }) {
+function CourseStats({ sweetness, workload, count }: { sweetness: number, workload: number, count: number }) {
+  if (count === 0) return null;
   return (
-    <span className="flex items-center gap-1 text-sm font-semibold text-amber-500">
-      <Star size={14} className="fill-amber-400 text-amber-400" />
-      {rating.toFixed(1)}
-    </span>
+    <div className="flex items-center gap-3 text-sm font-semibold mt-1">
+      <span className="flex items-center gap-1 text-amber-500" title="Average Sweetness">
+        <Star size={14} className="fill-amber-400 text-amber-400" />
+        {sweetness.toFixed(1)}
+      </span>
+      <span className="flex items-center gap-1 text-blue-500" title="Average Workload">
+        <BookOpen size={14} className="fill-blue-400 text-blue-400" />
+        {workload.toFixed(1)}
+      </span>
+      <span className="text-xs text-muted-foreground font-normal ml-1">
+        ({count} 則評價)
+      </span>
+    </div>
   );
 }
 
@@ -322,6 +332,9 @@ export default function CourseCatalog() {
             const parsed = parseNTNUSchedule(course.timeAndLocation);
             const isSaved = !!bookmarked[course.courseID];
             const professor = course.professors.join("、");
+            const titleParts = course.title.split(/<\/?br\s*\/?>/i);
+            const mainTitle = titleParts[0];
+            const subTitle = titleParts[1] ? titleParts[1].trim() : "";
 
             return (
               <div key={course.courseID}>
@@ -331,21 +344,23 @@ export default function CourseCatalog() {
                       {/* Top row */}
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div>
                             <span className="text-base font-bold text-slate-700">
                               {course.courseID}
                             </span>
-                            {course.reviewCount > 0 && (
-                              <>
-                                <StarRating rating={course.averageSweetness} />
-                                <span className="text-xs text-muted-foreground">
-                                  ({course.reviewCount})
-                                </span>
-                              </>
-                            )}
+                            <CourseStats 
+                              sweetness={course.averageSweetness} 
+                              workload={course.averageWorkload} 
+                              count={course.reviewCount} 
+                            />
                           </div>
                           <h2 className="mt-1 text-lg font-bold text-slate-900 leading-snug group-hover:text-primary transition-colors">
-                            {course.title}
+                            {mainTitle}
+                            {subTitle && (
+                              <span className="block text-sm font-normal text-muted-foreground mt-1 group-hover:text-primary/70">
+                                {subTitle}
+                              </span>
+                            )}
                           </h2>
                         </div>
 
@@ -403,15 +418,16 @@ export default function CourseCatalog() {
                           {course.courseCode}
                         </Badge>
                         {course.syllabusURL && (
-                          <a
-                            href={course.syllabusURL}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-xs text-primary hover:underline"
-                          >
-                            課程大綱 ↗
-                          </a>
+                          <button
+                            onClick={(e) => {
+                            e.preventDefault(); // Prevents the router link from triggering
+                            e.stopPropagation(); // Stops the click from bubbling up to the Card
+                            window.open(course.syllabusURL, '_blank');
+                            }}
+                            className="text-xs text-primary hover:underline cursor-pointer"
+>
+                              課程大綱 ↗
+                          </button>
                         )}
                       </div>
 
@@ -420,6 +436,7 @@ export default function CourseCatalog() {
                         className="pt-1"
                         onClick={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           addToSchedule({
                             courseID: course.courseID,
                             serialNumber: course.courseID,

@@ -7,15 +7,15 @@ import {
   MapPin,
   Users,
   Star,
-  Flag,
   ThumbsUp,
   MessageSquare,
   CheckCircle2,
-  PenLine,
   Bookmark,
   BookmarkCheck,
   Loader2,
   ExternalLink,
+  Send,
+  PenLine
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -25,29 +25,17 @@ import { useAuth } from "../context/AuthContext";
 import { addBookmark, removeBookmark, isBookmarked } from "../api/bookmarkApi";
 import { useSchedule } from "../context/ScheduleContext";
 import { getCourse, parseNTNUSchedule, type Course as APICourse } from "../api/courseApi";
+import { getCourseReviews, createReview, type Review } from "../api/reviewApi"; // NEW API IMPORTS!
 
-// Re-use the API Course type; add parsed convenience fields
 interface CourseView extends APICourse {
-  professor: string;   // professors joined
-  schedule: string;    // English-style schedule
-  location: string;    // location string
+  professor: string;
+  schedule: string;
+  location: string;
   days: string[];
   timeSlot: string;
 }
 
-interface Review {
-  reviewID: string;
-  author: string;
-  semester: string;
-  date: string;
-  rating: number;
-  content: string;
-  difficulty: number;
-  workload: number;
-  recommends: boolean;
-  helpfulCount: number;
-}
-
+// Keep mock discussions until you wire them up next!
 interface Discussion {
   discussionID: string;
   title: string;
@@ -60,39 +48,6 @@ interface Discussion {
   latestReply: { author: string; date: string; content: string } | null;
 }
 
-// No more mock course data — loaded from API
-
-const mockReviews: Record<string, Review[]> = {
-  CS101: [
-    {
-      reviewID: "r001",
-      author: "Emma Larsen",
-      semester: "Fall 2025",
-      date: "2025/12/15",
-      rating: 5,
-      content:
-        "Excellent introduction to programming! Dr. Johnson explains concepts clearly and the assignments are challenging but fair. Really helped me build a strong foundation.",
-      difficulty: 3,
-      workload: 4,
-      recommends: true,
-      helpfulCount: 24,
-    },
-    {
-      reviewID: "r002",
-      author: "Magnus Berg",
-      semester: "Fall 2025",
-      date: "2025/12/10",
-      rating: 4,
-      content:
-        "Great course but be prepared to spend a lot of time on the projects. The workload is heavy, especially toward the end of the semester.",
-      difficulty: 4,
-      workload: 5,
-      recommends: true,
-      helpfulCount: 18,
-    },
-  ],
-};
-
 const mockDiscussions: Record<string, Discussion[]> = {
   CS101: [
     {
@@ -101,79 +56,31 @@ const mockDiscussions: Record<string, Discussion[]> = {
       author: "Erik Pedersen",
       date: "2026/4/9",
       likes: 15,
-      content:
-        "Hey everyone! I'm starting to think about the final project. For those who took this last semester, any advice on choosing a topic? I'm torn between a game and a web app.",
+      content: "Hey everyone! I'm starting to think about the final project...",
       tags: ["project", "advice"],
       replyCount: 2,
-      latestReply: {
-        author: "Thomas Eriksen",
-        date: "2026/4/11",
-        content:
-          "Web app is a solid choice - you can show it off easily and it looks good on your portfolio. Plus, Dr. Johnson has more resources for web debugging.",
-      },
-    },
-    {
-      discussionID: "d002",
-      title: "How do you approach debugging?",
-      author: "Ida Johansen",
-      date: "2026/4/16",
-      likes: 23,
-      content:
-        "I keep getting stuck on bugs and spend hours trying to figure them out. What strategies do you all use when debugging your code? Any tips for a beginner?",
-      tags: ["advice", "debugging"],
-      replyCount: 3,
-      latestReply: {
-        author: "Ole Kristensen",
-        date: "2026/4/17",
-        content:
-          "Also, try explaining your code to someone else (or a rubber duck!). Often just talking through the logic helps you spot the bug yourself.",
-      },
-    },
+      latestReply: null,
+    }
   ],
 };
 
 // ─── Helper Components ────────────────────────────────────────
-function Stars({ rating, max = 5 }: { rating: number; max?: number }) {
+function RatingIcons({ rating, type, interactive = false, setRating = () => {} }: { rating: number, type: "sweetness" | "workload", interactive?: boolean, setRating?: (r: number) => void }) {
+  const Icon = type === "sweetness" ? Star : BookOpen;
+  const activeClass = type === "sweetness" ? "fill-amber-400 text-amber-400" : "fill-blue-500 text-blue-500";
+  const inactiveClass = "fill-slate-100 text-slate-200";
+
   return (
     <span className="flex items-center gap-0.5">
-      {Array.from({ length: max }).map((_, i) => (
-        <Star
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Icon
           key={i}
           size={16}
-          className={
-            i < Math.round(rating)
-              ? "fill-amber-400 text-amber-400"
-              : "fill-slate-200 text-slate-200"
-          }
+          className={`${i < Math.round(rating) ? activeClass : inactiveClass} ${interactive ? "cursor-pointer hover:scale-110 transition-transform" : ""}`}
+          onClick={() => interactive && setRating(i + 1)}
         />
       ))}
     </span>
-  );
-}
-
-function DotRating({ value, max = 5, color }: { value: number; max?: number; color: string }) {
-  return (
-    <span className="flex items-center gap-0.5">
-      {Array.from({ length: max }).map((_, i) => (
-        <span
-          key={i}
-          className={`inline-block h-2.5 w-2.5 rounded-full ${
-            i < value ? color : "bg-slate-200"
-          }`}
-        />
-      ))}
-    </span>
-  );
-}
-
-function ProgressBar({ pct, color = "bg-primary" }: { pct: number; color?: string }) {
-  return (
-    <div className="h-2 w-full rounded-full bg-slate-100">
-      <div
-        className={`h-2 rounded-full ${color}`}
-        style={{ width: `${pct}%` }}
-      />
-    </div>
   );
 }
 
@@ -187,28 +94,21 @@ function OverviewTab({ course }: { course: CourseView }) {
             <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
               <BookOpen size={15} /> 授課教師
             </div>
-            <p className="text-sm text-muted-foreground pl-5">
-              {course.professor || "未知"}
-            </p>
+            <p className="text-sm text-muted-foreground pl-5">{course.professor || "未知"}</p>
           </div>
-
           <div className="space-y-1">
             <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
               <Calendar size={15} /> 上課時間
             </div>
             <p className="text-sm text-muted-foreground pl-5">{course.timeAndLocation}</p>
-            <p className="text-sm text-muted-foreground pl-5 text-xs">
-              {course.schedule}
-            </p>
+            <p className="text-sm text-muted-foreground pl-5 text-xs">{course.schedule}</p>
           </div>
-
           <div className="space-y-1">
             <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
               <MapPin size={15} /> 上課地點
             </div>
             <p className="text-sm text-muted-foreground pl-5">{course.location}</p>
           </div>
-
           {course.capacity > 0 && (
             <div className="space-y-1">
               <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
@@ -218,7 +118,6 @@ function OverviewTab({ course }: { course: CourseView }) {
             </div>
           )}
         </div>
-
         <div className="border-t border-slate-100 pt-5 flex flex-wrap gap-4 text-sm text-muted-foreground">
           <span>學年：{course.academicYear}</span>
           <span>學期：{course.semester === "1" ? "第一學期" : "第二學期"}</span>
@@ -236,200 +135,202 @@ function SyllabusTab({ course }: { course: CourseView }) {
       <Card className="border-slate-100 shadow-sm">
         <CardContent className="p-6 space-y-4">
           <h3 className="text-base font-bold text-slate-800">官方課程大綱</h3>
-          <p className="text-sm text-muted-foreground">
-            詳細課程大綱、評分標準、指定教材等資訊請參閱師大官方選課系統。
-          </p>
+          <p className="text-sm text-muted-foreground">詳細課程大綱、評分標準、指定教材等資訊請參閱師大官方選課系統。</p>
           {course.syllabusURL ? (
-            <a
-              href={course.syllabusURL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10 transition-colors"
-            >
-              <ExternalLink size={15} />
-              前往課程大綱頁面
+            <a href={course.syllabusURL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10 transition-colors">
+              <ExternalLink size={15} /> 前往課程大綱頁面
             </a>
           ) : (
             <p className="text-sm text-muted-foreground italic">此課程無大綱連結。</p>
           )}
         </CardContent>
       </Card>
-
-      <Card className="border-slate-100 shadow-sm">
-        <CardContent className="p-6 space-y-3">
-          <h3 className="text-base font-bold text-slate-800">授課資訊</h3>
-          <ul className="space-y-2">
-            <li className="flex items-start gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
-              <span>授課教師：{course.professor || "未知"}</span>
-            </li>
-            <li className="flex items-start gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
-              <span>上課時間：{course.timeAndLocation}</span>
-            </li>
-            <li className="flex items-start gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
-              <span>開課系所：{course.department}</span>
-            </li>
-            {course.capacity > 0 && (
-              <li className="flex items-start gap-2 text-sm text-muted-foreground">
-                <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-primary" />
-                <span>課程名額：{course.capacity} 人</span>
-              </li>
-            )}
-          </ul>
-        </CardContent>
-      </Card>
     </div>
   );
 }
 
-// ─── Reviews Tab ─────────────────────────────────────────────
-function ReviewsTab({ reviews }: { reviews: Review[] }) {
-  const total = reviews.length;
-  const avg = total > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / total : 0;
-  const recommendPct = total > 0
-    ? Math.round((reviews.filter((r) => r.recommends).length / total) * 100)
-    : 0;
-  const avgDifficulty = total > 0
-    ? (reviews.reduce((s, r) => s + r.difficulty, 0) / total).toFixed(1)
-    : "0";
-  const avgWorkload = total > 0
-    ? (reviews.reduce((s, r) => s + r.workload, 0) / total).toFixed(1)
-    : "0";
+// ─── LIVE Reviews Tab ─────────────────────────────────────────────
+function ReviewsTab({ course }: { course: CourseView }) {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Form State
+  const [isWriting, setIsWriting] = useState(false);
+  const [content, setContent] = useState("");
+  const [sweetness, setSweetness] = useState(0);
+  const [workload, setWorkload] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Distribution
-  const dist = [5, 4, 3, 2, 1].map((star) => ({
-    star,
-    count: reviews.filter((r) => r.rating === star).length,
-    pct: total > 0 ? Math.round((reviews.filter((r) => r.rating === star).length / total) * 100) : 0,
-  }));
+  const fetchReviews = async () => {
+    setLoading(true);
+    try {
+      const data = await getCourseReviews(course.courseID);
+      setReviews(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReviews();
+  }, [course.courseID]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (sweetness === 0 || workload === 0) return alert("Please rate both Sweetness and Workload!");
+    setIsSubmitting(true);
+    try {
+      await createReview({
+        authorID: "student_123", // Fake user bypass
+        courseID: course.courseID,
+        content,
+        sweetnessScore: sweetness,
+        workloadScore: workload
+      });
+      setIsWriting(false);
+      setContent("");
+      setSweetness(0);
+      setWorkload(0);
+      fetchReviews(); 
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
-        <Button className="gap-2" size="sm">
-          <PenLine size={15} /> Write a Review
-        </Button>
-      </div>
-
       <div className="grid gap-5 lg:grid-cols-3">
-        {/* Rating Summary */}
-        <Card className="lg:col-span-1 border-slate-100 shadow-sm">
-          <CardContent className="p-6 space-y-5">
-            <h3 className="text-base font-bold text-slate-800">Rating Summary</h3>
-
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-5xl font-extrabold text-primary">{avg.toFixed(1)}</span>
-              <Stars rating={avg} />
-              <span className="text-xs text-muted-foreground">Based on {total} review{total !== 1 ? "s" : ""}</span>
+        
+        {/* NEW: Clean Dual-Metric Rating Summary */}
+        <Card className="lg:col-span-1 border-slate-100 shadow-sm h-fit">
+          <CardContent className="p-6">
+            <h3 className="font-bold text-slate-800 mb-6">Rating Summary</h3>
+            
+            <div className="flex flex-col items-center justify-center mb-8">
+              <span className="text-5xl font-extrabold text-slate-900">
+                {course.averageSweetness?.toFixed(1) || "0.0"}
+              </span>
+              <span className="text-sm text-muted-foreground mt-1">Overall Sweetness</span>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Rating Distribution
-              </p>
-              {dist.map((d) => (
-                <div key={d.star} className="flex items-center gap-2 text-xs">
-                  <span className="flex items-center gap-0.5 w-8 text-amber-500 font-semibold">
-                    {d.star} <Star size={10} className="fill-amber-400" />
-                  </span>
-                  <div className="flex-1">
-                    <ProgressBar pct={d.pct} />
-                  </div>
-                  <span className="w-8 text-right text-muted-foreground">{d.pct}%</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-3 border-t border-slate-100 pt-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Difficulty</span>
-                  <span className="font-bold">{avgDifficulty}/5</span>
-                </div>
-                <ProgressBar pct={(parseFloat(avgDifficulty) / 5) * 100} />
+            <div className="space-y-4 border-t border-slate-100 pt-6">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-slate-600">Sweetness</span>
+                <span className="text-sm font-bold text-slate-900">{course.averageSweetness?.toFixed(1) || "0.0"} / 5</span>
               </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Workload</span>
-                  <span className="font-bold">{avgWorkload}/5</span>
-                </div>
-                <ProgressBar pct={(parseFloat(avgWorkload) / 5) * 100} />
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-slate-600">Workload</span>
+                <span className="text-sm font-bold text-slate-900">{course.averageWorkload?.toFixed(1) || "0.0"} / 5</span>
               </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Would Recommend</span>
-                  <span className="font-bold">{recommendPct}%</span>
-                </div>
-                <ProgressBar pct={recommendPct} />
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-xs text-muted-foreground">Total Reviews</span>
+                <span className="text-xs font-medium text-slate-500">{course.reviewCount || 0}</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Student Reviews */}
+        {/* Reviews Feed & Form */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-800">Student Reviews</h3>
-            <span className="text-sm text-muted-foreground">{total} total</span>
+          <div className="flex items-center justify-between pb-2">
+            <div>
+              <h3 className="text-base font-bold text-slate-800">Student Reviews</h3>
+              <span className="text-sm text-muted-foreground">{reviews.length} total</span>
+            </div>
+            <Button 
+              onClick={() => {
+                if (!isWriting) {
+                  setContent(""); setSweetness(0); setWorkload(0);
+                }
+                setIsWriting(!isWriting);
+              }}
+              className="gap-2" size="sm"
+            >
+              <PenLine size={15} /> {isWriting ? "Cancel" : "Write a Review"}
+            </Button>
           </div>
 
-          {reviews.map((review) => (
-            <Card key={review.reviewID} className="border-slate-100 shadow-sm">
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-bold text-slate-800">{review.author}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {review.semester} • {review.date}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex flex-col items-end gap-1">
-                      <Stars rating={review.rating} />
-                      <span className="text-xs font-bold text-primary">
-                        {review.rating.toFixed(1)}/5.0
-                      </span>
+          {/* Write a Review Form */}
+          {isWriting && (
+            <Card className="border-primary/20 shadow-md bg-slate-50/50 mb-6">
+              <CardContent className="p-6">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="flex gap-8 py-2">
+                    <div className="space-y-1">
+                      <label className="text-sm font-semibold text-slate-700">Sweetness</label>
+                      <RatingIcons rating={sweetness} type="sweetness" interactive={true} setRating={setSweetness} />
                     </div>
-                    <button className="text-muted-foreground hover:text-rose-500 transition-colors">
-                      <Flag size={15} />
-                    </button>
+                    <div className="space-y-1">
+                      <label className="text-sm font-semibold text-slate-700">Workload</label>
+                      <RatingIcons rating={workload} type="workload" interactive={true} setRating={setWorkload} />
+                    </div>
                   </div>
-                </div>
-
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {review.content}
-                </p>
-
-                <div className="flex items-center gap-4 flex-wrap text-xs text-muted-foreground pt-1">
-                  <span className="flex items-center gap-1.5">
-                    Difficulty:
-                    <DotRating value={review.difficulty} color="bg-rose-400" />
-                    <span className="font-semibold">{review.difficulty}/5</span>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    Workload:
-                    <DotRating value={review.workload} color="bg-blue-400" />
-                    <span className="font-semibold">{review.workload}/5</span>
-                  </span>
-                  {review.recommends && (
-                    <span className="flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 font-medium">
-                      <CheckCircle2 size={11} className="text-primary" /> Recommends
-                    </span>
-                  )}
-                  <span className="ml-auto flex items-center gap-1">
-                    <ThumbsUp size={12} /> {review.helpfulCount} helpful
-                  </span>
-                </div>
+                  <textarea 
+                    className="w-full min-h-[120px] rounded-md border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    placeholder="What did you think of this specific course?"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    required
+                  />
+                  <button type="submit" disabled={isSubmitting} className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-md font-medium text-sm hover:bg-slate-800 transition-colors disabled:opacity-50">
+                    {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
+                    Post Review
+                  </button>
+                </form>
               </CardContent>
             </Card>
-          ))}
+          )}
 
-          {reviews.length === 0 && (
+          {loading ? (
+             <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-primary" size={24} /></div>
+          ) : reviews.length === 0 ? (
             <div className="rounded-xl border border-slate-100 bg-card p-8 text-center text-muted-foreground text-sm">
               No reviews yet. Be the first to write one!
             </div>
+          ) : (
+            reviews.map((review) => {
+              const date = new Date(review.timestamp).toLocaleDateString();
+              return (
+                <Card key={review.reviewID} className="border-slate-100 shadow-sm transition-shadow hover:shadow-md">
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex justify-between items-start gap-4">
+                      <p className="text-sm font-semibold text-slate-600 mt-1">
+                        User {review.authorID.substring(0, 8)}... • {date}
+                      </p>
+                      <div className="flex flex-col gap-1.5 items-end shrink-0 pt-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sweet</span>
+                          <RatingIcons rating={review.sweetnessScore} type="sweetness" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Work</span>
+                          <RatingIcons rating={review.workloadScore} type="workload" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-700 leading-relaxed border border-slate-100 whitespace-pre-wrap">
+                      {review.content}
+                    </div>
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center gap-4 text-xs font-medium text-slate-600">
+                        {review.sweetnessScore >= 4 && (
+                          <span className="flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-600 px-2.5 py-0.5 border border-emerald-100">
+                            <CheckCircle2 size={12} /> Would Recommend
+                          </span>
+                        )}
+                      </div>
+                      <button className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary transition-colors">
+                        <ThumbsUp size={14} /> {review.likeCount} Helpful
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
       </div>
@@ -444,52 +345,11 @@ function DiscussionsTab({ discussions, courseID }: { discussions: Discussion[]; 
       {discussions.map((d) => (
         <Card key={d.discussionID} className="border-slate-100 shadow-sm transition-shadow hover:shadow-md">
           <CardContent className="p-5 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-bold text-slate-800">{d.title}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {d.author} • {d.date}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground shrink-0">
-                <ThumbsUp size={14} /> {d.likes}
-              </div>
-            </div>
-
-            <p className="text-sm text-muted-foreground leading-relaxed">{d.content}</p>
-
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex gap-2">
-                {d.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-              <Link
-                to={`/courses/${courseID}/discussions/${d.discussionID}`}
-                className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
-              >
-                <MessageSquare size={14} /> {d.replyCount} Replies
-              </Link>
-            </div>
-
-            {d.latestReply && (
-              <div className="rounded-lg bg-muted/50 px-4 py-3 space-y-1 border-l-2 border-primary/30">
-                <p className="text-xs font-semibold text-muted-foreground">Latest Reply</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-bold text-slate-700">{d.latestReply.author}</span>
-                  <span className="text-xs text-muted-foreground">{d.latestReply.date}</span>
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                  {d.latestReply.content}
-                </p>
-              </div>
-            )}
+             <h3 className="font-bold text-slate-800">{d.title}</h3>
+             <p className="text-sm text-muted-foreground">{d.content}</p>
           </CardContent>
         </Card>
       ))}
-
       {discussions.length === 0 && (
         <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">
           No discussions yet. Start the conversation!
@@ -508,15 +368,11 @@ export default function CourseDetail() {
   const [course, setCourse] = useState<CourseView | null>(null);
   const [loadingCourse, setLoadingCourse] = useState(true);
   const [notFound, setNotFound] = useState(false);
-
   const [isSaved, setIsSaved] = useState(false);
   const [loadingSave, setLoadingSave] = useState(false);
 
-  // Keep using mock reviews / discussions until those features are wired to backend
-  const reviews = courseID ? (mockReviews[courseID] ?? []) : [];
   const discussions = courseID ? (mockDiscussions[courseID] ?? []) : [];
 
-  // ─── Load real course from API ────────────────────────────
   useEffect(() => {
     if (!courseID) return;
     setLoadingCourse(true);
@@ -538,7 +394,6 @@ export default function CourseDetail() {
       .finally(() => setLoadingCourse(false));
   }, [courseID]);
 
-  // ─── Bookmark state ───────────────────────────────────────
   useEffect(() => {
     if (!user || !courseID) return;
     isBookmarked(user.id, courseID)
@@ -564,132 +419,63 @@ export default function CourseDetail() {
     }
   };
 
-  // ─── Loading / not-found states ───────────────────────────
   if (loadingCourse) {
-    return (
-      <div className="py-20 flex justify-center">
-        <Loader2 size={32} className="animate-spin text-primary" />
-      </div>
-    );
+    return <div className="py-20 flex justify-center"><Loader2 size={32} className="animate-spin text-primary" /></div>;
   }
 
   if (notFound || !course) {
     return (
       <div className="py-20 text-center space-y-4">
         <p className="text-xl font-semibold text-slate-700">找不到這門課程。</p>
-        <Link to="/courses" className="text-primary hover:underline text-sm">
-          ← 回到課程目錄
-        </Link>
+        <Link to="/courses" className="text-primary hover:underline text-sm">← 回到課程目錄</Link>
       </div>
     );
   }
 
+  // --- NEW: Split the title! ---
+  const titleParts = (course.title || "").split(/<\/?br\s*\/?>/i);
+  const mainTitle = titleParts[0];
+  const subTitle = titleParts[1] ? titleParts[1].trim() : "";
+
   return (
     <div className="space-y-6 pb-12">
-      {/* Back */}
-      <Link
-        to="/courses"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
+      <Link to="/courses" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft size={15} /> 回到課程目錄
       </Link>
 
-      {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900">{course.courseID}</h1>
-          <p className="mt-1 text-lg text-muted-foreground">{course.title}</p>
+          {/* Use the cleaned up title here */}
+          <h1 className="text-3xl font-extrabold text-slate-900">{course.courseID} {mainTitle ? `— ${mainTitle}` : ""}</h1>
+          {subTitle && <p className="mt-1 text-lg text-muted-foreground">{subTitle}</p>}
+          
           <div className="mt-3 flex items-center gap-2 flex-wrap">
             <Badge variant="outline">{course.department}</Badge>
-            {course.reviewCount > 0 && (
-              <span className="flex items-center gap-1 text-sm font-semibold text-amber-500">
-                <Star size={14} className="fill-amber-400 text-amber-400" />
-                {course.averageSweetness.toFixed(1)}
-                <span className="font-normal text-muted-foreground">
-                  ({course.reviewCount} 則評論)
-                </span>
-              </span>
-            )}
           </div>
         </div>
+        
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            disabled={loadingSave}
-            onClick={handleBookmark}
-            className={`rounded-full p-1.5 transition-colors ${
-              isSaved
-                ? "text-rose-500 hover:text-rose-600"
-                : "text-muted-foreground hover:text-rose-400"
-            }`}
-            title={isSaved ? "取消收藏" : "收藏"}
-          >
+          <button disabled={loadingSave} onClick={handleBookmark} className={`rounded-full p-1.5 transition-colors ${isSaved ? "text-rose-500 hover:text-rose-600" : "text-muted-foreground hover:text-rose-400"}`}>
             {isSaved ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
           </button>
-          <Button
-            className={`font-semibold transition-colors ${
-              isScheduled(course.courseID)
-                ? "bg-emerald-500 hover:bg-emerald-600 text-white"
-                : ""
-            }`}
-            onClick={() => {
-              addToSchedule({
-                courseID: course.courseID,
-                serialNumber: course.courseID,
-                title: course.title,
-                department: course.department,
-                credits: course.credits,
-                professor: course.professor,
-                schedule: course.schedule,
-                location: course.location,
-                days: course.days,
-                timeSlot: course.timeSlot,
-              });
-            }}
-          >
+          <Button className={`font-semibold transition-colors ${isScheduled(course.courseID) ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""}`} onClick={() => { addToSchedule({ courseID: course.courseID, serialNumber: course.courseID, title: course.title, department: course.department, credits: course.credits, professor: course.professor, schedule: course.schedule, location: course.location, days: course.days, timeSlot: course.timeSlot, }); }}>
             {isScheduled(course.courseID) ? "✓ 已加入課表" : "加入課表"}
           </Button>
         </div>
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="overview">
         <TabsList className="w-full rounded-xl bg-slate-100 p-1">
-          <TabsTrigger value="overview" className="flex-1 rounded-lg">
-            課程資訊
-          </TabsTrigger>
-          <TabsTrigger value="syllabus" className="flex-1 rounded-lg">
-            課程大綱
-          </TabsTrigger>
-          <TabsTrigger value="reviews" className="flex-1 rounded-lg">
-            評論{reviews.length > 0 && ` (${reviews.length})`}
-          </TabsTrigger>
-          <TabsTrigger value="discussions" className="flex-1 rounded-lg">
-            討論{discussions.length > 0 && ` (${discussions.length})`}
-          </TabsTrigger>
+          <TabsTrigger value="overview" className="flex-1 rounded-lg">課程資訊</TabsTrigger>
+          <TabsTrigger value="syllabus" className="flex-1 rounded-lg">課程大綱</TabsTrigger>
+          <TabsTrigger value="reviews" className="flex-1 rounded-lg">評論</TabsTrigger>
+          <TabsTrigger value="discussions" className="flex-1 rounded-lg">討論</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="overview" className="mt-5">
-          <OverviewTab course={course} />
-        </TabsContent>
-
-        <TabsContent value="syllabus" className="mt-5">
-          <SyllabusTab course={course} />
-        </TabsContent>
-
-        <TabsContent value="reviews" className="mt-5">
-          <ReviewsTab reviews={reviews} />
-        </TabsContent>
-
-        <TabsContent value="discussions" className="mt-5">
-          <DiscussionsTab discussions={discussions} courseID={course.courseID} />
-        </TabsContent>
+        <TabsContent value="overview" className="mt-5"><OverviewTab course={course} /></TabsContent>
+        <TabsContent value="syllabus" className="mt-5"><SyllabusTab course={course} /></TabsContent>
+        <TabsContent value="reviews" className="mt-5"><ReviewsTab course={course} /></TabsContent>
+        <TabsContent value="discussions" className="mt-5"><DiscussionsTab discussions={discussions} courseID={course.courseID} /></TabsContent>
       </Tabs>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-100 pt-8 text-center text-xs text-muted-foreground space-y-1">
-        <p className="font-semibold">NTNU Course Selection Toolbox</p>
-        <p>Spring 2026 • Academic Year 2025-2026</p>
-      </footer>
     </div>
   );
 }

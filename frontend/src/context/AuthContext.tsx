@@ -1,14 +1,17 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import type { ReactNode } from "react";
 
 interface User {
   id: string;
   name: string;
   role: "Student" | "Admin";
+  email?: string;
+  department?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (role: "Student" | "Admin") => void;
+  login: (userData: User, token: string) => void;
   logout: () => void;
 }
 
@@ -17,16 +20,25 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = (role: "Student" | "Admin") => {
-    // 目前使用 mock 資料，之後接真實 API 時替換
-    setUser({
-      id: "S001",
-      name: "Test Student",
-      role,
-    });
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    const savedToken = localStorage.getItem("token");
+    if (savedUser && savedToken) {
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
+
+  const login = (userData: User, token: string) => {
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", token);
+    setUser(userData);
   };
 
-  const logout = () => setUser(null);
+  const logout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    setUser(null);
+  };
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>

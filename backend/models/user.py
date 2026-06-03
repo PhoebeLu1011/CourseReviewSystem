@@ -2,7 +2,6 @@ from models.review import Review
 from models.report import Report
 
 class User:
-    
     def __init__(self, id, name, email, role, profilePicURL=None):
         self.id = id
         self.name = name
@@ -19,7 +18,6 @@ class User:
             "role": self.role
         }
 
-
 class Student(User):
     def __init__(
         self,
@@ -27,15 +25,17 @@ class Student(User):
         name,
         email,
         password,       
-        department,     # 必填
-        studentID,      # 必填
-        profilePicURL=None, # 選填放後面，給預設值
+        department,     
+        studentID,      
+        profilePicURL=None, 
         reviewCount=0,
         replyCount=0,
         applyCount=0,
-        role="student"
+        role="student",
+        bio="No bio provided yet.",
+        birthday="2000-01-01",
+        interests=None
     ):
-        
         super().__init__(id=id, name=name, email=email, role=role, profilePicURL=profilePicURL)
         self.department = department
         self.studentID = studentID
@@ -43,15 +43,25 @@ class Student(User):
         self.reviewCount = reviewCount
         self.replyCount = replyCount
         self.applyCount = applyCount
+        
+        
+        self.bio = bio
+        self.birthday = birthday
+        self.interests = interests if interests is not None else []
 
     def to_dict(self):
         data = super().to_dict()
+       
         data.update({
+            "password": self.password,
             "department": self.department,
             "studentID": self.studentID,
             "reviewCount": self.reviewCount,
             "replyCount": self.replyCount,
-            "applyCount": self.applyCount
+            "applyCount": self.applyCount,
+            "bio": self.bio,
+            "birthday": self.birthday,
+            "interests": self.interests
         })
         return data
     

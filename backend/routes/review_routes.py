@@ -18,6 +18,17 @@ def create_review_routes(review_service):
         reviews = review_service.get_reviews_by_course(course_id, sort_by, limit, skip)
         
         return jsonify([r.to_dict() for r in reviews]), 200
+    
+    @review_bp.route("/reviews", methods=["GET"])
+    def list_all_reviews():
+        # Global feed for all reviews (now with search!)
+        search_query = request.args.get("search", "") # Grab search term
+        sort_by = request.args.get("sort_by", "newest")
+        limit = int(request.args.get("limit", 20))
+        skip = int(request.args.get("skip", 0))
+
+        reviews = review_service.get_all_reviews(search_query, sort_by, limit, skip)
+        return jsonify([r.to_dict() for r in reviews]), 200
 
 
     @review_bp.route("/reviews", methods=["POST"])
