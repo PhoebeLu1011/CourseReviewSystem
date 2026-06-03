@@ -35,3 +35,14 @@ class Review:
             "likedBy": self.likedBy,
             "likeCount": self.likeCount
         }
+    def toggle_like(self, student_id):
+        """
+        Toggles a student's like status. If they already liked it, 
+        unlike it. Otherwise, add their ID to the likedBy list.
+        """
+        if student_id in self.likedBy:
+            self.likedBy.remove(student_id)
+            self.likeCount = max(0, self.likeCount - 1)
+        else:
+            self.likedBy.append(student_id)
+            self.likeCount += 1

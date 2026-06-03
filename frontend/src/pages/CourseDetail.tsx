@@ -25,7 +25,8 @@ import { useAuth } from "../context/AuthContext";
 import { addBookmark, removeBookmark, isBookmarked } from "../api/bookmarkApi";
 import { useSchedule } from "../context/ScheduleContext";
 import { getCourse, parseNTNUSchedule, type Course as APICourse } from "../api/courseApi";
-import { getCourseReviews, createReview, type Review } from "../api/reviewApi"; // NEW API IMPORTS!
+import { getCourseReviews, createReview, toggleLikeReview, type Review } from "../api/reviewApi"; // NEW API IMPORTS!
+import { getCourseDiscussions, createDiscussion, toggleLikeDiscussion, type Discussion } from "../api/discussionApi";
 
 interface CourseView extends APICourse {
   professor: string;
@@ -35,34 +36,7 @@ interface CourseView extends APICourse {
   timeSlot: string;
 }
 
-// Keep mock discussions until you wire them up next!
-interface Discussion {
-  discussionID: string;
-  title: string;
-  author: string;
-  date: string;
-  likes: number;
-  content: string;
-  tags: string[];
-  replyCount: number;
-  latestReply: { author: string; date: string; content: string } | null;
-}
 
-const mockDiscussions: Record<string, Discussion[]> = {
-  CS101: [
-    {
-      discussionID: "d001",
-      title: "Tips for the final project?",
-      author: "Erik Pedersen",
-      date: "2026/4/9",
-      likes: 15,
-      content: "Hey everyone! I'm starting to think about the final project...",
-      tags: ["project", "advice"],
-      replyCount: 2,
-      latestReply: null,
-    }
-  ],
-};
 
 // ─── Helper Components ────────────────────────────────────────
 function RatingIcons({ rating, type, interactive = false, setRating = () => {} }: { rating: number, type: "sweetness" | "workload", interactive?: boolean, setRating?: (r: number) => void }) {
@@ -151,9 +125,11 @@ function SyllabusTab({ course }: { course: CourseView }) {
 
 // ─── LIVE Reviews Tab ─────────────────────────────────────────────
 function ReviewsTab({ course }: { course: CourseView }) {
+
+  const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [sortBy, setSortBy] = useState("newest");
   // Form State
   const [isWriting, setIsWriting] = useState(false);
   const [content, setContent] = useState("");
@@ -164,7 +140,7 @@ function ReviewsTab({ course }: { course: CourseView }) {
   const fetchReviews = async () => {
     setLoading(true);
     try {
-      const data = await getCourseReviews(course.courseID);
+      const data = await getCourseReviews(course.courseID, sortBy);
       setReviews(data);
     } catch (err) {
       console.error(err);
@@ -175,15 +151,16 @@ function ReviewsTab({ course }: { course: CourseView }) {
 
   useEffect(() => {
     fetchReviews();
-  }, [course.courseID]);
+  }, [course.courseID, sortBy]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return alert("Please log in to post a review!");
     if (sweetness === 0 || workload === 0) return alert("Please rate both Sweetness and Workload!");
     setIsSubmitting(true);
     try {
       await createReview({
-        authorID: "student_123", // Fake user bypass
+        authorID: user.id,
         courseID: course.courseID,
         content,
         sweetnessScore: sweetness,
@@ -198,6 +175,21 @@ function ReviewsTab({ course }: { course: CourseView }) {
       alert(error.message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleToggleLike = async (reviewID: string) => {
+    if (!user) return alert("Please log in to like a review!");
+    
+    try {
+      const result = await toggleLikeReview(reviewID, user.id);
+      
+      // Optimistically update the UI count right away without a full page reload!
+      setReviews(prev => 
+        prev.map(r => r.reviewID === reviewID ? { ...r, likeCount: result.likeCount } : r)
+      );
+    } catch (error: any) {
+      alert(error.message);
     }
   };
 
@@ -238,9 +230,21 @@ function ReviewsTab({ course }: { course: CourseView }) {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between pb-2">
             <div>
-              <h3 className="text-base font-bold text-slate-800">Student Reviews</h3>
-              <span className="text-sm text-muted-foreground">{reviews.length} total</span>
+            <h3 className="text-base font-bold text-slate-800">Student Reviews</h3>
+            <span className="text-sm text-muted-foreground">{reviews.length} total</span>
+            
+            {/* 💡 NEW: Sort Selection Dropdown */}
+            <div className="mt-2">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="rounded-md border border-slate-200 p-1.5 text-xs bg-white font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm"
+              >
+                <option value="newest">Newest First</option>
+                <option value="likes">Most Helpful (Likes)</option>
+              </select>
             </div>
+          </div>
             <Button 
               onClick={() => {
                 if (!isWriting) {
@@ -299,7 +303,7 @@ function ReviewsTab({ course }: { course: CourseView }) {
                   <CardContent className="p-6 space-y-4">
                     <div className="flex justify-between items-start gap-4">
                       <p className="text-sm font-semibold text-slate-600 mt-1">
-                        User {review.authorID.substring(0, 8)}... • {date}
+                        {review.authorID} • {date}
                       </p>
                       <div className="flex flex-col gap-1.5 items-end shrink-0 pt-1">
                         <div className="flex items-center gap-2">
@@ -323,7 +327,10 @@ function ReviewsTab({ course }: { course: CourseView }) {
                           </span>
                         )}
                       </div>
-                      <button className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary transition-colors">
+                      <button 
+                        onClick={() => handleToggleLike(review.reviewID)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 px-2.5 py-1 rounded-md transition-colors"
+                      >
                         <ThumbsUp size={14} /> {review.likeCount} Helpful
                       </button>
                     </div>
@@ -339,22 +346,130 @@ function ReviewsTab({ course }: { course: CourseView }) {
 }
 
 // ─── Discussions Tab ──────────────────────────────────────────
-function DiscussionsTab({ discussions, courseID }: { discussions: Discussion[]; courseID: string }) {
+function DiscussionsTab({ courseID }: { courseID: string }) {
+  const { user } = useAuth();
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isWriting, setIsWriting] = useState(false);
+  
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fetchDiscussions = async () => {
+    setLoading(true);
+    try {
+      const data = await getCourseDiscussions(courseID);
+      setDiscussions(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDiscussions();
+  }, [courseID]);
+
+  const handleCreateDiscussion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return alert("Please log in first!");
+    if (!title.trim() || !content.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      await createDiscussion({ authorID: user.id, courseID, title, content });
+      setTitle("");
+      setContent("");
+      setIsWriting(false);
+      fetchDiscussions();
+    } catch (err) {
+      alert("Failed to post discussion thread.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleLike = async (e: React.MouseEvent, discussionID: string) => {
+    e.preventDefault(); // Prevents the Link from routing when clicking the like button
+    if (!user) return alert("Please log in to like!");
+    try {
+      const res = await toggleLikeDiscussion(discussionID, user.id);
+      setDiscussions(prev => prev.map(d => d.discussionID === discussionID ? { ...d, likeCount: res.likeCount } : d));
+    } catch (err) {}
+  };
+
   return (
-    <div className="space-y-4">
-      {discussions.map((d) => (
-        <Card key={d.discussionID} className="border-slate-100 shadow-sm transition-shadow hover:shadow-md">
-          <CardContent className="p-5 space-y-3">
-             <h3 className="font-bold text-slate-800">{d.title}</h3>
-             <p className="text-sm text-muted-foreground">{d.content}</p>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-base font-bold text-slate-800">Course Board</h3>
+          <span className="text-sm text-muted-foreground">{discussions.length} total threads</span>
+        </div>
+        <Button onClick={() => setIsWriting(!isWriting)} variant={isWriting ? "ghost" : "default"}>
+          {isWriting ? "Cancel" : "New Discussion"}
+        </Button>
+      </div>
+
+      {isWriting && (
+        <Card className="border-primary/20 shadow-md bg-slate-50/50">
+          <CardContent className="p-6">
+            <form onSubmit={handleCreateDiscussion} className="space-y-4">
+              <h3 className="font-bold text-lg text-slate-900">Start a Conversation</h3>
+              <Input placeholder="Discussion Title" value={title} onChange={e => setTitle(e.target.value)} required />
+              <textarea 
+                className="w-full min-h-[120px] rounded-md border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
+                placeholder="What would you like to ask or discuss about this course?"
+                value={content}
+                onChange={e => setContent(e.target.value)}
+                required
+              />
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Posting..." : "Post Thread"}
+              </Button>
+            </form>
           </CardContent>
         </Card>
-      ))}
-      {discussions.length === 0 && (
-        <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">
-          No discussions yet. Start the conversation!
-        </div>
       )}
+
+      <div className="space-y-4">
+        {loading ? (
+          <p className="text-center text-sm text-slate-500 py-8">Loading discussions...</p>
+        ) : discussions.length === 0 ? (
+          <div className="rounded-xl border border-dashed p-12 text-center text-slate-500">
+            No discussions for this course yet. Be the first!
+          </div>
+        ) : (
+          discussions.map(disc => (
+            <Link key={disc.discussionID} to={`/courses/${courseID}/discussions/${disc.discussionID}`} className="block">
+              <Card className="border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-5 space-y-3">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-lg hover:text-primary transition-colors">{disc.title}</h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Posted by {disc.authorID} • {new Date(disc.timestamp).toLocaleDateString()}
+                    </p>
+                  </div>
+                  
+                  <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
+                    {disc.content}
+                  </p>
+
+                  <div className="flex items-center gap-4 pt-2 text-slate-500 border-t border-slate-100 mt-2">
+                    <button onClick={(e) => handleLike(e, disc.discussionID)} className="flex items-center gap-1.5 text-xs font-medium hover:text-rose-600 transition-colors">
+                      <ThumbsUp size={14} /> {disc.likeCount} Likes
+                    </button>
+                    <span className="flex items-center gap-1.5 text-xs font-medium">
+                      <MessageSquare size={14} /> {disc.replyCount} Replies
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -371,7 +486,6 @@ export default function CourseDetail() {
   const [isSaved, setIsSaved] = useState(false);
   const [loadingSave, setLoadingSave] = useState(false);
 
-  const discussions = courseID ? (mockDiscussions[courseID] ?? []) : [];
 
   useEffect(() => {
     if (!courseID) return;
@@ -474,7 +588,7 @@ export default function CourseDetail() {
         <TabsContent value="overview" className="mt-5"><OverviewTab course={course} /></TabsContent>
         <TabsContent value="syllabus" className="mt-5"><SyllabusTab course={course} /></TabsContent>
         <TabsContent value="reviews" className="mt-5"><ReviewsTab course={course} /></TabsContent>
-        <TabsContent value="discussions" className="mt-5"><DiscussionsTab discussions={discussions} courseID={course.courseID} /></TabsContent>
+        <TabsContent value="discussions" className="mt-5"><DiscussionsTab courseID={course.courseID} /></TabsContent>
       </Tabs>
     </div>
   );

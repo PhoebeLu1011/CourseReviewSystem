@@ -36,21 +36,23 @@ class ReviewRepository:
         )
 
     def find_by_course_id(self, course_id, sort_by="newest", limit=10, skip=0):
-        query = {
-            "courseID": course_id,
-            "visibilityState": "VISIBLE"
-        }
-
-        if sort_by == "popular":
-            sort_logic = [("likeCount", -1), ("timestamp", -1)]
+        query = {"courseID": course_id, "visibilityState": "VISIBLE"}
+        
+        # 💡 NEW: Update the MongoDB sorting criteria dynamically
+        if sort_by == "likes":
+            sort_criteria = [("likeCount", -1), ("timestamp", -1)]  # Highest likes first, then newest
         else:
-            sort_logic = [("timestamp", -1)]
-
-        cursor = self.collection.find(query).sort(sort_logic).skip(skip).limit(limit)
+            sort_criteria = [("timestamp", -1)]  # Default: Newest first
+            
+        cursor = self.collection.find(query).sort(sort_criteria).skip(skip).limit(limit)
+        
+        # Safely extract and instantiate the Review items
+        from models.review import Review
         reviews = []
-        for data in cursor:
-            data.pop("_id", None)
-            reviews.append(Review(**data))
+        for r in cursor:
+            r.pop('_id', None)  # Clean out MongoDB object IDs
+            reviews.append(Review(**r))
+            
         return reviews
     
     def find_all_reviews(self, search_query="", sort_by="newest", limit=20, skip=0):

@@ -50,3 +50,27 @@ class CourseService:
         
         self.course_repo.save(course)
         return course.to_dict()
+
+def recalculate_course_ratings(self, course_id: str, reviews_list: list):
+        """
+        Wipes out old averages and recalculates the total review count 
+        and scores from scratch using a list of real active reviews.
+        """
+        course = self.course_repo.find_by_id(course_id)
+        if not course:
+            raise ValueError("Course not found to recalculate scores.")
+        
+        count = len(reviews_list)
+        course.reviewCount = count
+        
+        if count == 0:
+            course.averageSweetness = 0.0
+            course.averageWorkload = 0.0
+        else:
+            total_sweetness = sum(r.get("sweetnessScore", 0) for r in reviews_list)
+            total_workload = sum(r.get("workloadScore", 0) for r in reviews_list)
+            course.averageSweetness = total_sweetness / count
+            course.averageWorkload = total_workload / count
+            
+        self.course_repo.save(course)
+        return course.to_dict()
