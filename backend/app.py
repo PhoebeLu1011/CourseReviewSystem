@@ -1,8 +1,8 @@
 import os
 from flask import Flask
 from flask_cors import CORS
-from pymongo import MongoClient
 from dotenv import load_dotenv
+from mongo import db
 
 from services.auth_service import AuthService
 from services.password_service import PasswordService
@@ -52,24 +52,21 @@ load_dotenv()
 def create_app():
     app = Flask(__name__)
 
+
     # ====== CORS 設定 ======
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    # 💡 升級為資源明確放行模式，允許 PUT 方法與 Authorization 標頭
-    # 從環境變數讀取允許的前端 URL（部署後填入 Vercel URL）
-    # 本地開發：FRONTEND_URL 不設定時預設允許 localhost:5173
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    CORS(app, origins=[
-        frontend_url,
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-    ])
 
-    # ====== MongoDB 連線 ======
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-    db_name = os.getenv("DB_NAME", "course_system")
-    client = MongoClient(mongo_uri)
-    db = client[db_name]
+    CORS(
+        app,
+        resources={r"/*": {"origins": [
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
+            frontend_url,
+        ]}},
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
 
     # ====== Repositories ======
     group_repo = GroupRepository(db)

@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { ArrowLeft, User, Lock, Hash, Mail, Building, GraduationCap } from "lucide-react";
-import { useAuth } from "../../context/AuthContext"; 
+import {
+  ArrowLeft,
+  User,
+  Lock,
+  Hash,
+  Mail,
+  Building,
+  GraduationCap,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { registerUser } from "../../api/userApi";
 
 // 🎯 修正一：移除多餘的外部一包中括號，使其成為乾淨的物件陣列
 const DEPARTMENTS = [
@@ -137,22 +148,28 @@ const DEPARTMENTS = [
 ];
 
 export function Register() {
-  const { login } = useAuth(); 
+  const { login } = useAuth();
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     fullName: "",
     department: "",
     email: "",
     studentId: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
   });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -160,25 +177,27 @@ export function Register() {
     setErrorMsg("");
 
     if (formData.password !== formData.confirmPassword) {
-      setErrorMsg("Passwords do not match");
+      setErrorMsg("兩次輸入的密碼不一致。");
       return;
     }
-    
+
+    const studentIdRegex = /^\d{8}[A-Z]$/;
+    if (!studentIdRegex.test(formData.studentId)) {
+      setErrorMsg(
+        "學號格式錯誤，請輸入 8 位數字加 1 個大寫英文字母，例如：41271122H。"
+      );
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          studentID: formData.studentId, 
-          password: formData.password,   
-          name: formData.fullName,
-          email: formData.email,
-          department: formData.department,
-        }),
+      const result = await registerUser({
+        studentID: formData.studentId,
+        password: formData.password,
+        name: formData.fullName,
+        email: formData.email,
+        department: formData.department,
       });
 
       const data = await response.json();
@@ -199,7 +218,7 @@ export function Register() {
 
     } catch (err: any) {
       console.error("Register Error:", err);
-      setErrorMsg(err.message || "Connection refused by backend server.");
+      setErrorMsg(err.message || "註冊失敗，請稍後再試。");
     } finally {
       setIsSubmitting(false);
     }
@@ -207,10 +226,10 @@ export function Register() {
 
   return (
     <div className="w-full bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-8 sm:p-10 border border-slate-100 relative">
-      <Link 
-        to="/auth/login" 
+      <Link
+        to="/auth/login"
         className="absolute top-8 left-8 p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors flex items-center justify-center -ml-3 -mt-3"
-        title="Back to login"
+        title="返回登入"
       >
         <ArrowLeft size={20} />
       </Link>
@@ -219,8 +238,12 @@ export function Register() {
         <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 text-rose-700">
           <GraduationCap size={24} />
         </div>
-        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Create Account</h2>
-        <p className="text-slate-500 mt-2 font-medium">Join NTNU Toolbox today</p>
+
+        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+          建立帳號
+        </h2>
+
+        <p className="text-slate-500 mt-2 font-medium">加入 NTNU Toolbox</p>
       </div>
 
       {errorMsg && (
@@ -232,37 +255,47 @@ export function Register() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="space-y-1.5">
-            <label className="text-sm font-bold text-slate-700 ml-1">Full Name</label>
+            <label className="text-sm font-bold text-slate-700 ml-1">
+              姓名
+            </label>
+
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                 <User size={18} />
               </div>
+
               <input
                 type="text"
                 name="fullName"
                 value={formData.fullName}
                 onChange={handleChange}
-                placeholder="Jane Doe"
+                placeholder="請輸入姓名"
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white"
                 required
+                disabled={isSubmitting}
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-bold text-slate-700 ml-1">Department</label>
+            <label className="text-sm font-bold text-slate-700 ml-1">
+              系所
+            </label>
+
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                 <Building size={18} />
               </div>
               
               {/* 🎯 修正二：將舊版單層單選改成支援學院群組的巢狀渲染機制（使用 optgroup） */}
+
               <select
                 name="department"
                 value={formData.department}
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white appearance-none"
                 required
+                disabled={isSubmitting}
               >
                 <option value="" disabled>Select Department</option>
                 {DEPARTMENTS.map(group => (
@@ -280,11 +313,15 @@ export function Register() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-bold text-slate-700 ml-1">Email Address</label>
+          <label className="text-sm font-bold text-slate-700 ml-1">
+            電子信箱
+          </label>
+
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <Mail size={18} />
             </div>
+
             <input
               type="email"
               name="email"
@@ -293,64 +330,100 @@ export function Register() {
               placeholder="jane.doe@ntnu.edu.tw"
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white"
               required
+              disabled={isSubmitting}
             />
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-bold text-slate-700 ml-1">Student ID</label>
+          <label className="text-sm font-bold text-slate-700 ml-1">
+            學號
+          </label>
+
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <Hash size={18} />
             </div>
+
             <input
               type="text"
               name="studentId"
               value={formData.studentId}
               onChange={handleChange}
-              placeholder="e.g. 41271122H"
+              placeholder="例如：41271122H"
               pattern="\d{8}[A-Z]"
-              title="8 digits followed by 1 uppercase letter (e.g., 41271122H)"
+              title="請輸入 8 位數字加 1 個大寫英文字母，例如：41271122H"
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white"
               required
+              disabled={isSubmitting}
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="space-y-1.5">
-            <label className="text-sm font-bold text-slate-700 ml-1">Password</label>
+            <label className="text-sm font-bold text-slate-700 ml-1">
+              密碼
+            </label>
+
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                 <Lock size={18} />
               </div>
+
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white"
+                placeholder="請輸入密碼"
+                className="w-full pl-10 pr-11 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white"
                 required
+                disabled={isSubmitting}
               />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition-colors"
+                disabled={isSubmitting}
+                aria-label={showPassword ? "隱藏密碼" : "顯示密碼"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-bold text-slate-700 ml-1">Confirm Password</label>
+            <label className="text-sm font-bold text-slate-700 ml-1">
+              確認密碼
+            </label>
+
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                 <Lock size={18} />
               </div>
+
               <input
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white"
+                placeholder="請再次輸入密碼"
+                className="w-full pl-10 pr-11 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white"
                 required
+                disabled={isSubmitting}
               />
+
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition-colors"
+                disabled={isSubmitting}
+                aria-label={showConfirmPassword ? "隱藏確認密碼" : "顯示確認密碼"}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
         </div>
@@ -360,9 +433,21 @@ export function Register() {
           disabled={isSubmitting}
           className="w-full py-3.5 rounded-xl font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-lg shadow-slate-900/25 hover:shadow-slate-900/40 transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          {isSubmitting ? "Creating Account..." : "Create Account"}
+          {isSubmitting ? "註冊中..." : "建立帳號"}
         </button>
       </form>
+
+      <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+        <p className="text-sm font-medium text-slate-500">
+          已經有帳號了嗎？{" "}
+          <Link
+            to="/auth/login"
+            className="font-bold text-rose-700 hover:text-rose-800 hover:underline transition-colors"
+          >
+            返回登入
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
