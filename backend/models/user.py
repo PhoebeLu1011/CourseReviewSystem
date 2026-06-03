@@ -25,14 +25,13 @@ class Student(User):
         name,
         email,
         password,       
-        department,     # 必填
-        studentID,      # 必填
+        department,     
+        studentID,      
         profilePicURL=None, 
         reviewCount=0,
         replyCount=0,
         applyCount=0,
         role="student",
-        # 🎯 修正 1：在建構子末端加上新欄位，並賦予安全預設值
         bio="No bio provided yet.",
         birthday="2000-01-01",
         interests=None
@@ -45,14 +44,14 @@ class Student(User):
         self.replyCount = replyCount
         self.applyCount = applyCount
         
-        # 🎯 修正 2：綁定至物件屬性
+        
         self.bio = bio
         self.birthday = birthday
         self.interests = interests if interests is not None else []
 
     def to_dict(self):
         data = super().to_dict()
-        # 🎯 修正 3：確保 to_dict() 連同新欄位一起打包傳給 Repository 寫入 MongoDB
+       
         data.update({
             "password": self.password,
             "department": self.department,

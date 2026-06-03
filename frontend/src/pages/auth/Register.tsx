@@ -14,17 +14,137 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { registerUser } from "../../api/userApi";
 
+// 🎯 修正一：移除多餘的外部一包中括號，使其成為乾淨的物件陣列
 const DEPARTMENTS = [
-  { label: "資訊工程學系", value: "Computer Science" },
-  { label: "電機工程學系", value: "Electrical Engineering" },
-  { label: "機械工程學系", value: "Mechanical Engineering" },
-  { label: "企業管理學系", value: "Business Administration" },
-  { label: "外國語文學系", value: "Foreign Languages" },
-  { label: "設計與藝術學系", value: "Design and Arts" },
-  { label: "物理學系", value: "Physics" },
-  { label: "數學系", value: "Mathematics" },
-  { label: "土木工程學系", value: "Civil Engineering" },
-  { label: "資訊管理學系", value: "Information Management" },
+  {
+    "college": "國際與社會科學學院",
+    "departments": [
+      "全球研究全英語學士學位學程",
+      "國際人力資源發展研究所",
+      "大眾傳播研究所",
+      "東亞學系",
+      "歐洲文化與觀光研究所",
+      "社會工作學研究所",
+      "華語文教學系"
+    ]
+  },
+  {
+    "college": "學習資訊專業學院",
+    "departments": [
+      "圖書資訊學研究所",
+      "學習科學學士學位學程",
+      "資訊教育研究所"
+    ]
+  },
+  {
+    "college": "教育學院",
+    "departments": [
+      "健康促進與衛生教育學系",
+      "公民教育與活動領導學系",
+      "幼兒與家庭科學學系",
+      "教育學系",
+      "教育心理與輔導學系",
+      "特殊教育學系",
+      "社會教育學系",
+      "教育學院學士班",
+      "復健諮商與高齡福祉研究所",
+      "成癮防制碩士在職學位學程",
+      "教育政策與行政研究所",
+      "創造力發展碩士在職專班",
+      "課程與教學研究所"
+    ]
+  },
+  {
+    "college": "文學院",
+    "departments": [
+      "國文學系",
+      "地理學系",
+      "歷史學系",
+      "翻譯研究所",
+      "臺灣史研究所",
+      "臺灣語文學系",
+      "英語學系"
+    ]
+  },
+  {
+    "college": "理學院",
+    "departments": [
+      "化學系",
+      "地球科學系",
+      "數學系",
+      "永續管理與環境教育研究所",
+      "物理學系",
+      "科學教育研究所",
+      "資訊工程學系"
+    ]
+  },
+  {
+    "college": "生命科學專業學院",
+    "departments": [
+      "營養科學學士暨碩士學位學程",
+      "生命科學系",
+      "生技醫藥產業碩士學位學程",
+      "生物多樣性國際研究生博士學位學程"
+    ]
+  },
+  {
+    "college": "科技與工程學院",
+    "departments": [
+      "光電工程研究所暨學士學位學程",
+      "圖文傳播學系",
+      "工業教育學系",
+      "機電工程學系",
+      "科學-科技-工程-STEM整合教育國際博士學位學程",
+      "科技應用與人力資源發展學系",
+      "車輛與能源工程研究所暨學士學位學程",
+      "電機工程學系"
+    ]
+  },
+  {
+    "college": "管理學院",
+    "departments": [
+      "企業管理學系",
+      "全球經營與策略研究所",
+      "管理研究所",
+      "高階經理人企業管理碩士在職專班",
+      "國際時尚高階管理碩士在職專班"
+    ]
+  },
+  {
+    "college": "藝術學院",
+    "departments": [
+      "美術學系",
+      "藝術史研究所",
+      "設計學系",
+      "藝術產業高階經理碩士在職專班"
+    ]
+  },
+  {
+    "college": "跨域科技產業創新研究學院",
+    "departments": [
+      "AI 跨域應用研究所",
+      "綠能科技與永續治理研究所"
+    ]
+  },
+  {
+    "college": "運動與休閒學院",
+    "departments": [
+      "運動休閒與餐旅管理研究所",
+      "運動競技學系",
+      "體育與運動科學系",
+      "樂活產業高階經理人企業管理碩士在職專班"
+    ]
+  },
+  {
+    "college": "音樂學院",
+    "departments": [
+      "民族音樂研究所",
+      "表演藝術學士學位學程",
+      "表演藝術研究所",
+      "音樂學系",
+      "其他"
+    ]
+  }
 ];
 
 export function Register() {
@@ -80,8 +200,22 @@ export function Register() {
         department: formData.department,
       });
 
-      login(result.user, result.token);
-      navigate("/profile");
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.message || data.error || "Registration failed");
+      }
+
+      login({
+        id: data.student.studentID || data.student.id,
+        name: data.student.name || "Student",
+        role: "Student",
+        email: data.student.email,
+        department: data.student.department
+      }, data.token);
+
+      navigate("/profile"); 
+
     } catch (err: any) {
       console.error("Register Error:", err);
       setErrorMsg(err.message || "註冊失敗，請稍後再試。");
@@ -152,6 +286,8 @@ export function Register() {
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                 <Building size={18} />
               </div>
+              
+              {/* 🎯 修正二：將舊版單層單選改成支援學院群組的巢狀渲染機制（使用 optgroup） */}
 
               <select
                 name="department"
@@ -161,14 +297,15 @@ export function Register() {
                 required
                 disabled={isSubmitting}
               >
-                <option value="" disabled>
-                  請選擇系所
-                </option>
-
-                {DEPARTMENTS.map((dept) => (
-                  <option key={dept.value} value={dept.value}>
-                    {dept.label}
-                  </option>
+                <option value="" disabled>Select Department</option>
+                {DEPARTMENTS.map(group => (
+                  <optgroup key={group.college} label={group.college}>
+                    {group.departments.map(dept => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
