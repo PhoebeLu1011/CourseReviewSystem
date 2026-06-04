@@ -33,6 +33,17 @@ class CourseService:
             semester=semester, academicYear=academicYear,
         )
 
+    def recalculate_course_ratings(self, course_id: str, review_repo):
+        """刪除評論後，從剩餘可見評論重新計算平均值"""
+        course = self.course_repo.find_by_id(course_id)
+        if not course:
+            return
+        avg_s, avg_w, count = review_repo.calc_course_averages(course_id)
+        course.averageSweetness = round(avg_s, 2)
+        course.averageWorkload = round(avg_w, 2)
+        course.reviewCount = count
+        self.course_repo.save(course)
+
     def update_course_ratings(self, course_id: str, new_sweetness: float, new_workload: float):
         """
         Triggered whenever a student leaves a brand new review.
@@ -48,29 +59,5 @@ class CourseService:
         course.averageSweetness += (new_sweetness - course.averageSweetness) / course.reviewCount
         course.averageWorkload  += (new_workload  - course.averageWorkload)  / course.reviewCount
         
-        self.course_repo.save(course)
-        return course.to_dict()
-
-def recalculate_course_ratings(self, course_id: str, reviews_list: list):
-        """
-        Wipes out old averages and recalculates the total review count 
-        and scores from scratch using a list of real active reviews.
-        """
-        course = self.course_repo.find_by_id(course_id)
-        if not course:
-            raise ValueError("Course not found to recalculate scores.")
-        
-        count = len(reviews_list)
-        course.reviewCount = count
-        
-        if count == 0:
-            course.averageSweetness = 0.0
-            course.averageWorkload = 0.0
-        else:
-            total_sweetness = sum(r.get("sweetnessScore", 0) for r in reviews_list)
-            total_workload = sum(r.get("workloadScore", 0) for r in reviews_list)
-            course.averageSweetness = total_sweetness / count
-            course.averageWorkload = total_workload / count
-            
         self.course_repo.save(course)
         return course.to_dict()

@@ -1,6 +1,7 @@
 import { getProfile } from "../api/userApi";
 import { getUserReviews, updateReview, deleteReview, type Review } from "../api/reviewApi"; 
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router";
 import {
   BookOpen,
   Calendar,
@@ -12,6 +13,7 @@ import {
   Star,
   Trophy,
   AlertTriangle,
+  MapPin,
   Trash2, 
   Save,
   MessageSquare
@@ -83,6 +85,10 @@ export default function UserProfile() {
     interests: user.interests.join(", "),
   });
 
+  const [favoriteCourses, setFavoriteCourses] = useState<Course[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+
+  
   useEffect(() => {
     const fetchFullProfile = async () => {
       if (!authUser) return; 
@@ -101,7 +107,7 @@ export default function UserProfile() {
             department: profile.department || authUser.department,
             studentID: authUser.id,
             profilePicURL: profile.profilePicURL || "",
-            bio: profile.bio || "No bio provided yet.",
+            bio: profile.bio || "尚未填寫個人簡介。",
             birthday: profile.birthday || "2000-01-01",
             interests: profile.interests || [],
             reviewCount: profile.reviewCount || 0,
@@ -154,6 +160,26 @@ export default function UserProfile() {
       fetchReviews(); 
       fetchCommunityData(); // 💡 Called here
     }
+  }, [authUser]);
+
+  // 收藏課程
+  useEffect(() => {
+    if (!authUser) return;
+    const fetchFavorites = async () => {
+      setFavoritesLoading(true);
+      try {
+        const bookmarks = await getBookmarks(authUser.id);
+        const courses = await Promise.all(
+          bookmarks.map((b: any) => getCourse(b.courseId || b.courseID).catch(() => null))
+        );
+        setFavoriteCourses(courses.filter(Boolean) as Course[]);
+      } catch (err) {
+        console.error("Failed to load favorites:", err);
+      } finally {
+        setFavoritesLoading(false);
+      }
+    };
+    fetchFavorites();
   }, [authUser]);
 
   const handleSave = async () => {
@@ -299,6 +325,8 @@ export default function UserProfile() {
                     <h1 className="text-3xl font-bold text-slate-900">{user.name}</h1>
                   )}
                   <p className="mt-2 flex items-center gap-2 text-muted-foreground font-medium">
+                    <BookOpen size={16} />
+                    {user.role === "Admin" ? "管理員" : "學生"} · {user.department}
                     <BookOpen size={16} /> {user.role} Account · {user.department}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground font-mono">
@@ -307,8 +335,13 @@ export default function UserProfile() {
                 </div>
 
                 {!isEditing ? (
-                  <Button onClick={() => setIsEditing(true)} variant="outline" className="gap-2 border-slate-300 font-bold text-slate-700 hover:bg-slate-50">
-                    <Edit2 size={16} /> Edit Profile
+                  <Button
+                    onClick={() => setIsEditing(true)}
+                    variant="outline"
+                    className="gap-2 border-slate-300 font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Edit2 size={16} />
+                    編輯個人資料
                   </Button>
                 ) : (
                   <div className="flex gap-2">
@@ -319,6 +352,17 @@ export default function UserProfile() {
                       }}
                       variant="ghost" className="gap-2 text-muted-foreground font-bold"
                     >
+                      <X size={16} />
+                      取消
+                    </Button>
+
+                    <Button 
+                      onClick={handleSave} 
+                      className="gap-2 bg-slate-900 hover:bg-slate-800 font-bold"
+                      disabled={isLoading}
+                    >
+                      <Check size={16} />
+                      {isLoading ? "儲存中..." : "儲存"}
                       <X size={16} /> Cancel
                     </Button>
                     <Button onClick={handleSave} className="gap-2 bg-slate-900 hover:bg-slate-800 font-bold">
@@ -331,7 +375,9 @@ export default function UserProfile() {
               {isEditing ? (
                 <div className="grid gap-4 rounded-xl border bg-slate-50/50 p-4 md:grid-cols-2">
                   <div className="md:col-span-2">
-                    <label className="mb-1 block text-sm font-bold text-slate-700">Bio</label>
+                    <label className="mb-1 block text-sm font-bold text-slate-700">
+                      個人簡介
+                    </label>
                     <textarea
                       value={editForm.bio}
                       onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
@@ -339,24 +385,55 @@ export default function UserProfile() {
                     />
                   </div>
                   <div>
+                    <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700">
+                      <Calendar size={14} />
+                      生日
+                    </label>
+                    <Input
+                      type="date"
+                      value={editForm.birthday}
+                      className="rounded-xl"
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          birthday: e.target.value,
+                        })
+                      }
+                    />
                     <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700"><Calendar size={14} /> Birthday</label>
                     <Input type="date" value={editForm.birthday} className="rounded-xl" onChange={(e) => setEditForm({ ...editForm, birthday: e.target.value })} />
                   </div>
                   <div>
-                    <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700"><Hash size={14} /> Interests</label>
-                    <Input value={editForm.interests} className="rounded-xl" onChange={(e) => setEditForm({ ...editForm, interests: e.target.value })} />
+                    <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700">
+                      <Hash size={14} />
+                      興趣
+                    </label>
+                    <Input
+                      value={editForm.interests}
+                      className="rounded-xl"
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          interests: e.target.value,
+                        })
+                      }
+                      placeholder=" "
+                    />
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <p className="max-w-3xl leading-relaxed text-slate-600 font-medium">{user.bio || "No bio provided yet."}</p>
+                  <p className="max-w-3xl leading-relaxed text-slate-600 font-medium">
+                    {user.bio || "尚未填寫個人簡介。"}
+                  </p>
+
                   <div className="flex flex-wrap gap-2">
                     {user.interests.length > 0 ? (
                       user.interests.map((interest) => (
                         <Badge key={interest} variant="secondary" className="bg-slate-100 text-slate-700 font-bold rounded-lg px-2.5 py-1">{interest}</Badge>
                       ))
                     ) : (
-                      <span className="text-xs text-slate-400 italic">No interests added.</span>
+                      <span className="text-xs text-slate-400 italic">尚未新增興趣。</span>
                     )}
                   </div>
                 </div>
@@ -367,6 +444,83 @@ export default function UserProfile() {
       </Card>
 
       <section className="grid gap-4 md:grid-cols-3">
+        <Card className="border-slate-100 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-sm font-bold text-slate-500">評論數</p>
+            <p className="mt-2 text-3xl font-black text-slate-900">{user.reviewCount}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-100 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-sm font-bold text-slate-500">回覆數</p>
+            <p className="mt-2 text-3xl font-black text-slate-900">{user.replyCount}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-100 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-sm font-bold text-slate-500">申請數</p>
+            <p className="mt-2 text-3xl font-black text-slate-900">{user.applyCount}</p>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* 頁籤內容區塊 */}
+      <Tabs defaultValue="favorites" className="w-full">
+        <TabsList className="mb-6 grid w-full max-w-[600px] grid-cols-3 bg-slate-100 p-1 rounded-xl">
+          <TabsTrigger value="favorites" className="font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900">我的收藏</TabsTrigger>
+          <TabsTrigger value="achievements" className="font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900">成就</TabsTrigger>
+          <TabsTrigger value="reports" className="font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900">我的檢舉</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="favorites" className="mt-6">
+          {favoritesLoading ? (
+            <p className="text-center text-sm text-muted-foreground py-8">載入中...</p>
+          ) : favoriteCourses.length === 0 ? (
+            <Card className="border-dashed border-2 border-slate-200 shadow-none">
+              <CardContent className="p-8 text-center">
+                <h2 className="text-xl font-bold text-slate-800">尚無收藏課程</h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  前往{" "}
+                  <Link to="/courses" className="text-primary hover:underline font-medium">
+                    課程總覽
+                  </Link>{" "}
+                  收藏你感興趣的課程。
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {favoriteCourses.map((course) => {
+                const parsed = parseNTNUSchedule(course.timeAndLocation);
+                return (
+                  <Link key={course.courseID} to={`/courses/${course.courseID}`}>
+                    <Card className="border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
+                      <CardContent className="p-5 space-y-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground font-medium">{course.courseCode}</p>
+                          <h3 className="text-base font-bold text-slate-900 leading-snug mt-0.5">
+                            {course.title}
+                          </h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{course.department}</p>
+                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <Calendar size={12} />
+                            {parsed.schedule}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <MapPin size={12} />
+                            {parsed.location}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
         <Card className="border-slate-100 shadow-sm"><CardContent className="p-5"><p className="text-sm font-bold text-slate-500">Reviews</p><p className="mt-2 text-3xl font-black text-slate-900">{myReviews.length}</p></CardContent></Card>
         <Card className="border-slate-100 shadow-sm"><CardContent className="p-5"><p className="text-sm font-bold text-slate-500">Replies</p><p className="mt-2 text-3xl font-black text-slate-900">{myReplies.length}</p></CardContent></Card>
         <Card className="border-slate-100 shadow-sm"><CardContent className="p-5"><p className="text-sm font-bold text-slate-500">Applications</p><p className="mt-2 text-3xl font-black text-slate-900">{user.applyCount}</p></CardContent></Card>

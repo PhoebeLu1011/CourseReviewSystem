@@ -3,9 +3,10 @@ from repository.review_repository import ReviewRepository
 
 
 class AdminService:
-    def __init__(self, report_repo: ReportRepository, review_repo: ReviewRepository):
+    def __init__(self, report_repo: ReportRepository, review_repo: ReviewRepository, course_service=None):
         self.report_repo = report_repo
         self.review_repo = review_repo
+        self.course_service = course_service
 
     def get_report_queue(self):
         """取得所有待處理的檢舉案件"""
@@ -21,17 +22,28 @@ class AdminService:
         if not report:
             raise ValueError("Report not found.")
 
-        if report.status != "PENDING":
-            raise ValueError("This report has already been processed.")
-
         if decision == "DELETE_REVIEW":
+            # 先取得該評論的課程 ID，刪除後重新計算平均
+            review = self.review_repo.find_by_id(report.reviewID)
+            course_id = review.courseID if review else None
             self.review_repo.delete_by_id(report.reviewID)
+            if course_id and self.course_service:
+                try:
+                    self.course_service.recalculate_course_ratings(course_id, self.review_repo)
+                except Exception as e:
+                    print(f"Warning: Could not recalculate ratings: {e}")
             self.report_repo.update_status(report_id, "RESOLVED", handler_id, "deleted")
 
         elif decision == "HIDE_REVIEW":
-            # 修正：原本錯誤呼叫 reset_visibility（解除隱藏），
-            # 現在改為呼叫 hide_review（真正隱藏）
+            review = self.review_repo.find_by_id(report.reviewID)
+            course_id = review.courseID if review else None
             self.review_repo.hide_review(report.reviewID)
+            # 隱藏後重新計算（確保從 DELETED 改成 HIDDEN 時評分正確回補）
+            if course_id and self.course_service:
+                try:
+                    self.course_service.recalculate_course_ratings(course_id, self.review_repo)
+                except Exception as e:
+                    print(f"Warning: Could not recalculate ratings: {e}")
             self.report_repo.update_status(report_id, "RESOLVED", handler_id, "hidden")
 
         elif decision == "DISMISS_REPORT":
