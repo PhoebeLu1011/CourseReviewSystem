@@ -24,6 +24,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Input } from "../components/ui/input";
+import { API_BASE_URL } from "../config/api";
 import { useAuth } from "../context/AuthContext";
 import { 
   getUserDiscussions, getUserReplies, 
@@ -42,10 +43,11 @@ const mockReports = [
 ];
 
 export default function UserProfile() {
-  const { user: authUser, login } = useAuth();
+  const { user: authUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const [myReviews, setMyReviews] = useState<Review[]>([]);
@@ -97,7 +99,7 @@ export default function UserProfile() {
       if (!token) return;
 
       try {
-        const response = await fetch("http://127.0.0.1:5000/api/user/profile", {
+        const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
           method: "GET",
           headers: {
             // 💡 修正：依據後端程式碼，組長的 request.headers.get("Authorization") 通常要帶 Bearer
@@ -263,7 +265,7 @@ export default function UserProfile() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/user/${authUser.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/user/${authUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({

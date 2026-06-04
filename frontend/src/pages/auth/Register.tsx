@@ -68,7 +68,10 @@ export function Register() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -109,6 +112,7 @@ export function Register() {
       login(userWithAvatar, token);
       navigate("/profile"); 
 
+      navigate("/profile");
     } catch (err: any) {
       console.error("Register Error:", err);
       setErrorMsg(err.message || "註冊失敗，請稍後再試。");
@@ -179,8 +183,7 @@ export function Register() {
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                 <Building size={18} />
               </div>
-              
-              {/* 🎯 核心修改三：動態渲染從後端撈下來的學院與科系（具有 Loading 緩衝提示） */}
+
               <select
                 name="department"
                 value={formData.department}
@@ -197,7 +200,7 @@ export function Register() {
                 
                 {dbDepartments.map(group => (
                   <optgroup key={group.college} label={group.college}>
-                    {group.departments.map(dept => (
+                    {group.departments.map((dept) => (
                       <option key={dept} value={dept}>
                         {dept}
                       </option>
@@ -317,7 +320,9 @@ export function Register() {
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
                 className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition-colors"
                 disabled={isSubmitting}
-                aria-label={showConfirmPassword ? "隱藏確認密碼" : "顯示確認密碼"}
+                aria-label={
+                  showConfirmPassword ? "隱藏確認密碼" : "顯示確認密碼"
+                }
               >
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>

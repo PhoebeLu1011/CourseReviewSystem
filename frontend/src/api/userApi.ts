@@ -59,7 +59,7 @@ interface AuthResponse {
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
-  let data: any = {};
+  let data: Partial<AuthResponse> = {};
 
   try {
     data = await response.json();
