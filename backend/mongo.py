@@ -2,6 +2,7 @@ from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 import certifi
+import gridfs
 
 load_dotenv()
 
@@ -29,3 +30,4 @@ except Exception as e:
     raise
 
 db = client[db_name]
+fs = gridfs.GridFS(db)

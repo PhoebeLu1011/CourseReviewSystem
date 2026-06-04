@@ -1,9 +1,25 @@
 import { API_BASE_URL } from "../config/api";
-import type { Course } from "../models/Course";
 
 const BASE_URL = API_BASE_URL;
 
-export type { Course };
+export interface Course {
+  courseID: string;        // composite: {serialNumber}_{year}_{semester}
+  courseCode: string;      // original code e.g. TAC8001
+  serialNumber: string;
+  title: string;
+  department: string;
+  professors: string[];
+  timeAndLocation: string;
+  syllabusURL: string;
+  academicYear: string;
+  semester: string;
+  credits: number;
+  capacity: number;
+  level: string;
+  averageSweetness: number;
+  averageWorkload: number;
+  reviewCount: number;
+}
 
 export const LEVELS = ["學士班", "碩士班", "博士班", "其他"] as const;
 export const SEMESTERS: { value: string; label: string }[] = [

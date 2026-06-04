@@ -67,5 +67,36 @@ def create_review_routes(review_service):
 
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
+        
+    
+    @review_bp.route("/users/<student_id>/reviews", methods=["GET"])
+    def get_user_reviews(student_id):
+        reviews = review_service.get_reviews_by_student(student_id)
+        return jsonify([r.to_dict() for r in reviews]), 200
+
+    @review_bp.route("/reviews/<review_id>", methods=["PUT"])
+    def edit_review(review_id):
+        try:
+            data = request.get_json()
+            updated_review = review_service.update_review(
+                review_id=review_id,
+                student_id=data.get("authorID"),
+                content=data.get("content"),
+                sweetness=data.get("sweetnessScore"),
+                workload=data.get("workloadScore")
+            )
+            return jsonify(updated_review), 200
+        except ValueError as e:
+            return jsonify({"message": str(e)}), 400
+
+    @review_bp.route("/reviews/<review_id>", methods=["DELETE"])
+    def delete_review(review_id):
+        try:
+            data = request.get_json()
+            student_id = data.get("authorID")
+            review_service.delete_review(review_id, student_id)
+            return jsonify({"success": True, "message": "Review deleted."}), 200
+        except ValueError as e:
+            return jsonify({"message": str(e)}), 400
 
     return review_bp

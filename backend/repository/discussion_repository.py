@@ -4,36 +4,50 @@ class DiscussionRepository:
     def __init__(self, db):
         self.collection = db["discussions"]
 
-    def delete_by_id(self, discussion_id):
-        self.collection.delete_one({"_id": discussion_id})
-
-    def find_by_id(self, discussion_id):
-        data = self.collection.find_one({"_id": discussion_id})
+    def find_discussion_by_id(self, discussion_id):
+        data = self.collection.find_one({"discussionID": discussion_id})
         if not data: return None
-        
-        data.pop("_id", None) 
+        data.pop("_id", None)
         return Discussion(**data)
 
-    def save(self, discussion: Discussion):
+    def save_discussion(self, discussion: Discussion):
         self.collection.update_one(
-            {"_id": discussion.discussion_id},
+            {"discussionID": discussion.discussionID},
             {"$set": discussion.to_dict()},
             upsert=True
         )
 
-    def find_by_course_id(self, course_id, sort_by="newest", limit=10, skip=0):
-        query = {
-            "course_id": course_id
-        }
+    def find_by_course_id(self, course_id):
+        cursor = self.collection.find({"courseID": course_id}).sort("timestamp", -1)
+        results = []
+        for d in cursor:
+            d.pop("_id", None)
+            results.append(Discussion(**d))
+        return results
 
-        if sort_by == "popular":
-            sort_logic = [("likeCount", -1), ("created_at", -1)]
-        else:
-            sort_logic = [("created_at", -1)]
+    def find_all_discussions(self, search_query=""):
+        query = {}
+        if search_query:
+            query["$or"] = [
+                {"title": {"$regex": search_query, "$options": "i"}},
+                {"content": {"$regex": search_query, "$options": "i"}},
+                {"courseID": {"$regex": search_query, "$options": "i"}}
+            ]
+        cursor = self.collection.find(query).sort("timestamp", -1)
+        results = []
+        for d in cursor:
+            d.pop("_id", None)
+            results.append(Discussion(**d))
+        return results
+    
+    def find_by_author_id(self, author_id):
+        cursor = self.collection.find({"authorID": author_id}).sort("timestamp", -1)
+        results = []
+        for d in cursor:
+            d.pop("_id", None)
+            from models.discussion import Discussion
+            results.append(Discussion(**d))
+        return results
 
-        cursor = self.collection.find(query).sort(sort_logic).skip(skip).limit(limit)
-        discussions = []
-        for data in cursor:
-            data.pop("_id", None)
-            discussions.append(Discussion(**data))
-        return discussions
+    def delete_discussion(self, discussion_id):
+        self.collection.delete_one({"discussionID": discussion_id})

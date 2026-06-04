@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   ArrowLeft,
@@ -14,134 +14,11 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { registerUser } from "../../api/userApi";
 
-const DEPARTMENTS = [
-  {
-    college: "國際與社會科學學院",
-    departments: [
-      "全球研究全英語學士學位學程",
-      "國際人力資源發展研究所",
-      "大眾傳播研究所",
-      "東亞學系",
-      "歐洲文化與觀光研究所",
-      "社會工作學研究所",
-      "華語文教學系",
-    ],
-  },
-  {
-    college: "學習資訊專業學院",
-    departments: [
-      "圖書資訊學研究所",
-      "學習科學學士學位學程",
-      "資訊教育研究所",
-    ],
-  },
-  {
-    college: "教育學院",
-    departments: [
-      "健康促進與衛生教育學系",
-      "公民教育與活動領導學系",
-      "幼兒與家庭科學學系",
-      "教育學系",
-      "教育心理與輔導學系",
-      "特殊教育學系",
-      "社會教育學系",
-      "教育學院學士班",
-      "復健諮商與高齡福祉研究所",
-      "成癮防制碩士在職學位學程",
-      "教育政策與行政研究所",
-      "創造力發展碩士在職專班",
-      "課程與教學研究所",
-    ],
-  },
-  {
-    college: "文學院",
-    departments: [
-      "國文學系",
-      "地理學系",
-      "歷史學系",
-      "翻譯研究所",
-      "臺灣史研究所",
-      "臺灣語文學系",
-      "英語學系",
-    ],
-  },
-  {
-    college: "理學院",
-    departments: [
-      "化學系",
-      "地球科學系",
-      "數學系",
-      "永續管理與環境教育研究所",
-      "物理學系",
-      "科學教育研究所",
-      "資訊工程學系",
-    ],
-  },
-  {
-    college: "生命科學專業學院",
-    departments: [
-      "營養科學學士暨碩士學位學程",
-      "生命科學系",
-      "生技醫藥產業碩士學位學程",
-      "生物多樣性國際研究生博士學位學程",
-    ],
-  },
-  {
-    college: "科技與工程學院",
-    departments: [
-      "光電工程研究所暨學士學位學程",
-      "圖文傳播學系",
-      "工業教育學系",
-      "機電工程學系",
-      "科學-科技-工程-STEM整合教育國際博士學位學程",
-      "科技應用與人力資源發展學系",
-      "車輛與能源工程研究所暨學士學位學程",
-      "電機工程學系",
-    ],
-  },
-  {
-    college: "管理學院",
-    departments: [
-      "企業管理學系",
-      "全球經營與策略研究所",
-      "管理研究所",
-      "高階經理人企業管理碩士在職專班",
-      "國際時尚高階管理碩士在職專班",
-    ],
-  },
-  {
-    college: "藝術學院",
-    departments: [
-      "美術學系",
-      "藝術史研究所",
-      "設計學系",
-      "藝術產業高階經理碩士在職專班",
-    ],
-  },
-  {
-    college: "跨域科技產業創新研究學院",
-    departments: ["AI 跨域應用研究所", "綠能科技與永續治理研究所"],
-  },
-  {
-    college: "運動與休閒學院",
-    departments: [
-      "運動休閒與餐旅管理研究所",
-      "運動競技學系",
-      "體育與運動科學系",
-      "樂活產業高階經理人企業管理碩士在職專班",
-    ],
-  },
-  {
-    college: "音樂學院",
-    departments: [
-      "民族音樂研究所",
-      "表演藝術學士學位學程",
-      "表演藝術研究所",
-      "音樂學系",
-      "其他",
-    ],
-  },
-];
+// 💡 定義後端回傳的科系資料型別結構
+interface DepartmentGroup {
+  college: string;
+  departments: string[];
+}
 
 export function Register() {
   const { login } = useAuth();
@@ -156,10 +33,36 @@ export function Register() {
     confirmPassword: "",
   });
 
+  // 🎯 新增：儲存從後端 API 撈回來的動態科系清單狀態
+  const [dbDepartments, setDbDepartments] = useState<DepartmentGroup[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingDepts, setIsLoadingDepts] = useState(true); // 科系載入狀態
   const [errorMsg, setErrorMsg] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // 🎯 核心修改一：頁面載入時，動態對接新路由 '/api/user/departments' 獲取科系
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        setIsLoadingDepts(true);
+        const response = await fetch("http://127.0.0.1:5000/api/user/departments");
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          setDbDepartments(data.data);
+        } else {
+          console.error("後端回傳獲取科系失敗");
+        }
+      } catch (err) {
+        console.error("無法連線至後端獲取科系清單:", err);
+      } finally {
+        setIsLoadingDepts(false);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -191,7 +94,7 @@ export function Register() {
     setIsSubmitting(true);
 
     try {
-      const result = await registerUser({
+      const { user, token } = await registerUser({
         studentID: formData.studentId,
         password: formData.password,
         name: formData.fullName,
@@ -199,7 +102,15 @@ export function Register() {
         department: formData.department,
       });
 
+      // 🎯 核心修改二：確保註冊成功登入時，user 物件結構包含 avatar 屬性
+      const userWithAvatar = {
+        ...user,
+        avatar: user.avatar || "" // 若剛註冊後端尚未生成 avatar_id，則預設為空字串
+      };
       login(result.user, result.token);
+
+      login(userWithAvatar, token);
+      navigate("/profile"); 
 
       navigate("/profile");
     } catch (err: any) {
@@ -279,13 +190,15 @@ export function Register() {
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white appearance-none"
                 required
-                disabled={isSubmitting}
+                disabled={isSubmitting || isLoadingDepts}
               >
-                <option value="" disabled>
-                  請選擇系所
-                </option>
-
-                {DEPARTMENTS.map((group) => (
+                {isLoadingDepts ? (
+                  <option value="" disabled>科系清單載入中...</option>
+                ) : (
+                  <option value="" disabled>請選擇系所</option>
+                )}
+                
+                {dbDepartments.map(group => (
                   <optgroup key={group.college} label={group.college}>
                     {group.departments.map((dept) => (
                       <option key={dept} value={dept}>
@@ -419,7 +332,7 @@ export function Register() {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isLoadingDepts}
           className="w-full py-3.5 rounded-xl font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-lg shadow-slate-900/25 hover:shadow-slate-900/40 transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
         >
           {isSubmitting ? "註冊中..." : "建立帳號"}

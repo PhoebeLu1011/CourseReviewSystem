@@ -7,6 +7,10 @@ interface User {
   role: "Student" | "Admin";
   email?: string;
   department?: string;
+  avatar?: string;
+  bio?: string; 
+  birthday?: string; 
+  interests?: string[];
 }
 
 interface AuthContextType {
@@ -18,15 +22,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
+  const [user, setUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem("user");
-    const savedToken = localStorage.getItem("token");
-    if (savedUser && savedToken) {
-      setUser(JSON.parse(savedUser));
-    }
-  }, []);
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
   const login = (userData: User, token: string) => {
     localStorage.setItem("user", JSON.stringify(userData));

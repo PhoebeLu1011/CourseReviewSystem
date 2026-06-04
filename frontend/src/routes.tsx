@@ -11,6 +11,7 @@ import Schedule from "./pages/Schedule";
 import Reviews from "./pages/Reviews";
 import { Login } from "./pages/auth/Login"; 
 import { Register }from "./pages/auth/Register";
+import Discussions from "./pages/Discussions";
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -70,7 +71,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "discussions",
-        element: <PlaceholderPage title="Discussions" />,
+        element: <Discussions/>,
       },
       {
         path: "profile",

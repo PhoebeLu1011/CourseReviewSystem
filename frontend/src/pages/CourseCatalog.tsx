@@ -1,5 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router";
+
+const SESSION_KEY = "courseCatalogFilters";
+function loadFilters() {
+  try {
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch { return {}; }
+}
+function saveFilters(filters: Record<string, string>) {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(filters)); } catch {}
+}
 import {
   Search,
   BookOpen,
@@ -55,12 +66,13 @@ export default function CourseCatalog() {
   const { user } = useAuth();
   const { addToSchedule, isScheduled } = useSchedule();
 
-  // ─── Filter state ──────────────────────────────────────────
-  const [query, setQuery] = useState("");
-  const [department, setDepartment] = useState("");
-  const [level, setLevel] = useState("");
-  const [semester, setSemester] = useState("");
-  const [academicYear, setAcademicYear] = useState("");
+  // ─── Filter state（從 sessionStorage 初始化）──────────────
+  const saved = loadFilters();
+  const [query, setQuery] = useState(saved.q ?? "");
+  const [department, setDepartment] = useState(saved.department ?? "");
+  const [level, setLevel] = useState(saved.level ?? "");
+  const [semester, setSemester] = useState(saved.semester ?? "");
+  const [academicYear, setAcademicYear] = useState(saved.academicYear ?? "");
   const [showFilters, setShowFilters] = useState(true);
   const [savedOnly, setSavedOnly] = useState(false);
 
@@ -120,6 +132,9 @@ export default function CourseCatalog() {
         if (!cancelled) setLoading(false);
       }
     };
+
+    // 同步篩選條件到 sessionStorage
+    saveFilters({ q: query, department, level, semester, academicYear });
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(run, 350);
