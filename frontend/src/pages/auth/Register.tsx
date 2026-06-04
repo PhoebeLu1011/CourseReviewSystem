@@ -14,7 +14,6 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { registerUser } from "../../api/userApi";
 
-// 🎯 修正一：移除多餘的外部一包中括號，使其成為乾淨的物件陣列
 const DEPARTMENTS = [
   {
     "college": "國際與社會科學學院",
