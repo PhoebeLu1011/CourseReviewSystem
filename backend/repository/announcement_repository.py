@@ -8,7 +8,11 @@ class AnnouncementRepository:
     def find_all(self):
         """取得所有公告（最新優先）"""
         cursor = self.collection.find().sort("created_at", -1)
-        return [Announcement(**data) for data in cursor]
+        announcements = []
+        for data in cursor:
+            data.pop("_id", None)  # 修正：清除 MongoDB _id，避免 Announcement() 崩潰
+            announcements.append(Announcement(**data))
+        return announcements
 
     def find_by_id(self, announcement_id: str):
         """取得單一公告"""
@@ -27,5 +31,5 @@ class AnnouncementRepository:
         )
 
     def delete_by_id(self, announcement_id: str):
-        """刪除公告（可選功能）"""
+        """刪除公告"""
         self.collection.delete_one({"announcementID": announcement_id})
