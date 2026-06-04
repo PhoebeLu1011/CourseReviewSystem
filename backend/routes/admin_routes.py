@@ -9,6 +9,7 @@ DELETE /admin/announcements/<id>            - 刪除公告
 """
 
 from flask import Blueprint, request, jsonify
+from mongo import db
 
 
 def create_admin_routes(admin_service, announcement_service):
@@ -31,6 +32,35 @@ def create_admin_routes(admin_service, announcement_service):
         try:
             reports = admin_service.get_all_reports()
             return jsonify([r.to_dict() for r in reports]), 200
+        except Exception as e:
+            return jsonify({"message": str(e)}), 500
+
+    @admin_bp.route("/admin/reports/<report_id>/content", methods=["GET"])
+    def get_report_content(report_id):
+        """取得被檢舉內容（依 reported_type 查對應 collection）"""
+        try:
+            report_data = db["reports"].find_one({"reportID": report_id}, {"_id": 0})
+            if not report_data:
+                return jsonify({"message": "Report not found"}), 404
+
+            reported_type = report_data.get("reported_type", "review")
+            reported_id = report_data.get("reported_id") or report_data.get("reviewID")
+
+            if reported_type == "review":
+                content = db["reviews"].find_one({"reviewID": reported_id}, {"_id": 0})
+            elif reported_type == "comment":
+                content = db["replies"].find_one({"replyID": reported_id}, {"_id": 0})
+                if not content:
+                    content = db["replies"].find_one({"_id": reported_id}, {"_id": 0})
+            elif reported_type == "teammate_post":
+                content = db["groups"].find_one({"group_id": reported_id}, {"_id": 0})
+            else:
+                content = None
+
+            if not content:
+                return jsonify({"message": "Content not found", "reported_type": reported_type, "reported_id": reported_id}), 404
+
+            return jsonify({"reported_type": reported_type, "content": content}), 200
         except Exception as e:
             return jsonify({"message": str(e)}), 500
 

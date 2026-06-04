@@ -15,7 +15,9 @@ import {
   Loader2,
   ExternalLink,
   Send,
-  PenLine
+  PenLine,
+  Flag,
+  X,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -25,7 +27,9 @@ import { useAuth } from "../context/AuthContext";
 import { addBookmark, removeBookmark, isBookmarked } from "../api/bookmarkApi";
 import { useSchedule } from "../context/ScheduleContext";
 import { getCourse, parseNTNUSchedule, type Course as APICourse } from "../api/courseApi";
-import { getCourseReviews, createReview, type Review } from "../api/reviewApi"; // NEW API IMPORTS!
+import { getCourseReviews, createReview, type Review } from "../api/reviewApi";
+import { submitReport } from "../api/reportApi";
+import type { ReportReason } from "../models/Report";
 
 interface CourseView extends APICourse {
   professor: string;
@@ -150,16 +154,45 @@ function SyllabusTab({ course }: { course: CourseView }) {
 }
 
 // ─── LIVE Reviews Tab ─────────────────────────────────────────────
+const REPORT_REASONS: { value: ReportReason; label: string }[] = [
+  { value: "SPAM", label: "垃圾內容" },
+  { value: "HARASSMENT", label: "騷擾或霸凌" },
+  { value: "OFFENSIVE_CONTENT", label: "不當內容" },
+  { value: "FALSE_INFORMATION", label: "虛假資訊" },
+  { value: "INAPPROPRIATE_LANGUAGE", label: "不當用語" },
+  { value: "OTHER", label: "其他" },
+];
+
 function ReviewsTab({ course }: { course: CourseView }) {
+  const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Form State
   const [isWriting, setIsWriting] = useState(false);
   const [content, setContent] = useState("");
   const [sweetness, setSweetness] = useState(0);
   const [workload, setWorkload] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Report State
+  const [reportingReviewID, setReportingReviewID] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState<ReportReason>("SPAM");
+  const [isReporting, setIsReporting] = useState(false);
+
+  const handleReport = async () => {
+    if (!user || !reportingReviewID) return;
+    setIsReporting(true);
+    try {
+      await submitReport({ reporterID: user.id, reviewID: reportingReviewID, reason: reportReason });
+      alert("檢舉已送出，謝謝您的回報。");
+      setReportingReviewID(null);
+    } catch (err: any) {
+      alert(err.message === "Already reported this review" ? "你已經檢舉過這則評論了。" : "檢舉失敗，請稍後再試。");
+    } finally {
+      setIsReporting(false);
+    }
+  };
 
   const fetchReviews = async () => {
     setLoading(true);
@@ -179,7 +212,7 @@ function ReviewsTab({ course }: { course: CourseView }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (sweetness === 0 || workload === 0) return alert("Please rate both Sweetness and Workload!");
+    if (sweetness === 0 || workload === 0) return alert("請評分甜度與涼度！");
     setIsSubmitting(true);
     try {
       await createReview({
@@ -203,31 +236,76 @@ function ReviewsTab({ course }: { course: CourseView }) {
 
   return (
     <div className="space-y-5">
+      {/* 檢舉 Modal */}
+      {reportingReviewID && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900">檢舉評論</h3>
+              <button onClick={() => setReportingReviewID(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">請選擇檢舉原因：</p>
+            <div className="space-y-2">
+              {REPORT_REASONS.map((r) => (
+                <label key={r.value} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-slate-50">
+                  <input
+                    type="radio"
+                    name="reportReason"
+                    value={r.value}
+                    checked={reportReason === r.value}
+                    onChange={() => setReportReason(r.value)}
+                    className="accent-primary"
+                  />
+                  <span className="text-sm text-slate-700">{r.label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setReportingReviewID(null)}
+                className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleReport}
+                disabled={isReporting}
+                className="flex-1 rounded-lg bg-rose-500 py-2 text-sm font-medium text-white hover:bg-rose-600 transition-colors disabled:opacity-50"
+              >
+                {isReporting ? "送出中..." : "送出檢舉"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-3">
         
         {/* NEW: Clean Dual-Metric Rating Summary */}
         <Card className="lg:col-span-1 border-slate-100 shadow-sm h-fit">
           <CardContent className="p-6">
-            <h3 className="font-bold text-slate-800 mb-6">Rating Summary</h3>
-            
+            <h3 className="font-bold text-slate-800 mb-6">評分總覽</h3>
+
             <div className="flex flex-col items-center justify-center mb-8">
               <span className="text-5xl font-extrabold text-slate-900">
                 {course.averageSweetness?.toFixed(1) || "0.0"}
               </span>
-              <span className="text-sm text-muted-foreground mt-1">Overall Sweetness</span>
+              <span className="text-sm text-muted-foreground mt-1">平均甜度</span>
             </div>
 
             <div className="space-y-4 border-t border-slate-100 pt-6">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-600">Sweetness</span>
+                <span className="text-sm font-medium text-slate-600">甜度</span>
                 <span className="text-sm font-bold text-slate-900">{course.averageSweetness?.toFixed(1) || "0.0"} / 5</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-600">Workload</span>
+                <span className="text-sm font-medium text-slate-600">涼度</span>
                 <span className="text-sm font-bold text-slate-900">{course.averageWorkload?.toFixed(1) || "0.0"} / 5</span>
               </div>
               <div className="flex justify-between items-center pt-2">
-                <span className="text-xs text-muted-foreground">Total Reviews</span>
+                <span className="text-xs text-muted-foreground">評論數</span>
                 <span className="text-xs font-medium text-slate-500">{course.reviewCount || 0}</span>
               </div>
             </div>
@@ -238,8 +316,8 @@ function ReviewsTab({ course }: { course: CourseView }) {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between pb-2">
             <div>
-              <h3 className="text-base font-bold text-slate-800">Student Reviews</h3>
-              <span className="text-sm text-muted-foreground">{reviews.length} total</span>
+              <h3 className="text-base font-bold text-slate-800">學生評論</h3>
+              <span className="text-sm text-muted-foreground">共 {reviews.length} 則</span>
             </div>
             <Button 
               onClick={() => {
@@ -250,7 +328,7 @@ function ReviewsTab({ course }: { course: CourseView }) {
               }}
               className="gap-2" size="sm"
             >
-              <PenLine size={15} /> {isWriting ? "Cancel" : "Write a Review"}
+              <PenLine size={15} /> {isWriting ? "取消" : "撰寫評論"}
             </Button>
           </div>
 
@@ -261,24 +339,24 @@ function ReviewsTab({ course }: { course: CourseView }) {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="flex gap-8 py-2">
                     <div className="space-y-1">
-                      <label className="text-sm font-semibold text-slate-700">Sweetness</label>
+                      <label className="text-sm font-semibold text-slate-700">甜度</label>
                       <RatingIcons rating={sweetness} type="sweetness" interactive={true} setRating={setSweetness} />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-sm font-semibold text-slate-700">Workload</label>
+                      <label className="text-sm font-semibold text-slate-700">涼度</label>
                       <RatingIcons rating={workload} type="workload" interactive={true} setRating={setWorkload} />
                     </div>
                   </div>
                   <textarea 
                     className="w-full min-h-[120px] rounded-md border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    placeholder="What did you think of this specific course?"
+                    placeholder="分享你對這門課的看法..."
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     required
                   />
                   <button type="submit" disabled={isSubmitting} className="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-md font-medium text-sm hover:bg-slate-800 transition-colors disabled:opacity-50">
                     {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
-                    Post Review
+                    送出評論
                   </button>
                 </form>
               </CardContent>
@@ -289,11 +367,21 @@ function ReviewsTab({ course }: { course: CourseView }) {
              <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-primary" size={24} /></div>
           ) : reviews.length === 0 ? (
             <div className="rounded-xl border border-slate-100 bg-card p-8 text-center text-muted-foreground text-sm">
-              No reviews yet. Be the first to write one!
+              還沒有評論，成為第一個評論的人吧！
             </div>
           ) : (
             reviews.map((review) => {
               const date = new Date(review.timestamp).toLocaleDateString();
+              if ((review as any).visibilityState === "HIDDEN") {
+                return (
+                  <Card key={review.reviewID} className="border-slate-100 shadow-sm opacity-60">
+                    <CardContent className="p-5 flex items-center gap-3 text-sm text-muted-foreground">
+                      <Flag size={14} className="shrink-0 text-slate-400" />
+                      此評論已被管理員隱藏，評分仍計入統計。
+                    </CardContent>
+                  </Card>
+                );
+              }
               return (
                 <Card key={review.reviewID} className="border-slate-100 shadow-sm transition-shadow hover:shadow-md">
                   <CardContent className="p-6 space-y-4">
@@ -303,11 +391,11 @@ function ReviewsTab({ course }: { course: CourseView }) {
                       </p>
                       <div className="flex flex-col gap-1.5 items-end shrink-0 pt-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sweet</span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">甜度</span>
                           <RatingIcons rating={review.sweetnessScore} type="sweetness" />
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Work</span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">涼度</span>
                           <RatingIcons rating={review.workloadScore} type="workload" />
                         </div>
                       </div>
@@ -319,13 +407,24 @@ function ReviewsTab({ course }: { course: CourseView }) {
                       <div className="flex items-center gap-4 text-xs font-medium text-slate-600">
                         {review.sweetnessScore >= 4 && (
                           <span className="flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-600 px-2.5 py-0.5 border border-emerald-100">
-                            <CheckCircle2 size={12} /> Would Recommend
+                            <CheckCircle2 size={12} /> 推薦修課
                           </span>
                         )}
                       </div>
-                      <button className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary transition-colors">
-                        <ThumbsUp size={14} /> {review.likeCount} Helpful
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary transition-colors">
+                          <ThumbsUp size={14} /> {review.likeCount} 有幫助
+                        </button>
+                        {user && user.id !== review.authorID && (
+                          <button
+                            onClick={() => { setReportingReviewID(review.reviewID); setReportReason("SPAM"); }}
+                            className="flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-rose-500 transition-colors"
+                            title="檢舉此評論"
+                          >
+                            <Flag size={13} /> 檢舉
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -352,7 +451,7 @@ function DiscussionsTab({ discussions, courseID }: { discussions: Discussion[]; 
       ))}
       {discussions.length === 0 && (
         <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground text-sm">
-          No discussions yet. Start the conversation!
+          還沒有討論，來開始第一則吧！
         </div>
       )}
     </div>

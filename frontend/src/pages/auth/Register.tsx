@@ -200,19 +200,7 @@ export function Register() {
         department: formData.department,
       });
 
-      const data = await response.json();
-
-      if (!response.ok || data.success === false) {
-        throw new Error(data.message || data.error || "Registration failed");
-      }
-
-      login({
-        id: data.student.studentID || data.student.id,
-        name: data.student.name || "Student",
-        role: "Student",
-        email: data.student.email,
-        department: data.student.department
-      }, data.token);
+      login(result.user, result.token);
 
       navigate("/profile"); 
 

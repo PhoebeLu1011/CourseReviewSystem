@@ -15,12 +15,11 @@ export default function Layout() {
   const { user, logout } = useAuth(); // 🔄 直接從全域狀態拿 user (目前登入者) 與 logout (登出函數)
 
   const navItems = [
-    { path: "/courses", label: "Courses", icon: BookOpen },
-    { path: "/reviews", label: "Reviews", icon: Star },
-    { path: "/discussions", label: "Discussions", icon: MessageSquare },
-    { path: "/groups", label: "Find Groupmates", icon: Users },
-    // 💡 只有當 user 存在（代表已登入）時，才在導覽列顯示「My Schedule (我的課表)」
-    ...(user ? [{ path: "/schedule", label: "My Schedule", icon: Calendar }] : []),
+    { path: "/courses", label: "課程", icon: BookOpen },
+    { path: "/reviews", label: "評價", icon: Star },
+    { path: "/discussions", label: "討論", icon: MessageSquare },
+    { path: "/groups", label: "找組員", icon: Users },
+    ...(user ? [{ path: "/schedule", label: "我的課表", icon: Calendar }] : []),
   ];
 
   return (
@@ -40,7 +39,7 @@ export default function Layout() {
                 Toolbox
               </h1>
               <p className="text-sm font-medium text-muted-foreground">
-                Course Selection
+                選課工具箱
               </p>
             </div>
           </Link>
@@ -77,11 +76,11 @@ export default function Layout() {
                   to="/profile"
                   className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-secondary"
                 >
-                  <img
-                    src="https://i.pravatar.cc/100?img=12" // 預設頭像
-                    alt="User avatar"
-                    className="h-10 w-10 rounded-full object-cover shadow-sm"
-                  />
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center shadow-sm select-none">
+                    <span className="text-base font-black text-white">
+                      {user.name ? user.name.charAt(0).toUpperCase() : "S"}
+                    </span>
+                  </div>
 
                   <span className="text-base font-bold leading-tight text-foreground">
                     {user.name}

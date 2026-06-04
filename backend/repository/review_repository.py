@@ -5,7 +5,11 @@ class ReviewRepository:
         self.collection = db["reviews"]
 
     def delete_by_id(self, review_id):
-        self.collection.delete_one({"reviewID": review_id})
+        """軟刪除：標記為 DELETED 而非真正從 DB 移除"""
+        self.collection.update_one(
+            {"reviewID": review_id},
+            {"$set": {"visibilityState": "DELETED"}}
+        )
 
     def hide_review(self, review_id):
         """隱藏評價（UC9 HIDE_REVIEW 使用）"""
@@ -36,9 +40,10 @@ class ReviewRepository:
         )
 
     def find_by_course_id(self, course_id, sort_by="newest", limit=10, skip=0):
+        # VISIBLE 正常顯示，HIDDEN 前端顯示佔位訊息，DELETED 完全不顯示
         query = {
             "courseID": course_id,
-            "visibilityState": "VISIBLE"
+            "visibilityState": {"$in": ["VISIBLE", "HIDDEN"]}
         }
 
         if sort_by == "popular":
@@ -76,6 +81,34 @@ class ReviewRepository:
             reviews.append(Review(**data))
         return reviews
     
+    def calc_course_averages(self, course_id):
+        """從 VISIBLE + HIDDEN 評論計算平均（DELETED 不計入）"""
+        pipeline = [
+            {"$match": {"courseID": course_id, "visibilityState": {"$in": ["VISIBLE", "HIDDEN"]}}},
+            {"$group": {
+                "_id": "$courseID",
+                "avgSweetness": {"$avg": "$sweetnessScore"},
+                "avgWorkload": {"$avg": "$workloadScore"},
+                "count": {"$sum": 1}
+            }}
+        ]
+        result = list(self.collection.aggregate(pipeline))
+        if result:
+            return result[0]["avgSweetness"], result[0]["avgWorkload"], result[0]["count"]
+        return 0.0, 0.0, 0
+
+    def find_by_course_all(self, course_id):
+        """取得課程所有評論（含隱藏），供前端顯示佔位用"""
+        cursor = self.collection.find(
+            {"courseID": course_id},
+            {"_id": 0}
+        ).sort([("timestamp", -1)])
+        reviews = []
+        for data in cursor:
+            data.pop("_id", None)
+            reviews.append(Review(**data))
+        return reviews
+
     def has_user_reviewed_course(self, student_id, course_id):
         # Counts how many reviews match BOTH the student and the course
         # Returns True if they already reviewed it, False if they haven't

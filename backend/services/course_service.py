@@ -33,6 +33,17 @@ class CourseService:
             semester=semester, academicYear=academicYear,
         )
 
+    def recalculate_course_ratings(self, course_id: str, review_repo):
+        """刪除評論後，從剩餘可見評論重新計算平均值"""
+        course = self.course_repo.find_by_id(course_id)
+        if not course:
+            return
+        avg_s, avg_w, count = review_repo.calc_course_averages(course_id)
+        course.averageSweetness = round(avg_s, 2)
+        course.averageWorkload = round(avg_w, 2)
+        course.reviewCount = count
+        self.course_repo.save(course)
+
     def update_course_ratings(self, course_id: str, new_sweetness: float, new_workload: float):
         """
         Triggered whenever a student leaves a brand new review.
