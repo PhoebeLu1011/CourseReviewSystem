@@ -1,50 +1,61 @@
-import React, { useState } from 'react';
-import AuditCenter from './AuditCenter';
-import CreateAnnouncement from './CreateAnnouncement';
+import { Outlet } from "react-router";
+import { AdminSidebar } from "./AdminSidebar";
+import { AnalyticsCards } from "./AnalyticsCards";
+import { Bell, Search } from "lucide-react";
 
-const AdminLayout: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'audit' | 'announcement'>('audit');
-
+export function AdminLayout() {
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* 側邊欄 */}
-      <div className="w-64 bg-[#1e2937] text-white p-4">
-        <div className="flex items-center gap-3 mb-8 px-2">
-          <div className="w-8 h-8 bg-purple-600 rounded-xl flex items-center justify-center text-white font-bold">N</div>
+    <div className="flex h-screen w-full bg-slate-50 overflow-hidden font-sans text-slate-800">
+      <AdminSidebar />
+      <div className="flex-1 flex flex-col overflow-hidden relative z-0">
+        <header className="bg-white border-b border-slate-200 px-6 sm:px-10 h-[89px] flex justify-between items-center shrink-0 z-10 shadow-sm">
           <div>
-            <h1 className="font-semibold">Admin Panel</h1>
-            <p className="text-xs text-gray-400">NTNU Course System</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+              Admin Dashboard
+            </h1>
+            <p className="text-sm font-medium text-slate-500 mt-0.5">
+              NTNU Course Selection Toolbox
+            </p>
           </div>
-        </div>
-
-        <nav className="space-y-1">
-          <button
-            onClick={() => setCurrentPage('audit')}
-            className={`w-full text-left px-4 py-3 rounded-2xl flex items-center gap-3 ${currentPage === 'audit' ? 'bg-white text-black' : 'hover:bg-gray-700'}`}
-          >
-            📋 Audit Center
-          </button>
-          <button
-            onClick={() => setCurrentPage('announcement')}
-            className={`w-full text-left px-4 py-3 rounded-2xl flex items-center gap-3 ${currentPage === 'announcement' ? 'bg-white text-black' : 'hover:bg-gray-700'}`}
-          >
-            📢 Announcement Management
-          </button>
-        </nav>
-
-        <div className="absolute bottom-8 px-4 text-xs text-gray-400">
-          <button className="flex items-center gap-2 hover:text-white">
-            ← Back to Site
-          </button>
-        </div>
-      </div>
-
-      {/* 主要內容區 */}
-      <div className="flex-1 overflow-auto">
-        {currentPage === 'audit' ? <AuditCenter /> : <CreateAnnouncement />}
+          
+          <div className="flex items-center gap-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                className="pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm w-64 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+              />
+            </div>
+            
+            <button className="relative p-2 rounded-full hover:bg-slate-100 text-slate-600 transition-colors">
+              <Bell size={20} />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
+            </button>
+            
+            <div className="h-8 w-px bg-slate-200 mx-1"></div>
+            
+            <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-bold text-slate-800 leading-none mb-1">Super Admin</p>
+                <p className="text-xs text-slate-500 font-medium leading-none">System Ops</p>
+              </div>
+              <div className="h-10 w-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md border-2 border-white">
+                AD
+              </div>
+            </div>
+          </div>
+        </header>
+        
+        <main className="flex-1 overflow-y-auto p-6 sm:p-10 bg-slate-50/80">
+          <div className="max-w-7xl mx-auto">
+            <AnalyticsCards />
+            <div className="mt-8 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <Outlet />
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );
-};
-
-export default AdminLayout;
+}
