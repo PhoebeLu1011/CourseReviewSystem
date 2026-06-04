@@ -431,14 +431,14 @@ export default function GroupmatesIntegrated() {
   };
 
   const getButtonLabel = (group: Group) => {
-    if (!studentId) return "Login to Apply";
-    if (isSubmittingGroupId === group.group_id) return "Submitting...";
-    if (isLeader(group)) return "You are the leader";
-    if (isAlreadyMember(group)) return "Already a member";
-    if (hasPendingApplication(group.group_id)) return "Pending";
-    if (isGroupFull(group)) return "Group is full";
-    if (group.status !== "open") return "Closed";
-    return "Apply to Join";
+    if (!studentId) return "登入後申請";
+    if (isSubmittingGroupId === group.group_id) return "送出中...";
+    if (isLeader(group)) return "你是組長";
+    if (isAlreadyMember(group)) return "已是成員";
+    if (hasPendingApplication(group.group_id)) return "申請中";
+    if (isGroupFull(group)) return "已額滿";
+    if (group.status !== "open") return "已關閉";
+    return "申請加入";
   };
 
   const resetCreatePostForm = () => {
@@ -609,11 +609,10 @@ export default function GroupmatesIntegrated() {
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="mb-2 text-3xl font-bold text-slate-900">
-            Find Groupmates
+            找組員
           </h1>
           <p className="text-slate-600">
-            Connect with students looking for study partners and project
-            collaborators
+            與正在尋找讀書夥伴或專題合作者的同學互相交流
           </p>
         </div>
 
@@ -621,18 +620,17 @@ export default function GroupmatesIntegrated() {
           <DialogTrigger asChild>
             <Button className="h-12 rounded-lg bg-blue-300 px-6 text-base font-bold text-white shadow-sm hover:bg-blue-400">
               <Plus className="h-5 w-5" />
-              Create Post
+              建立揪人
             </Button>
           </DialogTrigger>
 
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-slate-900">
-                Create Groupmate Post
+                建立揪人貼文
               </DialogTitle>
               <DialogDescription className="text-lg text-slate-500">
-                Fill out the details to find study partners or project
-                collaborators.
+                填寫以下資訊以尋找讀書夥伴或專題合作者。
               </DialogDescription>
             </DialogHeader>
 
@@ -645,7 +643,7 @@ export default function GroupmatesIntegrated() {
             <div className="grid gap-5 py-6">
               <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
                 <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
-                  Department
+                  系所
                 </label>
 
                 <Select
@@ -654,12 +652,12 @@ export default function GroupmatesIntegrated() {
                   disabled={!studentId}
                 >
                   <SelectTrigger className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-semibold text-slate-700 shadow-none">
-                    <SelectValue placeholder="All Departments" />
+                    <SelectValue placeholder="所有系所" />
                   </SelectTrigger>
 
                   <SelectContent>
                     <SelectItem value={ALL_DEPARTMENTS_ID}>
-                      All Departments
+                      所有系所
                     </SelectItem>
 
                     {departments.map((department) => (
@@ -672,14 +670,14 @@ export default function GroupmatesIntegrated() {
 
                 {isLoadingDepartments && (
                   <p className="text-sm text-slate-400 sm:col-start-2">
-                    Loading departments...
+                    載入系所中...
                   </p>
                 )}
               </div>
 
               <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
                 <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
-                  Course
+                  課程
                 </label>
 
                 <Select
@@ -691,8 +689,8 @@ export default function GroupmatesIntegrated() {
                     <SelectValue
                       placeholder={
                         hasSelectedNewPostDepartment
-                          ? "Select course"
-                          : "Select department first"
+                          ? "選擇課程"
+                          : "請先選擇系所"
                       }
                     />
                   </SelectTrigger>
@@ -709,14 +707,14 @@ export default function GroupmatesIntegrated() {
 
                 {isLoadingCreateCourses && (
                   <p className="text-sm text-slate-400 sm:col-start-2">
-                    Loading courses...
+                    載入課程中...
                   </p>
                 )}
               </div>
 
               <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
                 <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
-                  Style
+                  讀書風格
                 </label>
 
                 <Select
@@ -740,7 +738,7 @@ export default function GroupmatesIntegrated() {
 
               <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
                 <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
-                  Needed
+                  需要人數
                 </label>
 
                 <Input
@@ -749,7 +747,7 @@ export default function GroupmatesIntegrated() {
                   max={20}
                   value={newPostNeededMembers}
                   onChange={(e) => setNewPostNeededMembers(e.target.value)}
-                  placeholder="How many more members?"
+                  placeholder="還需要幾位成員？"
                   disabled={!studentId}
                   className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-medium shadow-none"
                 />
@@ -757,7 +755,7 @@ export default function GroupmatesIntegrated() {
 
               <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
                 <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
-                  Deadline
+                  截止日期
                 </label>
 
                 <Input
@@ -771,7 +769,7 @@ export default function GroupmatesIntegrated() {
 
               <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
                 <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
-                  Meeting
+                  見面方式
                 </label>
 
                 <Select
@@ -795,13 +793,13 @@ export default function GroupmatesIntegrated() {
 
               <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
                 <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
-                  Description
+                  說明
                 </label>
 
                 <Textarea
                   value={newPostDescription}
                   onChange={(e) => setNewPostDescription(e.target.value)}
-                  placeholder="What kind of groupmate are you looking for?"
+                  placeholder="你在尋找什麼樣的組員？"
                   disabled={!studentId}
                   className="min-h-24 rounded-lg border-0 bg-slate-50 px-5 py-4 text-lg shadow-none"
                 />
@@ -809,13 +807,13 @@ export default function GroupmatesIntegrated() {
 
               <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
                 <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
-                  Looking For
+                  尋找類型
                 </label>
 
                 <Input
                   value={newPostLookingFor}
                   onChange={(e) => setNewPostLookingFor(e.target.value)}
-                  placeholder="e.g. Study partner, Project partner"
+                  placeholder="例如：讀書夥伴、專題合作者"
                   disabled={!studentId}
                   className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-medium shadow-none"
                 />
@@ -823,13 +821,13 @@ export default function GroupmatesIntegrated() {
 
               <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
                 <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
-                  Availability
+                  可配合時段
                 </label>
 
                 <Input
                   value={newPostAvailability}
                   onChange={(e) => setNewPostAvailability(e.target.value)}
-                  placeholder="e.g. Evenings, Weekends"
+                  placeholder="例如：平日晚上、週末"
                   disabled={!studentId}
                   className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-medium shadow-none"
                 />
@@ -837,13 +835,13 @@ export default function GroupmatesIntegrated() {
 
               <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
                 <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
-                  Contact
+                  聯絡方式
                 </label>
 
                 <Input
                   value={newPostContact}
                   onChange={(e) => setNewPostContact(e.target.value)}
-                  placeholder="Email, Discord, Slack..."
+                  placeholder="Email、Discord、Slack..."
                   disabled={!studentId}
                   className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-medium shadow-none"
                 />
@@ -857,7 +855,7 @@ export default function GroupmatesIntegrated() {
                 disabled={!studentId || !canCreatePost || isCreatingPost}
                 className="h-14 rounded-lg bg-blue-300 px-8 text-lg font-bold text-white hover:bg-blue-400 disabled:bg-blue-200"
               >
-                {isCreatingPost ? "Posting..." : "Post"}
+                {isCreatingPost ? "發布中..." : "發布"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -875,7 +873,7 @@ export default function GroupmatesIntegrated() {
           <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
             <CardHeader className="px-6 pt-6">
               <CardTitle className="text-2xl font-semibold text-slate-900">
-                Filters
+                篩選條件
               </CardTitle>
             </CardHeader>
 
@@ -883,7 +881,7 @@ export default function GroupmatesIntegrated() {
 
               <label className="block">
                 <span className="mb-5 block text-lg font-semibold text-slate-900">
-                  Department
+                  系所
                 </span>
 
                 <Select
@@ -891,12 +889,12 @@ export default function GroupmatesIntegrated() {
                   onValueChange={handleSelectedDepartmentChange}
                 >
                   <SelectTrigger className="h-auto border-0 bg-transparent py-2 pl-7 pr-0 text-lg font-semibold text-slate-900 shadow-none focus:ring-0">
-                    <SelectValue placeholder="All Departments" />
+                    <SelectValue placeholder="所有系所" />
                   </SelectTrigger>
 
                   <SelectContent>
                     <SelectItem value={ALL_DEPARTMENTS_ID}>
-                      All Departments
+                      所有系所
                     </SelectItem>
 
                     {departments.map((department) => (
@@ -909,14 +907,14 @@ export default function GroupmatesIntegrated() {
 
                 {isLoadingDepartments && (
                   <p className="mt-2 text-xs text-slate-400">
-                    Loading departments...
+                    載入系所中...
                   </p>
                 )}
               </label>
 
               <label className="block">
                 <span className="mb-5 block text-lg font-semibold text-slate-900">
-                  Course
+                  課程
                 </span>
 
                 <Select
@@ -928,15 +926,15 @@ export default function GroupmatesIntegrated() {
                     <SelectValue
                       placeholder={
                         hasSelectedDepartment
-                          ? "All Courses"
-                          : "Select department first"
+                          ? "所有課程"
+                          : "請先選擇系所"
                       }
                     />
                   </SelectTrigger>
 
                   <SelectContent>
                     <SelectItem value={ALL_COURSES_ID}>
-                      All Courses
+                      所有課程
                     </SelectItem>
 
                     {courseOptions.map((course) => (
@@ -950,14 +948,14 @@ export default function GroupmatesIntegrated() {
 
                 {isLoadingCourses && (
                   <p className="mt-2 text-xs text-slate-400">
-                    Loading courses...
+                    載入課程中...
                   </p>
                 )}
               </label>
 
               <label className="block">
                 <span className="mb-5 block text-lg font-semibold text-slate-900">
-                  Study Style
+                  讀書風格
                 </span>
 
                 <Select
@@ -965,7 +963,7 @@ export default function GroupmatesIntegrated() {
                   onValueChange={setSelectedStudyStyle}
                 >
                   <SelectTrigger className="h-auto border-0 bg-transparent py-2 pl-7 pr-0 text-lg font-semibold text-slate-900 shadow-none focus:ring-0">
-                    <SelectValue placeholder="All Styles" />
+                    <SelectValue placeholder="所有風格" />
                   </SelectTrigger>
 
                   <SelectContent>
@@ -980,7 +978,7 @@ export default function GroupmatesIntegrated() {
 
               <label className="block">
                 <span className="mb-5 block text-lg font-semibold text-slate-900">
-                  Meeting Preference
+                  見面偏好
                 </span>
 
                 <Select
@@ -988,7 +986,7 @@ export default function GroupmatesIntegrated() {
                   onValueChange={setSelectedMeetingPreference}
                 >
                   <SelectTrigger className="h-auto border-0 bg-transparent py-2 pl-7 pr-0 text-lg font-semibold text-slate-900 shadow-none focus:ring-0">
-                    <SelectValue placeholder="All Preferences" />
+                    <SelectValue placeholder="所有偏好" />
                   </SelectTrigger>
 
                   <SelectContent>
@@ -1006,14 +1004,14 @@ export default function GroupmatesIntegrated() {
           <Card className="rounded-lg border-slate-200 bg-white text-sm text-slate-600 shadow-sm">
             <CardContent className="px-5 py-5">
               <div className="mb-3 font-semibold text-slate-900">
-                Tips for Success
+                找組員小技巧
               </div>
 
               <ul className="list-inside list-disc space-y-1 leading-relaxed">
-                <li>Be clear about your goals</li>
-                <li>Specify your availability</li>
-                <li>Respond promptly to messages</li>
-                <li>Set expectations early</li>
+                <li>清楚說明你的目標</li>
+                <li>標明可配合的時段</li>
+                <li>即時回覆訊息</li>
+                <li>提前溝通好期望</li>
               </ul>
             </CardContent>
           </Card>
@@ -1022,10 +1020,9 @@ export default function GroupmatesIntegrated() {
         <main className="lg:col-span-3">
           <div className="mb-4 flex items-center justify-between">
             <p className="text-sm text-slate-500">
-              Showing {filteredGroups.length} group
-              {filteredGroups.length !== 1 ? "s" : ""}
+              共 {filteredGroups.length} 筆揪人
               {selectedCourseId !== ALL_COURSES_ID && selectedCourse
-                ? ` for ${selectedCourse.courseCode || selectedCourse.courseID}`
+                ? `（${selectedCourse.courseCode || selectedCourse.courseID}）`
                 : ""}
             </p>
           </div>
@@ -1033,7 +1030,7 @@ export default function GroupmatesIntegrated() {
           {isLoadingGroups ? (
             <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
               <CardContent className="p-12 text-center text-slate-500">
-                Loading groups...
+                載入中...
               </CardContent>
             </Card>
           ) : filteredGroups.length === 0 ? (
@@ -1042,11 +1039,11 @@ export default function GroupmatesIntegrated() {
                 <Users className="mx-auto mb-4 h-12 w-12 text-slate-400" />
 
                 <h3 className="mb-2 text-lg font-semibold text-slate-900">
-                  No groups found
+                  目前沒有揪人
                 </h3>
 
                 <p className="text-slate-500">
-                  Try adjusting your filters or checking another course.
+                  試著調整篩選條件或換個課程看看。
                 </p>
               </CardContent>
             </Card>
@@ -1068,7 +1065,7 @@ export default function GroupmatesIntegrated() {
                       hour: "2-digit",
                       minute: "2-digit",
                     })
-                  : "Flexible";
+                  : "彈性";
 
 
                 return (
@@ -1100,7 +1097,7 @@ export default function GroupmatesIntegrated() {
                                 variant="secondary"
                                 className="rounded-full bg-slate-100 text-slate-700"
                               >
-                                Needs {getNeededMembers(group)} more
+                                還需 {getNeededMembers(group)} 人
                               </Badge>
 
                               <Badge
@@ -1111,7 +1108,7 @@ export default function GroupmatesIntegrated() {
                                     : "rounded-full border-slate-200 text-slate-600"
                                 }
                               >
-                                {group.status}
+                                {group.status === "open" ? "開放中" : group.status === "closed" ? "已關閉" : group.status === "full" ? "已額滿" : group.status}
                               </Badge>
 
                               {studentId && (
@@ -1119,7 +1116,7 @@ export default function GroupmatesIntegrated() {
                                   variant="outline"
                                   className="rounded-full border-rose-200 text-rose-700"
                                 >
-                                  Match{" "}
+                                  配對{" "}
                                   {group.recommendation_score?.toFixed(1) ??
                                     "N/A"}
                                 </Badge>
@@ -1134,20 +1131,20 @@ export default function GroupmatesIntegrated() {
                       <div className="space-y-4">
                         <p className="whitespace-pre-line leading-relaxed text-slate-600">
                           {group.description ||
-                            "This group is looking for collaborators for the selected course."}
+                            "這個揪人貼文正在尋找課程合作者。"}
                         </p>
 
                         <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
                           <div>
                             <div className="mb-2 flex items-center gap-2 font-medium text-slate-900">
                               <Users className="h-4 w-4" />
-                              Looking For
+                              尋找類型
                             </div>
 
                             <div className="flex flex-wrap gap-1.5">
                               {(group.tags.length > 0
                                 ? group.tags
-                                : ["Study partner", "Project partner"]
+                                : ["讀書夥伴", "專題合作者"]
                               ).map((tag) => (
                                 <Badge
                                   key={tag}
@@ -1163,12 +1160,12 @@ export default function GroupmatesIntegrated() {
                           <div>
                             <div className="mb-2 flex items-center gap-2 font-medium text-slate-900">
                               <Clock className="h-4 w-4" />
-                              Availability
+                              可配合時段
                             </div>
 
                             <p className="flex items-center gap-2 text-slate-500">
                               <Calendar className="h-4 w-4" />
-                              Deadline {deadline}
+                              截止日期 {deadline}
                             </p>
                           </div>
                         </div>
@@ -1186,8 +1183,8 @@ export default function GroupmatesIntegrated() {
                         }
                         placeholder={
                           studentId
-                            ? "Write a short application message..."
-                            : "Login to write an application message..."
+                            ? "寫一段簡短的申請說明..."
+                            : "請先登入後再填寫申請說明..."
                         }
                         disabled={!studentId || disabled || member || leader}
                         className="min-h-11 flex-1 bg-white focus-visible:ring-rose-500/20"
@@ -1202,10 +1199,10 @@ export default function GroupmatesIntegrated() {
                           className="h-11 border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
                         >
                           {isUpdatingGroupId === group.group_id
-                            ? "Updating..."
+                            ? "更新中..."
                             : group.status === "open"
-                              ? "Close Recruitment"
-                              : "Reopen Recruitment"}
+                              ? "關閉招募"
+                              : "重新開放招募"}
                         </Button>
                       )}
 
@@ -1222,10 +1219,9 @@ export default function GroupmatesIntegrated() {
 
                           <DialogContent>
                             <DialogHeader>
-                              <DialogTitle>Login required</DialogTitle>
+                              <DialogTitle>需要登入</DialogTitle>
                               <DialogDescription>
-                                Please login with a student account before
-                                applying to join a group.
+                                請先使用學生帳號登入，再申請加入揪人。
                               </DialogDescription>
                             </DialogHeader>
 
@@ -1237,7 +1233,7 @@ export default function GroupmatesIntegrated() {
                                   window.location.href = "/auth/login";
                                 }}
                               >
-                                Go to Login
+                                前往登入
                               </Button>
                             </DialogFooter>
                           </DialogContent>

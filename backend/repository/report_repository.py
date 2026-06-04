@@ -32,6 +32,15 @@ class ReportRepository:
         data.pop("_id", None)
         return Report(**data)
 
+    def find_by_reporter(self, reporter_id: str):
+        """取得某學生提交的所有檢舉"""
+        cursor = self.collection.find({"reporterID": reporter_id}).sort("timestamp", -1)
+        reports = []
+        for data in cursor:
+            data.pop("_id", None)
+            reports.append(Report(**data))
+        return reports
+
     def find_by_reporter_and_review(self, reporter_id: str, review_id: str):
         """檢查是否重複檢舉"""
         return self.collection.find_one({

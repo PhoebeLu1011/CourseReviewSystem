@@ -40,6 +40,12 @@ def create_report_routes(report_service):
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
 
+    @report_bp.route("/students/<reporter_id>/reports", methods=["GET"])
+    def get_my_reports(reporter_id):
+        """取得某學生提交的所有檢舉"""
+        reports = report_service.get_reports_by_reporter(reporter_id)
+        return jsonify([r.to_dict() for r in reports]), 200
+
     @report_bp.route("/reports/pending", methods=["GET"])
     def get_pending_reports():
         """取得待審核清單，回傳 dict list"""

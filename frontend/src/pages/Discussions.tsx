@@ -11,7 +11,7 @@ export default function Discussions() {
   const { user } = useAuth();
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState("All Courses");
+  const [selectedCourse, setSelectedCourse] = useState("");
 
   // Form States
   const [isWriting, setIsWriting] = useState(false);
@@ -23,7 +23,7 @@ export default function Discussions() {
   const fetchDiscussions = async () => {
     setLoading(true);
     try {
-      const query = selectedCourse === "All Courses" ? "" : selectedCourse;
+      const query = selectedCourse;
       const data = await getAllDiscussions(query);
       setDiscussions(data);
     } catch (err) {
@@ -39,7 +39,7 @@ export default function Discussions() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return alert("Please log in first!");
+    if (!user) return alert("請先登入！");
     if (!title.trim() || !content.trim() || !newCourseID.trim()) return;
 
     setIsSubmitting(true);
@@ -56,7 +56,7 @@ export default function Discussions() {
       setIsWriting(false);
       fetchDiscussions();
     } catch (err) {
-      alert("Failed to create post.");
+      alert("發文失敗，請稍後再試。");
     } finally {
       setIsSubmitting(false);
     }
@@ -64,7 +64,7 @@ export default function Discussions() {
 
   const handleLike = async (e: React.MouseEvent, discussionID: string) => {
     e.preventDefault(); // Prevents card link navigation click capture
-    if (!user) return alert("Please log in to like!");
+    if (!user) return alert("請先登入！");
     try {
       const res = await toggleLikeDiscussion(discussionID, user.id);
       setDiscussions(prev => prev.map(d => d.discussionID === discussionID ? { ...d, likeCount: res.likeCount } : d));
@@ -75,11 +75,11 @@ export default function Discussions() {
     <div className="pb-12 space-y-6">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900">Discussion Hub</h1>
-          <p className="text-muted-foreground mt-1">Ask questions, share advice, and connect with peers</p>
+          <h1 className="text-3xl font-extrabold text-slate-900">討論區</h1>
+          <p className="text-muted-foreground mt-1">提問、分享心得，與同學交流</p>
         </div>
         <Button onClick={() => setIsWriting(!isWriting)}>
-          {isWriting ? "Cancel" : "New Discussion"}
+          {isWriting ? "取消" : "發起討論"}
         </Button>
       </div>
 
@@ -88,11 +88,11 @@ export default function Discussions() {
         <div className="lg:col-span-1 space-y-6 sticky top-6">
           <Card className="border-slate-100 shadow-sm">
             <CardContent className="p-6 space-y-5">
-              <h2 className="font-bold text-slate-800 text-lg">Filters</h2>
+              <h2 className="font-bold text-slate-800 text-lg">篩選</h2>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Course ID</label>
-                <Input 
-                  placeholder="e.g., 5003 (or 'All Courses')" 
+                <label className="text-sm font-semibold text-slate-700">課程 ID</label>
+                <Input
+                  placeholder="輸入課程 ID 搜尋"
                   value={selectedCourse}
                   onChange={(e) => setSelectedCourse(e.target.value)}
                 />
@@ -107,19 +107,19 @@ export default function Discussions() {
             <Card className="border-primary/20 shadow-md bg-slate-50/50">
               <CardContent className="p-6">
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <h3 className="font-bold text-lg text-slate-900">Post a New Thread</h3>
-                  <Input placeholder="Course ID (e.g., 5003)" value={newCourseID} onChange={e => setNewCourseID(e.target.value)} required />
-                  <Input placeholder="Discussion Title" value={title} onChange={e => setTitle(e.target.value)} required />
-                  <textarea 
+                  <h3 className="font-bold text-lg text-slate-900">發起新討論</h3>
+                  <Input placeholder="課程 ID（例：5003）" value={newCourseID} onChange={e => setNewCourseID(e.target.value)} required />
+                  <Input placeholder="討論標題" value={title} onChange={e => setTitle(e.target.value)} required />
+                  <textarea
                     className="w-full min-h-[120px] rounded-md border p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
-                    placeholder="Describe your question or discussion point in detail..."
+                    placeholder="詳細描述你的問題或想討論的內容..."
                     value={content}
                     onChange={e => setContent(e.target.value)}
                     required
                   />
                   <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="animate-spin mr-2" size={16} /> : <Send size={16} className="mr-2" />}
-                    Post Thread
+                    送出
                   </Button>
                 </form>
               </CardContent>
@@ -132,7 +132,7 @@ export default function Discussions() {
 
           {!loading && discussions.length === 0 && (
             <div className="rounded-xl border border-slate-100 bg-white p-12 text-center text-slate-500">
-              No discussions found here yet. Start the conversation!
+              目前沒有討論，來發起第一篇吧！
             </div>
           )}
 
@@ -149,7 +149,7 @@ export default function Discussions() {
                         {disc.title}
                       </h3>
                       <p className="text-xs text-slate-400 mt-1">
-                        Posted by {disc.authorID} • {new Date(disc.timestamp).toLocaleDateString()}
+                        {disc.authorID} • {new Date(disc.timestamp).toLocaleDateString("zh-TW")}
                       </p>
                     </div>
                   </div>
@@ -160,10 +160,10 @@ export default function Discussions() {
 
                   <div className="flex items-center gap-4 pt-1 text-slate-500">
                     <button onClick={(e) => handleLike(e, disc.discussionID)} className="flex items-center gap-1.5 text-xs font-medium hover:text-rose-600 transition-colors">
-                      <ThumbsUp size={14} /> {disc.likeCount} Likes
+                      <ThumbsUp size={14} /> {disc.likeCount} 有幫助
                     </button>
                     <span className="flex items-center gap-1.5 text-xs font-medium">
-                      <MessageSquare size={14} /> {disc.replyCount} Replies
+                      <MessageSquare size={14} /> {disc.replyCount} 則回覆
                     </span>
                   </div>
                 </CardContent>

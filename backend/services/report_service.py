@@ -19,6 +19,10 @@ class ReportService:
         self.report_repo.save(report)
         return report
 
+    def get_reports_by_reporter(self, reporter_id: str):
+        """取得某學生提交的所有檢舉"""
+        return self.report_repo.find_by_reporter(reporter_id)
+
     def get_pending_reports(self):
         """回傳 dict list（可直接 jsonify）"""
         reports = self.report_repo.find_pending_reports()
