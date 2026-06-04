@@ -7,6 +7,9 @@ interface User {
   role: "Student" | "Admin";
   email?: string;
   department?: string;
+  bio?: string; 
+  birthday?: string; 
+  interests?: string[];
 }
 
 interface AuthContextType {
