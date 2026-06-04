@@ -191,27 +191,17 @@ export function Register() {
     setIsSubmitting(true);
 
     try {
-      const result = await registerUser({
+      const { user, token } = await registerUser({
         studentID: formData.studentId,
         password: formData.password,
         name: formData.fullName,
         email: formData.email,
         department: formData.department,
       });
+      login(user, token);
+      
 
-      const data = await response.json();
-
-      if (!response.ok || data.success === false) {
-        throw new Error(data.message || data.error || "Registration failed");
-      }
-
-      login({
-        id: data.student.studentID || data.student.id,
-        name: data.student.name || "Student",
-        role: "Student",
-        email: data.student.email,
-        department: data.student.department
-      }, data.token);
+      
 
       navigate("/profile"); 
 
