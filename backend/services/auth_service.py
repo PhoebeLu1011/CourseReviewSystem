@@ -41,7 +41,7 @@ class AuthService:
         raw_password = student_data.get("password", "")
         student_id = student_data.get("studentID", "").strip().upper()
         department = student_data.get("department", "").strip()
-        profile_pic_url = student_data.get("profilePicURL", "")
+        profile_pic_url = student_data.get("avatar", "")
 
         try:
             parsed_student_id = StudentIdParser.parse(student_id)
@@ -81,7 +81,7 @@ class AuthService:
                 password=hashed_password,
                 department=department,
                 studentID=student_id,
-                profilePicURL=profile_pic_url
+                avatar=""
             )
 
             self.student_repo.save(new_student)

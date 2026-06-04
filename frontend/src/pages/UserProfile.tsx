@@ -66,7 +66,7 @@ export default function UserProfile() {
     role: authUser?.role || "Student",
     department: authUser?.department || "Computer Science",
     studentID: authUser?.id || "41271122H",
-    avatar: authUser?.avatar || "", // 🎯 改為與後端一致的 avatar (存放 GridFS id)
+    avatar: authUser?.avatar || "",
     bio: authUser?.bio || "No bio provided yet.", 
     birthday: authUser?.birthday || "2000-01-01", 
     interests: authUser?.interests || [],

@@ -76,8 +76,18 @@ export default function Layout() {
                   to="/profile"
                   className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-secondary"
                 >
-                  <div className="h-10 w-10 bg-gradient-to-tr from-rose-500 to-amber-400 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm shrink-0">
-                    {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
+                  <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm shrink-0 overflow-hidden bg-gradient-to-tr from-rose-500 to-amber-400">
+                    {user?.avatar ? (
+                      <img
+                        src={`http://127.0.0.1:5000/api/user/avatar/${user.avatar}`}
+                        alt="Avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
+                      </div>
+                    )}
                   </div>
 
                   <span className="text-base font-bold leading-tight text-foreground">

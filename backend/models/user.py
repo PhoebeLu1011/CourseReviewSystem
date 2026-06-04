@@ -2,11 +2,11 @@ from models.review import Review
 from models.report import Report
 
 class User:
-    def __init__(self, id, name, email, role, profilePicURL=None):
+    def __init__(self, id, name, email, role, avatar=None):
         self.id = id
         self.name = name
         self.email = email
-        self.profilePicURL = profilePicURL
+        self.avatar = avatar
         self.role = role
 
     def to_dict(self):
@@ -14,7 +14,7 @@ class User:
             "id": self.id,
             "name": self.name,
             "email": self.email,
-            "profilePicURL": self.profilePicURL,
+            "avatar": self.avatar,
             "role": self.role
         }
 
@@ -27,7 +27,7 @@ class Student(User):
         password,       
         department,     
         studentID,      
-        profilePicURL=None, 
+        avatar=None,
         reviewCount=0,
         replyCount=0,
         applyCount=0,
@@ -36,7 +36,7 @@ class Student(User):
         birthday="2000-01-01",
         interests=None
     ):
-        super().__init__(id=id, name=name, email=email, role=role, profilePicURL=profilePicURL)
+        super().__init__(id=id, name=name, email=email, role=role, avatar=avatar)
         self.department = department
         self.studentID = studentID
         self.password = password
@@ -85,5 +85,5 @@ class Student(User):
         return new_report
 
 class Admin(User):
-    def __init__(self, id, name, email, role="admin", profilePicURL=None):
-        super().__init__(id=id, name=name, email=email, role=role, profilePicURL=profilePicURL)
+    def __init__(self, id, name, email, role="admin", avatar=None):
+        super().__init__(id=id, name=name, email=email, role=role, avatar=avatar)
