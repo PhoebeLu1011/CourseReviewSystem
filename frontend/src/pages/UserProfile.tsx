@@ -20,6 +20,8 @@ import {
 import { getProfile } from "../api/userApi";
 import { getBookmarks } from "../api/bookmarkApi";
 import { getCourse } from "../api/courseApi";
+import { getMyReports } from "../api/reportApi";
+import type { Report } from "../models/Report";
 import {
   deleteReview,
   getUserReviews,
@@ -75,15 +77,6 @@ type FavoriteCourse = {
   timeAndLocation?: string;
 };
 
-const mockReports = [
-  {
-    id: "REP-001",
-    type: "Review",
-    status: "pending",
-    reason: "Spam or Advertisement",
-    date: "2026-05-20",
-  },
-];
 
 function parseNTNUSchedule(value?: string) {
   if (!value) {
@@ -165,15 +158,19 @@ export default function UserProfile() {
   const [achievementScore, setAchievementScore] = useState<number>(0);
   const [isLoadingAchievements, setIsLoadingAchievements] = useState(false);
 
+  const [myReportsList, setMyReportsList] = useState<Report[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportContents, setReportContents] = useState<Record<string, string>>({});
+
   const [user, setUser] = useState<UserProfileState>({
     id: authUser?.id || "",
-    name: authUser?.name || "Test Student",
+    name: authUser?.name || "學生",
     email: authUser?.email || "student@example.com",
     role: authUser?.role || "Student",
-    department: authUser?.department || "Computer Science",
+    department: authUser?.department || "未設定",
     studentID: authUser?.id || "",
     avatar: authUser?.avatar || "",
-    bio: authUser?.bio || "No bio provided yet.",
+    bio: authUser?.bio || "尚未填寫個人簡介。",
     birthday: authUser?.birthday || "2000-01-01",
     interests: authUser?.interests || [],
     reviewCount: 0,
@@ -211,7 +208,7 @@ export default function UserProfile() {
           department: profile.department || authUser.department || "",
           studentID: authUser.id,
           avatar: profile.avatar || authUser.avatar || "",
-          bio: profile.bio || "No bio provided yet.",
+          bio: profile.bio || "尚未填寫個人簡介。",
           birthday: profile.birthday || "2000-01-01",
           interests: profile.interests || [],
           reviewCount: profile.reviewCount || 0,
@@ -222,7 +219,7 @@ export default function UserProfile() {
         setUser(nextUser);
         setEditForm({
           name: nextUser.name,
-          bio: nextUser.bio === "No bio provided yet." ? "" : nextUser.bio,
+          bio: nextUser.bio === "尚未填寫個人簡介。" ? "" : nextUser.bio,
           birthday: nextUser.birthday,
           interests: nextUser.interests.join(", "),
         });
@@ -304,18 +301,46 @@ export default function UserProfile() {
       }
     };
 
+    const fetchMyReports = async () => {
+      setReportsLoading(true);
+      try {
+        const data = await getMyReports(authUser.id);
+        setMyReportsList(data);
+        // 同時撈每筆被檢舉的內容
+        const contents: Record<string, string> = {};
+        await Promise.all(data.map(async (report) => {
+          try {
+            const res = await fetch(`${API_BASE_URL}/admin/reports/${report.reportID}/content`);
+            if (!res.ok) return;
+            const json = await res.json();
+            const c = json.content;
+            if (!c) return;
+            if (json.reported_type === "review") contents[report.reportID] = c.content || "";
+            else if (json.reported_type === "comment") contents[report.reportID] = c.content || "";
+            else if (json.reported_type === "teammate_post") contents[report.reportID] = c.title || c.description || "";
+          } catch { /* ignore */ }
+        }));
+        setReportContents(contents);
+      } catch (err) {
+        console.error("Failed to fetch reports:", err);
+      } finally {
+        setReportsLoading(false);
+      }
+    };
+
     fetchFullProfile();
     fetchReviews();
     fetchCommunityData();
     fetchFavorites();
     fetchAchievements();
+    fetchMyReports();
   }, [authUser]);
 
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditForm({
       name: user.name,
-      bio: user.bio === "No bio provided yet." ? "" : user.bio,
+      bio: user.bio === "尚未填寫個人簡介。" ? "" : user.bio,
       birthday: user.birthday,
       interests: user.interests.join(", "),
     });
@@ -418,7 +443,7 @@ export default function UserProfile() {
       setUser((prevUser) => ({
         ...prevUser,
         name: editForm.name,
-        bio: editForm.bio || "No bio provided yet.",
+        bio: editForm.bio || "尚未填寫個人簡介。",
         birthday: editForm.birthday,
         interests,
       }));
@@ -1259,34 +1284,80 @@ export default function UserProfile() {
         </TabsContent>
 
         <TabsContent value="reports" className="mt-6">
-          <div className="space-y-4">
-            {mockReports.map((report) => (
-              <Card key={report.id} className="border-slate-100 shadow-sm">
-                <CardContent className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
-                  <div className="flex items-start gap-4">
-                    <div className="rounded-2xl bg-amber-50 p-3 text-amber-700">
-                      <AlertTriangle size={20} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900">{report.reason}</h3>
-                      <p className="mt-1 text-sm font-medium text-slate-500">
-                        Case {report.id} · {report.type}
-                      </p>
-                      <p className="mt-0.5 font-mono text-xs text-slate-400">
-                        Submitted on {report.date}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className="rounded-lg border-amber-200 bg-amber-50/30 font-bold capitalize text-amber-800"
-                  >
-                    {report.status}
-                  </Badge>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {reportsLoading ? (
+            <p className="text-center text-sm text-muted-foreground py-8">載入中...</p>
+          ) : myReportsList.length === 0 ? (
+            <Card className="border-dashed border-2 border-slate-200 shadow-none">
+              <CardContent className="p-8 text-center text-sm text-slate-500">
+                尚未提交任何檢舉。
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {myReportsList.map((report) => {
+                const REASON_LABEL: Record<string, string> = {
+                  SPAM: "垃圾內容",
+                  HARASSMENT: "騷擾或霸凌",
+                  OFFENSIVE_CONTENT: "不當內容",
+                  FALSE_INFORMATION: "虛假資訊",
+                  INAPPROPRIATE_LANGUAGE: "不當用語",
+                  OTHER: "其他",
+                };
+                const STATUS_STYLE: Record<string, string> = {
+                  PENDING: "border-amber-200 bg-amber-50 text-amber-700",
+                  RESOLVED: "border-green-200 bg-green-50 text-green-700",
+                  DISMISSED: "border-slate-200 bg-slate-50 text-slate-500",
+                  WITHDRAWN: "border-blue-200 bg-blue-50 text-blue-600",
+                };
+                const STATUS_LABEL: Record<string, string> = {
+                  PENDING: "審核中",
+                  RESOLVED: "已處理",
+                  DISMISSED: "已駁回",
+                  WITHDRAWN: "已撤回",
+                };
+                const TYPE_LABEL: Record<string, string> = {
+                  review: "課程評論",
+                  comment: "討論回覆",
+                  teammate_post: "組員招募",
+                };
+                return (
+                  <Card key={report.reportID} className="border-slate-100 shadow-sm">
+                    <CardContent className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
+                      <div className="flex items-start gap-4">
+                        <div className="rounded-2xl bg-amber-50 p-3 text-amber-700 shrink-0">
+                          <AlertTriangle size={20} />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900">
+                            {REASON_LABEL[report.reason] || report.reason}
+                          </h3>
+                          <p className="mt-1 text-sm font-medium text-slate-500">
+                            {TYPE_LABEL[report.reported_type] || report.reported_type}
+                          </p>
+                          {reportContents[report.reportID] ? (
+                            <p className="mt-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 max-w-md line-clamp-2">
+                              {reportContents[report.reportID]}
+                            </p>
+                          ) : (
+                            <p className="mt-0.5 text-xs text-slate-400 italic">（內容已刪除或無法載入）</p>
+                          )}
+                          <p className="mt-1 font-mono text-xs text-slate-400">
+                            {new Date(report.timestamp).toLocaleDateString("zh-TW")}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`rounded-lg font-bold shrink-0 ${STATUS_STYLE[report.status] || ""}`}
+                      >
+                        {STATUS_LABEL[report.status] || report.status}
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

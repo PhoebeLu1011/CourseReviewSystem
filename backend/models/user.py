@@ -24,17 +24,19 @@ class Student(User):
         id,
         name,
         email,
-        password,       
-        department,     
-        studentID,      
+        password,
+        department,
+        studentID,
         avatar=None,
+        profilePicURL=None,
         reviewCount=0,
         replyCount=0,
         applyCount=0,
         role="student",
         bio="No bio provided yet.",
         birthday="2000-01-01",
-        interests=None
+        interests=None,
+        **kwargs
     ):
         super().__init__(id=id, name=name, email=email, role=role, avatar=avatar)
         self.department = department
@@ -45,6 +47,7 @@ class Student(User):
         self.applyCount = applyCount
         
         
+        self.profilePicURL = profilePicURL or avatar or ""
         self.bio = bio
         self.birthday = birthday
         self.interests = interests if interests is not None else []
@@ -56,6 +59,7 @@ class Student(User):
             "password": self.password,
             "department": self.department,
             "studentID": self.studentID,
+            "profilePicURL": self.profilePicURL,
             "reviewCount": self.reviewCount,
             "replyCount": self.replyCount,
             "applyCount": self.applyCount,
