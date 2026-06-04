@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router";
-import { useAuth } from "../context/AuthContext"; // 🔄 引入文傑寫好的 Auth 全域狀態
+import { useAuth } from "../context/AuthContext"; // 
 import {
   BookOpen,
   Star,
@@ -12,7 +12,7 @@ import {
 
 export default function Layout() {
   const location = useLocation();
-  const { user, logout } = useAuth(); // 🔄 直接從全域狀態拿 user (目前登入者) 與 logout (登出函數)
+  const { user, logout } = useAuth(); // 
 
   const navItems = [
     { path: "/courses", label: "課程", icon: BookOpen },
@@ -76,10 +76,18 @@ export default function Layout() {
                   to="/profile"
                   className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-secondary"
                 >
-                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center shadow-sm select-none">
-                    <span className="text-base font-black text-white">
-                      {user.name ? user.name.charAt(0).toUpperCase() : "S"}
-                    </span>
+                  <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm shrink-0 overflow-hidden bg-gradient-to-tr from-rose-500 to-amber-400">
+                    {user?.avatar ? (
+                      <img
+                        src={`http://127.0.0.1:5000/api/user/avatar/${user.avatar}`}
+                        alt="Avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
+                      </div>
+                    )}
                   </div>
 
                   <span className="text-base font-bold leading-tight text-foreground">

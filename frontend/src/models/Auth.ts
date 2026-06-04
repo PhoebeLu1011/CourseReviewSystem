@@ -13,7 +13,7 @@ export interface RegisterRequest {
   password: string;
   studentID: string;
   department?: string;
-  profilePicURL?: string;
+  avatar?: string;
 }
 
 export interface LoginRequest {
@@ -26,7 +26,7 @@ export interface AuthStudent {
   name: string;
   email: string;
   role: string;
-  profilePicURL?: string | null;
+  avatar?: string | null;
   department: string;
   studentID: string;
   reviewCount: number;
