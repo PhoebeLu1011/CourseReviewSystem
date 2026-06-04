@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Group:
     def __init__(
@@ -55,8 +55,14 @@ class Group:
     def is_recruitment_open(self) -> bool:
         if self.recruitment_deadline is None:
             return True
-        return datetime.now() <= self.recruitment_deadline
 
+        deadline = self.recruitment_deadline
+
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=timezone.utc)
+
+        return datetime.now(timezone.utc) <= deadline
+    
     def is_joinable(self) -> bool:
         return self.is_open() and not self.is_full() and self.is_recruitment_open()
 
@@ -115,12 +121,15 @@ class Group:
             self.tags = tags
 
     def to_dict(self) -> dict:
+        needed_members = max(self.max_members - len(self.members), 0)
+
         return {
             "group_id": self.group_id,
             "group_name": self.group_name,
             "course_id": self.course_id,
             "leader_id": self.leader_id,
             "max_members": self.max_members,
+            "needed_members": needed_members,
             "members": self.members,
             "status": self.status,
             "recruitment_deadline": (

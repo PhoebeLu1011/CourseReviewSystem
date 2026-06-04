@@ -18,6 +18,7 @@ import { Button } from "../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Input } from "../components/ui/input";
 import { useAuth } from "../context/AuthContext"; // 💡 引入全域登入狀態
+import { API_BASE_URL } from "../config/api";
 
 const mockAchievements = [
   {
@@ -52,11 +53,11 @@ const mockReports = [
 ];
 
 export default function UserProfile() {
-  const { user: authUser, login } = useAuth();
+  const { user: authUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+  const [isLoading] = useState(false);
+  const [errorMsg] = useState("");
 
   // 1. 初始化狀態：如果 Context 裡有真實資料就用真實的，沒有才用 Mock 兜底
   const [user, setUser] = useState({
@@ -91,7 +92,7 @@ export default function UserProfile() {
       if (!token) return;
 
       try {
-        const response = await fetch("http://127.0.0.1:5000/api/user/profile", {
+        const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`
@@ -141,7 +142,7 @@ export default function UserProfile() {
     if (!token) return;
 
     try {
-      const response = await fetch(`http://127.0.0.1:5000/api/user/${authUser.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/user/${authUser.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

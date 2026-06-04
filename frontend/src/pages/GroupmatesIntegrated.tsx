@@ -1,97 +1,398 @@
-// 還沒拆檔案，只是先確定前端可以跑起來
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Calendar,
+  Clock,
+  Mail,
+  Plus,
+  Send,
+  Users,
+} from "lucide-react";
 
-import { useEffect, useMemo, useState } from "react";
 import type { Group } from "../models/Group";
 import type { Application } from "../models/Application";
-import { API_BASE_URL } from "../config/api";
+import { useAuth } from "../context/AuthContext";
+import { getDepartments, searchCourses, type Course } from "../api/courseApi";
 
-const mockUser = {
-  id: "41271122H",
-  name: "Test Student",
-  role: "Student",
-  studentID: "41271122H",
-};
+import {
+  getRecommendedGroups,
+  getRecommendedGroupsByCourse,
+  createGroup,
+  closeGroup,
+  reopenGroup,
+} from "../api/groupApi";
 
-const mockCourses = [
-  { id: "CS101", code: "CS101", name: "Introduction to Computer Science" },
-  { id: "OOAD", code: "OOAD", name: "Object-Oriented Analysis and Design" },
-  { id: "DBMS", code: "DBMS", name: "Database Management Systems" },
+import {
+  getPendingApplications,
+  createApplication,
+} from "../api/applicationApi";
+
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "../components/ui/card";
+
+import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+
+import { Button } from "../components/ui/button";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../components/ui/dialog";
+
+import { Textarea } from "../components/ui/textarea";
+
+const ALL_COURSES_ID = "all";
+const ALL_DEPARTMENTS_ID = "all";
+const COURSE_OPTION_LIMIT = 100;
+
+const studyStyleOptions = ["All Styles", "Group", "Pair", "Flexible"];
+const createStudyStyleOptions = ["Pair", "Group", "Flexible"];
+
+const meetingPreferenceOptions = [
+  "All Preferences",
+  "Online",
+  "In-person",
+  "Hybrid",
 ];
 
+const createMeetingPreferenceOptions = ["Hybrid", "In-person", "Online"];
+
+const dedupeCoursesById = (courses: Course[]) => {
+  return Array.from(
+    new Map(courses.map((course) => [course.courseID, course])).values()
+  );
+};
+
+const cleanCourseTitle = (title?: string | null) => {
+  return (title || "")
+    .split(/<\/?br\s*\/?>/i)[0]
+    .trim();
+};
+
 export default function GroupmatesIntegrated() {
-  const [selectedCourseId, setSelectedCourseId] = useState("OOAD");
+  const { user } = useAuth();
+  console.log("Groupmates user =", user);
+  console.log("Groupmates user role =", user?.role);
+  console.log("Groupmates user id =", user?.id);
+  const [selectedDepartment, setSelectedDepartment] =
+    useState(ALL_DEPARTMENTS_ID);
+  const [selectedCourseId, setSelectedCourseId] = useState(ALL_COURSES_ID);
+  const [selectedStudyStyle, setSelectedStudyStyle] = useState("All Styles");
+  const [selectedMeetingPreference, setSelectedMeetingPreference] =
+    useState("All Preferences");
+
   const [groups, setGroups] = useState<Group[]>([]);
-  const [pendingApplications, setPendingApplications] = useState<Application[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [messageByGroupId, setMessageByGroupId] = useState<Record<string, string>>({});
-  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
-  const [isSubmittingGroupId, setIsSubmittingGroupId] = useState<string | null>(null);
+  const [pendingApplications, setPendingApplications] = useState<Application[]>(
+    []
+  );
+
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [courseOptions, setCourseOptions] = useState<Course[]>([]);
+  const [createCourseOptions, setCreateCourseOptions] = useState<Course[]>([]);
+
+  const [messageByGroupId, setMessageByGroupId] = useState<
+    Record<string, string>
+  >({});
+
   const [notice, setNotice] = useState("");
 
-  const studentId = mockUser.studentID;
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
+  const [isLoadingCreateCourses, setIsLoadingCreateCourses] = useState(false);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const [isSubmittingGroupId, setIsSubmittingGroupId] = useState<string | null>(
+    null
+  );
+  const [isUpdatingGroupId, setIsUpdatingGroupId] = useState<string | null>(
+    null
+  );
+
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newPostDepartment, setNewPostDepartment] =
+    useState(ALL_DEPARTMENTS_ID);
+  const [newPostCourse, setNewPostCourse] = useState("");
+  const [newPostStyle, setNewPostStyle] = useState("Pair");
+  const [newPostMeeting, setNewPostMeeting] = useState("Hybrid");
+  const [newPostNeededMembers, setNewPostNeededMembers] = useState("1");
+  const [newPostDescription, setNewPostDescription] = useState("");
+  const [newPostDeadline, setNewPostDeadline] = useState("");
+  const [newPostLookingFor, setNewPostLookingFor] = useState("");
+  const [newPostAvailability, setNewPostAvailability] = useState("");
+  const [newPostContact, setNewPostContact] = useState("");
+
+  const isStudent = user?.role.toLowerCase() === "student";
+  const studentId = isStudent ? user.id : "";
+
+  const hasSelectedDepartment = selectedDepartment !== ALL_DEPARTMENTS_ID;
+  const hasSelectedNewPostDepartment =
+    newPostDepartment !== ALL_DEPARTMENTS_ID;
+
+  const selectedDepartmentFilter = hasSelectedDepartment
+    ? selectedDepartment
+    : "";
+
+  const newPostDepartmentFilter = hasSelectedNewPostDepartment
+    ? newPostDepartment
+    : "";
+
+  const neededMembers = Number(newPostNeededMembers);
+
+  const canCreatePost =
+    hasSelectedNewPostDepartment &&
+    Boolean(newPostCourse) &&
+    Number.isInteger(neededMembers) &&
+    neededMembers >= 1 &&
+    neededMembers <= 20 &&
+    Boolean(newPostDescription.trim()) &&
+    Boolean(newPostContact.trim());
+
+  const courseById = useMemo(() => {
+    return new Map(
+      [...courseOptions, ...createCourseOptions].map((course) => [
+        course.courseID,
+        course,
+      ])
+    );
+  }, [courseOptions, createCourseOptions]);
+
+  const selectedCourse = courseById.get(selectedCourseId);
 
   useEffect(() => {
-    loadGroups();
-    loadPendingApplications();
-  }, [selectedCourseId]);
+    let cancelled = false;
 
-  const loadGroups = async () => {
+    const loadDepartments = async () => {
+      setIsLoadingDepartments(true);
+
+      try {
+        const result = await getDepartments();
+
+        if (!cancelled) {
+          setDepartments(result);
+        }
+      } catch (error) {
+        console.warn("Failed to load departments:", error);
+
+        if (!cancelled) {
+          setDepartments([]);
+          setNotice("無法載入系所資料，請確認後端與資料庫是否已啟動。");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingDepartments(false);
+        }
+      }
+    };
+
+    loadDepartments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCourseOptions = async () => {
+      if (!hasSelectedDepartment) {
+        setCourseOptions([]);
+        setIsLoadingCourses(false);
+        return;
+      }
+
+      setIsLoadingCourses(true);
+
+      try {
+        const result = await searchCourses(
+          "",
+          selectedDepartmentFilter,
+          "",
+          "",
+          "",
+          COURSE_OPTION_LIMIT,
+          0
+        );
+
+        if (!cancelled) {
+          setCourseOptions(dedupeCoursesById(result.courses));
+        }
+      } catch (error) {
+        console.warn("Failed to load courses:", error);
+
+        if (!cancelled) {
+          setCourseOptions([]);
+          setNotice("無法載入課程資料，請確認後端與資料庫是否已啟動。");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingCourses(false);
+        }
+      }
+    };
+
+    loadCourseOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasSelectedDepartment, selectedDepartmentFilter]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCreateCourseOptions = async () => {
+      if (!hasSelectedNewPostDepartment) {
+        setCreateCourseOptions([]);
+        setIsLoadingCreateCourses(false);
+        return;
+      }
+
+      setIsLoadingCreateCourses(true);
+
+      try {
+        const result = await searchCourses(
+          "",
+          newPostDepartmentFilter,
+          "",
+          "",
+          "",
+          COURSE_OPTION_LIMIT,
+          0
+        );
+
+        if (!cancelled) {
+          setCreateCourseOptions(dedupeCoursesById(result.courses));
+        }
+      } catch (error) {
+        console.warn("Failed to load create courses:", error);
+
+        if (!cancelled) {
+          setCreateCourseOptions([]);
+          setNotice("無法載入建立貼文用的課程資料。");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingCreateCourses(false);
+        }
+      }
+    };
+
+    loadCreateCourseOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasSelectedNewPostDepartment, newPostDepartmentFilter]);
+  const loadGroups = useCallback(async () => {
     setIsLoadingGroups(true);
     setNotice("");
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/courses/${selectedCourseId}/groups/recommended?student_id=${studentId}`
-      );
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.message || "Backend groups API failed");
+      // All Departments：顯示全部可加入的 groups
+      if (selectedDepartment === ALL_DEPARTMENTS_ID) {
+        const result = await getRecommendedGroups(studentId || undefined);
+        console.log("All departments groups =", result);
+        setGroups(result);
+        return;
       }
 
-      setGroups(data as Group[]);
+      // 有選 Department，但 Course 是 All Courses：顯示該系所有課程底下的 groups
+      if (selectedCourseId === ALL_COURSES_ID) {
+        const courseIds = courseOptions.map((course) => course.courseID);
+
+        if (courseIds.length === 0) {
+          setGroups([]);
+          return;
+        }
+
+        const responses = await Promise.all(
+          courseIds.map((courseId) =>
+            getRecommendedGroupsByCourse(courseId, studentId || undefined)
+          )
+        );
+
+        const uniqueGroups = Array.from(
+          new Map(
+            responses.flat().map((group) => [group.group_id, group])
+          ).values()
+        );
+
+        setGroups(uniqueGroups);
+        return;
+      }
+
+      // 有選特定 Course：只顯示該課程 groups
+      const result = await getRecommendedGroupsByCourse(
+        selectedCourseId,
+        studentId || undefined
+      );
+
+      setGroups(result);
     } catch (error) {
-      console.warn(error);
+      console.warn("Failed to load groups:", error);
       setGroups([]);
       setNotice("無法載入推薦小組，請確認後端與資料庫是否已啟動。");
     } finally {
       setIsLoadingGroups(false);
     }
-  };
+  }, [selectedDepartment, selectedCourseId, courseOptions, studentId]);
+  const loadPendingApplications = useCallback(async () => {
+    if (!studentId) {
+      setPendingApplications([]);
+      return;
+    }
 
-  const loadPendingApplications = async () => {
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/students/${studentId}/applications/pending`
-      );
-
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(data?.message || "Backend applications API failed");
-      }
-
-      setPendingApplications(data as Application[]);
+      const result = await getPendingApplications(studentId);
+      setPendingApplications(result);
     } catch (error) {
-      console.warn(error);
+      console.warn("Failed to load pending applications:", error);
       setPendingApplications([]);
     }
-  };
+  }, [studentId]);
+
+  useEffect(() => {
+    loadGroups();
+  }, [loadGroups]);
+
+  useEffect(() => {
+    loadPendingApplications();
+  }, [loadPendingApplications]);
 
   const filteredGroups = useMemo(() => {
     return groups.filter((group) => {
-      const keyword = searchQuery.trim().toLowerCase();
+      const tags = group.tags.map((tag) => tag.toLowerCase());
 
-      if (!keyword) return true;
+      const matchesStyle =
+        selectedStudyStyle === "All Styles" ||
+        tags.includes(selectedStudyStyle.toLowerCase());
 
-      return (
-        group.group_name.toLowerCase().includes(keyword) ||
-        group.description?.toLowerCase().includes(keyword) ||
-        group.tags.some((tag) => tag.toLowerCase().includes(keyword))
-      );
+      const matchesMeeting =
+        selectedMeetingPreference === "All Preferences" ||
+        tags.includes(selectedMeetingPreference.toLowerCase());
+
+      return matchesStyle && matchesMeeting;
     });
-  }, [groups, searchQuery]);
+  }, [groups, selectedStudyStyle, selectedMeetingPreference]);
 
   const hasPendingApplication = (groupId: string) => {
     return pendingApplications.some(
@@ -103,24 +404,146 @@ export default function GroupmatesIntegrated() {
     return group.members.length >= group.max_members;
   };
 
+  const getNeededMembers = (group: Group) => {
+    return (
+      group.needed_members ??
+      Math.max(group.max_members - group.members.length, 0)
+    );
+  };
+
   const isAlreadyMember = (group: Group) => {
-    return group.members.includes(studentId);
+    return Boolean(studentId) && group.members.includes(studentId);
   };
 
   const isLeader = (group: Group) => {
-    return group.leader_id === studentId;
+    return Boolean(studentId) && group.leader_id === studentId;
   };
 
   const canApply = (group: Group) => {
     return (
+      Boolean(studentId) &&
       group.status === "open" &&
       !isGroupFull(group) &&
       !isAlreadyMember(group) &&
+      !isLeader(group) &&
       !hasPendingApplication(group.group_id)
     );
   };
 
+  const getButtonLabel = (group: Group) => {
+    if (!studentId) return "Login to Apply";
+    if (isSubmittingGroupId === group.group_id) return "Submitting...";
+    if (isLeader(group)) return "You are the leader";
+    if (isAlreadyMember(group)) return "Already a member";
+    if (hasPendingApplication(group.group_id)) return "Pending";
+    if (isGroupFull(group)) return "Group is full";
+    if (group.status !== "open") return "Closed";
+    return "Apply to Join";
+  };
+
+  const resetCreatePostForm = () => {
+    setNewPostDepartment(ALL_DEPARTMENTS_ID);
+    setNewPostCourse("");
+    setNewPostStyle("Pair");
+    setNewPostMeeting("Hybrid");
+    setNewPostNeededMembers("1");
+    setNewPostDeadline("");
+    setNewPostDescription("");
+    setNewPostLookingFor("");
+    setNewPostAvailability("");
+    setNewPostContact("");
+  };
+
+  const handleSelectedDepartmentChange = (department: string) => {
+    setSelectedDepartment(department);
+    setSelectedCourseId(ALL_COURSES_ID);
+  };
+
+  const handleNewPostDepartmentChange = (department: string) => {
+    setNewPostDepartment(department);
+    setNewPostCourse("");
+  };
+
+  const handleCreatePost = async () => {
+    if (!studentId) {
+      setNotice("請先使用學生帳號登入後再建立找組員貼文。");
+      setIsCreateDialogOpen(false);
+      return;
+    }
+
+    if (!canCreatePost) {
+      setNotice("請完整填寫課程、需求人數、描述與聯絡方式。");
+      return;
+    }
+
+    const course = createCourseOptions.find(
+      (option) => option.courseID === newPostCourse
+    );
+
+    if (!course) {
+      setNotice("找不到選擇的課程，請重新選擇。");
+      return;
+    }
+
+    const lookingForTags = newPostLookingFor
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const descriptionParts = [
+      newPostDescription.trim(),
+      newPostAvailability.trim()
+        ? `Availability: ${newPostAvailability.trim()}`
+        : "",
+      newPostContact.trim() ? `Contact: ${newPostContact.trim()}` : "",
+    ].filter(Boolean);
+
+    setIsCreatingPost(true);
+    setNotice("");
+
+    try {
+      const newGroup = await createGroup({
+        group_name: `${user?.name || "Student"}'s Groupmate Post`,
+        course_id: course.courseID,
+        leader_id: studentId,
+        max_members: neededMembers + 1,
+        needed_members: neededMembers,
+        recruitment_deadline: newPostDeadline
+          ? new Date(newPostDeadline).toISOString()
+          : null,
+        description: descriptionParts.join("\n"),
+        tags: [newPostStyle, newPostMeeting, ...lookingForTags],
+      });
+
+      setCourseOptions((prev) =>
+        prev.some((option) => option.courseID === course.courseID)
+          ? prev
+          : [course, ...prev]
+      );
+
+      setGroups((prev) => [newGroup, ...prev]);
+      setSelectedCourseId(ALL_COURSES_ID);
+      setNotice("找組員貼文已建立。");
+      setIsCreateDialogOpen(false);
+      resetCreatePostForm();
+    } catch (error: any) {
+      console.warn("Failed to create group:", error);
+      setNotice(error.message || "建立找組員貼文失敗，請稍後再試。");
+    } finally {
+      setIsCreatingPost(false);
+    }
+  };
+
   const handleApply = async (group: Group) => {
+    if (!studentId) {
+      setNotice("請先使用學生帳號登入後再申請加入小組。");
+      return;
+    }
+
+    if (!canApply(group)) {
+      return;
+    }
+
     const message =
       messageByGroupId[group.group_id]?.trim() ||
       "I would like to join your group.";
@@ -129,198 +552,714 @@ export default function GroupmatesIntegrated() {
     setNotice("");
 
     try {
-      const res = await fetch(`${API_BASE_URL}/applications`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          student_id: studentId,
-          group_id: group.group_id,
-          message,
-        }),
+      const application = await createApplication({
+        student_id: studentId,
+        group_id: group.group_id,
+        message,
       });
 
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        setNotice(data?.message || "申請失敗，請稍後再試。");
-        return;
-      }
+      setPendingApplications((prev) => [...prev, application]);
+      setMessageByGroupId((prev) => ({
+        ...prev,
+        [group.group_id]: "",
+      }));
 
       setNotice("申請已送出！");
-      setPendingApplications((prev) => [...prev, data as Application]);
-      setMessageByGroupId((prev) => ({ ...prev, [group.group_id]: "" }));
-    } catch (error) {
-      console.warn(error);
-      setNotice("申請失敗，請確認後端與資料庫是否已啟動。");
+    } catch (error: any) {
+      console.warn("Failed to apply:", error);
+      setNotice(error.message || "申請失敗，請稍後再試。");
     } finally {
       setIsSubmittingGroupId(null);
     }
   };
 
+  const handleToggleRecruitment = async (group: Group) => {
+    if (!studentId || group.leader_id !== studentId) {
+      return;
+    }
+
+    const action = group.status === "open" ? "close" : "reopen";
+
+    setIsUpdatingGroupId(group.group_id);
+    setNotice("");
+
+    try {
+      const updatedGroup =
+        action === "close"
+          ? await closeGroup(group.group_id, studentId)
+          : await reopenGroup(group.group_id, studentId);
+
+      setGroups((prev) =>
+        prev.map((item) =>
+          item.group_id === group.group_id ? updatedGroup : item
+        )
+      );
+
+      setNotice(action === "close" ? "招募已關閉。" : "招募已重新開啟。");
+    } catch (error: any) {
+      console.warn("Failed to update recruitment:", error);
+      setNotice(error.message || "更新招募狀態失敗，請稍後再試。");
+    } finally {
+      setIsUpdatingGroupId(null);
+    }
+  };
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-6 py-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Find Groupmates</h1>
-          <p className="mt-2 text-slate-600">
-            目前小組推薦與申請流程會從後端 API 取得資料。
-          </p>
-          <p className="mt-1 text-sm text-slate-500">
-            Current user: {mockUser.name} / {studentId}
+          <h1 className="mb-2 text-3xl font-bold text-slate-900">
+            Find Groupmates
+          </h1>
+          <p className="text-slate-600">
+            Connect with students looking for study partners and project
+            collaborators
           </p>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <select
-            value={selectedCourseId}
-            onChange={(e) => setSelectedCourseId(e.target.value)}
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
-          >
-            {mockCourses.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.code} - {course.name}
-              </option>
-            ))}
-          </select>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="h-12 rounded-lg bg-blue-300 px-6 text-base font-bold text-white shadow-sm hover:bg-blue-400">
+              <Plus className="h-5 w-5" />
+              Create Post
+            </Button>
+          </DialogTrigger>
 
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search group name, tag..."
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
-          />
-        </div>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-slate-900">
+                Create Groupmate Post
+              </DialogTitle>
+              <DialogDescription className="text-lg text-slate-500">
+                Fill out the details to find study partners or project
+                collaborators.
+              </DialogDescription>
+            </DialogHeader>
+
+            {!studentId && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                請先使用學生帳號登入後再建立找組員貼文。
+              </div>
+            )}
+
+            <div className="grid gap-5 py-6">
+              <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
+                <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
+                  Department
+                </label>
+
+                <Select
+                  value={newPostDepartment}
+                  onValueChange={handleNewPostDepartmentChange}
+                  disabled={!studentId}
+                >
+                  <SelectTrigger className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-semibold text-slate-700 shadow-none">
+                    <SelectValue placeholder="All Departments" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value={ALL_DEPARTMENTS_ID}>
+                      All Departments
+                    </SelectItem>
+
+                    {departments.map((department) => (
+                      <SelectItem key={department} value={department}>
+                        {department}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {isLoadingDepartments && (
+                  <p className="text-sm text-slate-400 sm:col-start-2">
+                    Loading departments...
+                  </p>
+                )}
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
+                <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
+                  Course
+                </label>
+
+                <Select
+                  value={newPostCourse}
+                  onValueChange={setNewPostCourse}
+                  disabled={!studentId || !hasSelectedNewPostDepartment}
+                >
+                  <SelectTrigger className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-semibold text-slate-700 shadow-none">
+                    <SelectValue
+                      placeholder={
+                        hasSelectedNewPostDepartment
+                          ? "Select course"
+                          : "Select department first"
+                      }
+                    />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {createCourseOptions.map((course) => (
+                      <SelectItem key={course.courseID} value={course.courseID}>
+                        {course.courseCode || course.serialNumber}:{" "}
+                        {cleanCourseTitle(course.title)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {isLoadingCreateCourses && (
+                  <p className="text-sm text-slate-400 sm:col-start-2">
+                    Loading courses...
+                  </p>
+                )}
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
+                <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
+                  Style
+                </label>
+
+                <Select
+                  value={newPostStyle}
+                  onValueChange={setNewPostStyle}
+                  disabled={!studentId}
+                >
+                  <SelectTrigger className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-semibold text-slate-900 shadow-none">
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {createStudyStyleOptions.map((style) => (
+                      <SelectItem key={style} value={style}>
+                        {style}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
+                <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
+                  Needed
+                </label>
+
+                <Input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={newPostNeededMembers}
+                  onChange={(e) => setNewPostNeededMembers(e.target.value)}
+                  placeholder="How many more members?"
+                  disabled={!studentId}
+                  className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-medium shadow-none"
+                />
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
+                <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
+                  Deadline
+                </label>
+
+                <Input
+                  type="datetime-local"
+                  value={newPostDeadline}
+                  onChange={(e) => setNewPostDeadline(e.target.value)}
+                  disabled={!studentId}
+                  className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-medium shadow-none"
+                />
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
+                <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
+                  Meeting
+                </label>
+
+                <Select
+                  value={newPostMeeting}
+                  onValueChange={setNewPostMeeting}
+                  disabled={!studentId}
+                >
+                  <SelectTrigger className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-semibold text-slate-900 shadow-none">
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {createMeetingPreferenceOptions.map((preference) => (
+                      <SelectItem key={preference} value={preference}>
+                        {preference}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
+                <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
+                  Description
+                </label>
+
+                <Textarea
+                  value={newPostDescription}
+                  onChange={(e) => setNewPostDescription(e.target.value)}
+                  placeholder="What kind of groupmate are you looking for?"
+                  disabled={!studentId}
+                  className="min-h-24 rounded-lg border-0 bg-slate-50 px-5 py-4 text-lg shadow-none"
+                />
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
+                <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
+                  Looking For
+                </label>
+
+                <Input
+                  value={newPostLookingFor}
+                  onChange={(e) => setNewPostLookingFor(e.target.value)}
+                  placeholder="e.g. Study partner, Project partner"
+                  disabled={!studentId}
+                  className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-medium shadow-none"
+                />
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
+                <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
+                  Availability
+                </label>
+
+                <Input
+                  value={newPostAvailability}
+                  onChange={(e) => setNewPostAvailability(e.target.value)}
+                  placeholder="e.g. Evenings, Weekends"
+                  disabled={!studentId}
+                  className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-medium shadow-none"
+                />
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-[190px_1fr] sm:items-center">
+                <label className="text-left text-lg font-semibold text-slate-900 sm:text-right">
+                  Contact
+                </label>
+
+                <Input
+                  value={newPostContact}
+                  onChange={(e) => setNewPostContact(e.target.value)}
+                  placeholder="Email, Discord, Slack..."
+                  disabled={!studentId}
+                  className="h-14 rounded-lg border-0 bg-slate-50 px-5 text-lg font-medium shadow-none"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                onClick={handleCreatePost}
+                disabled={!studentId || !canCreatePost || isCreatingPost}
+                className="h-14 rounded-lg bg-blue-300 px-8 text-lg font-bold text-white hover:bg-blue-400 disabled:bg-blue-200"
+              >
+                {isCreatingPost ? "Posting..." : "Post"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {notice && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {notice}
         </div>
       )}
 
-      {isLoadingGroups ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
-          Loading groups...
-        </div>
-      ) : filteredGroups.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
-          目前沒有符合條件的小組。
-        </div>
-      ) : (
-        <div className="grid gap-5 md:grid-cols-2">
-          {filteredGroups.map((group) => {
-            const pending = hasPendingApplication(group.group_id);
-            const full = isGroupFull(group);
-            const member = isAlreadyMember(group);
-            const leader = isLeader(group);
-            const disabled =
-              !canApply(group) || isSubmittingGroupId === group.group_id;
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+        <aside className="space-y-4 lg:col-span-1">
+          <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+            <CardHeader className="px-6 pt-6">
+              <CardTitle className="text-2xl font-semibold text-slate-900">
+                Filters
+              </CardTitle>
+            </CardHeader>
 
-            return (
-              <div
-                key={group.group_id}
-                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md"
-              >
-                <div className="mb-4 flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900">
-                      {group.group_name}
-                    </h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Course: {group.course_id}
-                    </p>
-                  </div>
+            <CardContent className="space-y-8 px-6 pb-6">
 
-                  <span
-                    className={
-                      group.status === "open"
-                        ? "rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700"
-                        : "rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600"
-                    }
-                  >
-                    {group.status}
-                  </span>
-                </div>
+              <label className="block">
+                <span className="mb-5 block text-lg font-semibold text-slate-900">
+                  Department
+                </span>
 
-                {group.description && (
-                  <p className="mb-4 text-sm leading-relaxed text-slate-600">
-                    {group.description}
-                  </p>
-                )}
-
-                <div className="mb-4 grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <div className="text-slate-500">Members</div>
-                    <div className="mt-1 font-bold text-slate-900">
-                      {group.members.length} / {group.max_members}
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <div className="text-slate-500">Score</div>
-                    <div className="mt-1 font-bold text-slate-900">
-                      {group.recommendation_score?.toFixed(1) ?? "N/A"}
-                    </div>
-                  </div>
-                </div>
-
-                {group.recruitment_deadline && (
-                  <p className="mb-4 text-sm text-slate-500">
-                    Deadline:{" "}
-                    {new Date(group.recruitment_deadline).toLocaleDateString()}
-                  </p>
-                )}
-
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {group.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
-                <textarea
-                  value={messageByGroupId[group.group_id] || ""}
-                  onChange={(e) =>
-                    setMessageByGroupId((prev) => ({
-                      ...prev,
-                      [group.group_id]: e.target.value,
-                    }))
-                  }
-                  placeholder="Write a short application message..."
-                  disabled={disabled || member || leader}
-                  className="mb-3 min-h-20 w-full resize-none rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-rose-500 focus:bg-white focus:ring-4 focus:ring-rose-500/10 disabled:cursor-not-allowed disabled:opacity-60"
-                />
-
-                <button
-                  onClick={() => handleApply(group)}
-                  disabled={disabled}
-                  className="w-full rounded-xl bg-rose-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-rose-700/20 transition hover:bg-rose-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+                <Select
+                  value={selectedDepartment}
+                  onValueChange={handleSelectedDepartmentChange}
                 >
-                  {leader
-                    ? "You are the leader"
-                    : member
-                    ? "Already a member"
-                    : pending
-                    ? "Pending"
-                    : full
-                    ? "Group is full"
-                    : group.status !== "open"
-                    ? "Closed"
-                    : isSubmittingGroupId === group.group_id
-                    ? "Submitting..."
-                    : "Apply to Join"}
-                </button>
+                  <SelectTrigger className="h-auto border-0 bg-transparent py-2 pl-7 pr-0 text-lg font-semibold text-slate-900 shadow-none focus:ring-0">
+                    <SelectValue placeholder="All Departments" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value={ALL_DEPARTMENTS_ID}>
+                      All Departments
+                    </SelectItem>
+
+                    {departments.map((department) => (
+                      <SelectItem key={department} value={department}>
+                        {department}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {isLoadingDepartments && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    Loading departments...
+                  </p>
+                )}
+              </label>
+
+              <label className="block">
+                <span className="mb-5 block text-lg font-semibold text-slate-900">
+                  Course
+                </span>
+
+                <Select
+                  value={selectedCourseId}
+                  onValueChange={setSelectedCourseId}
+                  disabled={!hasSelectedDepartment}
+                >
+                  <SelectTrigger className="h-auto border-0 bg-transparent py-2 pl-7 pr-0 text-lg font-semibold text-slate-900 shadow-none focus:ring-0">
+                    <SelectValue
+                      placeholder={
+                        hasSelectedDepartment
+                          ? "All Courses"
+                          : "Select department first"
+                      }
+                    />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value={ALL_COURSES_ID}>
+                      All Courses
+                    </SelectItem>
+
+                    {courseOptions.map((course) => (
+                      <SelectItem key={course.courseID} value={course.courseID}>
+                        {course.courseCode || course.serialNumber}:{" "}
+                        {cleanCourseTitle(course.title)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {isLoadingCourses && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    Loading courses...
+                  </p>
+                )}
+              </label>
+
+              <label className="block">
+                <span className="mb-5 block text-lg font-semibold text-slate-900">
+                  Study Style
+                </span>
+
+                <Select
+                  value={selectedStudyStyle}
+                  onValueChange={setSelectedStudyStyle}
+                >
+                  <SelectTrigger className="h-auto border-0 bg-transparent py-2 pl-7 pr-0 text-lg font-semibold text-slate-900 shadow-none focus:ring-0">
+                    <SelectValue placeholder="All Styles" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {studyStyleOptions.map((style) => (
+                      <SelectItem key={style} value={style}>
+                        {style}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+
+              <label className="block">
+                <span className="mb-5 block text-lg font-semibold text-slate-900">
+                  Meeting Preference
+                </span>
+
+                <Select
+                  value={selectedMeetingPreference}
+                  onValueChange={setSelectedMeetingPreference}
+                >
+                  <SelectTrigger className="h-auto border-0 bg-transparent py-2 pl-7 pr-0 text-lg font-semibold text-slate-900 shadow-none focus:ring-0">
+                    <SelectValue placeholder="All Preferences" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {meetingPreferenceOptions.map((preference) => (
+                      <SelectItem key={preference} value={preference}>
+                        {preference}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-lg border-slate-200 bg-white text-sm text-slate-600 shadow-sm">
+            <CardContent className="px-5 py-5">
+              <div className="mb-3 font-semibold text-slate-900">
+                Tips for Success
               </div>
-            );
-          })}
-        </div>
-      )}
+
+              <ul className="list-inside list-disc space-y-1 leading-relaxed">
+                <li>Be clear about your goals</li>
+                <li>Specify your availability</li>
+                <li>Respond promptly to messages</li>
+                <li>Set expectations early</li>
+              </ul>
+            </CardContent>
+          </Card>
+        </aside>
+
+        <main className="lg:col-span-3">
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-sm text-slate-500">
+              Showing {filteredGroups.length} group
+              {filteredGroups.length !== 1 ? "s" : ""}
+              {selectedCourseId !== ALL_COURSES_ID && selectedCourse
+                ? ` for ${selectedCourse.courseCode || selectedCourse.courseID}`
+                : ""}
+            </p>
+          </div>
+
+          {isLoadingGroups ? (
+            <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+              <CardContent className="p-12 text-center text-slate-500">
+                Loading groups...
+              </CardContent>
+            </Card>
+          ) : filteredGroups.length === 0 ? (
+            <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+              <CardContent className="px-6 py-12 text-center">
+                <Users className="mx-auto mb-4 h-12 w-12 text-slate-400" />
+
+                <h3 className="mb-2 text-lg font-semibold text-slate-900">
+                  No groups found
+                </h3>
+
+                <p className="text-slate-500">
+                  Try adjusting your filters or checking another course.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {filteredGroups.map((group) => {
+                const member = isAlreadyMember(group);
+                const leader = isLeader(group);
+                const courseForGroup = courseById.get(group.course_id);
+                const disabled =
+                  !canApply(group) ||
+                  isSubmittingGroupId === group.group_id;
+
+                const deadline = group.recruitment_deadline
+                  ? new Date(group.recruitment_deadline).toLocaleString([], {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "Flexible";
+
+
+                return (
+                  <Card
+                    key={group.group_id}
+                    className="rounded-lg border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                  >
+                    <CardHeader className="px-6 pt-6">
+                      <div className="mb-4 flex items-start justify-between gap-4">
+                        <div className="flex min-w-0 flex-1 gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-700">
+                            <Users className="h-5 w-5" />
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="mb-1 text-sm font-medium text-slate-900">
+                              {group.group_name}
+                            </div>
+
+                            <CardTitle className="text-xl font-semibold text-slate-900">
+                              {courseForGroup?.courseCode ||
+                                courseForGroup?.serialNumber ||
+                                group.course_id}
+                              : {cleanCourseTitle(courseForGroup?.title) || group.course_id}
+                            </CardTitle>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Badge
+                                variant="secondary"
+                                className="rounded-full bg-slate-100 text-slate-700"
+                              >
+                                Needs {getNeededMembers(group)} more
+                              </Badge>
+
+                              <Badge
+                                variant="outline"
+                                className={
+                                  group.status === "open"
+                                    ? "rounded-full border-green-200 text-green-700"
+                                    : "rounded-full border-slate-200 text-slate-600"
+                                }
+                              >
+                                {group.status}
+                              </Badge>
+
+                              {studentId && (
+                                <Badge
+                                  variant="outline"
+                                  className="rounded-full border-rose-200 text-rose-700"
+                                >
+                                  Match{" "}
+                                  {group.recommendation_score?.toFixed(1) ??
+                                    "N/A"}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="px-6">
+                      <div className="space-y-4">
+                        <p className="whitespace-pre-line leading-relaxed text-slate-600">
+                          {group.description ||
+                            "This group is looking for collaborators for the selected course."}
+                        </p>
+
+                        <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+                          <div>
+                            <div className="mb-2 flex items-center gap-2 font-medium text-slate-900">
+                              <Users className="h-4 w-4" />
+                              Looking For
+                            </div>
+
+                            <div className="flex flex-wrap gap-1.5">
+                              {(group.tags.length > 0
+                                ? group.tags
+                                : ["Study partner", "Project partner"]
+                              ).map((tag) => (
+                                <Badge
+                                  key={tag}
+                                  variant="outline"
+                                  className="rounded-full border-slate-200 text-slate-600"
+                                >
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="mb-2 flex items-center gap-2 font-medium text-slate-900">
+                              <Clock className="h-4 w-4" />
+                              Availability
+                            </div>
+
+                            <p className="flex items-center gap-2 text-slate-500">
+                              <Calendar className="h-4 w-4" />
+                              Deadline {deadline}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+
+                    <CardFooter className="flex-col items-stretch gap-3 border-t bg-slate-50/50 px-6 py-4 sm:flex-row sm:items-end">
+                      <Textarea
+                        value={messageByGroupId[group.group_id] || ""}
+                        onChange={(e) =>
+                          setMessageByGroupId((prev) => ({
+                            ...prev,
+                            [group.group_id]: e.target.value,
+                          }))
+                        }
+                        placeholder={
+                          studentId
+                            ? "Write a short application message..."
+                            : "Login to write an application message..."
+                        }
+                        disabled={!studentId || disabled || member || leader}
+                        className="min-h-11 flex-1 bg-white focus-visible:ring-rose-500/20"
+                      />
+
+                      {leader && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleToggleRecruitment(group)}
+                          disabled={isUpdatingGroupId === group.group_id}
+                          className="h-11 border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                        >
+                          {isUpdatingGroupId === group.group_id
+                            ? "Updating..."
+                            : group.status === "open"
+                              ? "Close Recruitment"
+                              : "Reopen Recruitment"}
+                        </Button>
+                      )}
+
+                      {!studentId ? (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              className="h-11 bg-rose-700 text-white shadow-sm shadow-rose-700/20 hover:bg-rose-800"
+                            >
+                              <Mail className="h-4 w-4" />
+                              {getButtonLabel(group)}
+                            </Button>
+                          </DialogTrigger>
+
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Login required</DialogTitle>
+                              <DialogDescription>
+                                Please login with a student account before
+                                applying to join a group.
+                              </DialogDescription>
+                            </DialogHeader>
+
+                            <DialogFooter>
+                              <Button
+                                type="button"
+                                className="bg-rose-700 text-white hover:bg-rose-800"
+                                onClick={() => {
+                                  window.location.href = "/auth/login";
+                                }}
+                              >
+                                Go to Login
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      ) : (
+                        <Button
+                          onClick={() => handleApply(group)}
+                          disabled={disabled}
+                          className="h-11 bg-rose-700 text-white shadow-sm shadow-rose-700/20 hover:bg-rose-800"
+                        >
+                          <Send className="h-4 w-4" />
+                          {getButtonLabel(group)}
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

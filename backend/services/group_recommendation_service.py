@@ -1,25 +1,32 @@
-from datetime import datetime
-from models.user import Student
+from datetime import datetime, timezone
 from models.group import Group
 from utils.student_id_parser import StudentIdParser
+
 
 class GroupRecommendationService:
     def __init__(self, group_repo):
         self.group_repo = group_repo
 
-    def recommend_groups(self, student: Student, course_id: str) -> list[Group]:
-        groups = self.group_repo.find_joinable_by_course(course_id)
-        return self.sort_groups_by_score(groups, student)
+    def list_joinable_groups(self, course_id: str | None = None) -> list[Group]:
+        return self.group_repo.find_joinable_by_course(course_id)
 
-    def calculate_match_score(self, student: Student, group: Group) -> float:
+    def recommend_groups(
+        self,
+        student_id: str,
+        course_id: str | None = None
+    ) -> list[Group]:
+        groups = self.list_joinable_groups(course_id)
+        return self.sort_groups_by_score(groups, student_id)
+
+    def calculate_match_score(self, student_id: str, group: Group) -> float:
         leader_similarity_score = self.calculate_student_similarity(
-            student.studentID,
-            group.leader_id
+            student_id,
+            group.leader_id,
         )
 
         average_member_similarity_score = self.calculate_average_member_similarity(
-            student.studentID,
-            group
+            student_id,
+            group,
         )
 
         available_slots = group.max_members - len(group.members)
@@ -34,15 +41,20 @@ class GroupRecommendationService:
         return final_score
 
     def calculate_student_similarity(self, student_id_a: str, student_id_b: str) -> int:
-        info_a = StudentIdParser.parse(student_id_a)
-        info_b = StudentIdParser.parse(student_id_b)
-
+        try:
+            info_a = StudentIdParser.parse(student_id_a)
+            info_b = StudentIdParser.parse(student_id_b)
+        except Exception as e:
+            print("StudentIdParser error:", student_id_a, student_id_b, e)
+            return 0
+        
         score = 0
 
         if info_a["department"] == info_b["department"]:
             score += 20
 
         year_diff = abs(info_a["admission_year"] - info_b["admission_year"])
+
         if year_diff == 0:
             score += 10
         elif year_diff == 1:
@@ -61,7 +73,8 @@ class GroupRecommendationService:
 
     def calculate_average_member_similarity(self, student_id: str, group: Group) -> float:
         non_leader_members = [
-            member_id for member_id in group.members
+            member_id
+            for member_id in group.members
             if member_id != group.leader_id
         ]
 
@@ -79,18 +92,23 @@ class GroupRecommendationService:
         if group.recruitment_deadline is None:
             return 0
 
-        days_left = (group.recruitment_deadline - datetime.now()).days
+        deadline = group.recruitment_deadline
+
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=timezone.utc)
+
+        days_left = (deadline - datetime.now(timezone.utc)).days
 
         if days_left <= 1:
             return 5
-        elif days_left <= 3:
-            return 3
-        else:
-            return 0
 
-    def sort_groups_by_score(self, groups: list[Group], student: Student) -> list[Group]:
+        if days_left <= 3:
+            return 3
+
+        return 0
+    def sort_groups_by_score(self, groups: list[Group], student_id: str) -> list[Group]:
         return sorted(
             groups,
-            key=lambda group: self.calculate_match_score(student, group),
-            reverse=True
+            key=lambda group: self.calculate_match_score(student_id, group),
+            reverse=True,
         )

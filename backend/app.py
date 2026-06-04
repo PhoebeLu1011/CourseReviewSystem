@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 from mongo import db
@@ -31,6 +31,7 @@ from repository.announcement_repository import AnnouncementRepository
 
 from services.application_service import ApplicationService
 from services.notification_service import NotificationService
+from services.group_service import GroupService
 from services.group_recommendation_service import GroupRecommendationService
 from services.achievement_service import AchievementService
 from services.course_service import CourseService
@@ -52,20 +53,25 @@ load_dotenv()
 def create_app():
     app = Flask(__name__)
 
-
     # ====== CORS 設定 ======
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
+    allowed_origins = list({
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+        frontend_url,
+    })
+
     CORS(
         app,
-        resources={r"/*": {"origins": [
-            "http://localhost:5173",
-            "http://localhost:5174",
-            "http://localhost:5175",
-            frontend_url,
-        ]}},
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        resources={r"/*": {"origins": allowed_origins}},
+        methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization"],
+        supports_credentials=True,
     )
 
     # ====== Repositories ======
@@ -90,17 +96,24 @@ def create_app():
         password_service=password_service,
         token_service=token_service
     )
-    user_service = UserService(student_repo=student_repo, auth_service=auth_service)
+
+    user_service = UserService(
+        student_repo=student_repo,
+        auth_service=auth_service
+    )
+
     notification_service = NotificationService(notification_repo)
     achievement_service = AchievementService(badge_repo)
     course_service = CourseService(course_repo)
     review_service = ReviewService(review_repo, student_repo, course_service)
+
     discussion_service = DiscussionService(
         discussion_repo=discussion_repo,
         reply_repo=reply_repo,
         student_repo=student_repo,
         course_service=course_service
     )
+
     application_service = ApplicationService(
         application_repo=application_repo,
         group_repo=group_repo,
@@ -108,14 +121,21 @@ def create_app():
         notification_service=notification_service,
         achievement_service=achievement_service,
     )
+
+    group_service = GroupService(group_repo)
     group_recommendation_service = GroupRecommendationService(group_repo)
 
-    admin_service = AdminService(report_repo=report_repo, review_repo=review_repo)
+    admin_service = AdminService(
+        report_repo=report_repo,
+        review_repo=review_repo
+    )
+
     announcement_service = AnnouncementService(announcement_repo)
     report_service = ReportService(report_repo)
 
+    # ====== Register Blueprints ======
     app.register_blueprint(create_application_routes(application_service))
-    app.register_blueprint(create_group_routes(group_recommendation_service))
+    app.register_blueprint(create_group_routes(group_recommendation_service, group_service))
     app.register_blueprint(create_notification_routes(notification_service))
     app.register_blueprint(create_achievement_routes(achievement_service, student_repo))
     app.register_blueprint(create_review_routes(review_service))
@@ -132,11 +152,12 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    port = int(os.getenv("PORT", 5000))
+    port = int(os.getenv("PORT", 5001))
+
     app.run(
-        host="127.0.0.1", 
-        port=port, 
+        host="0.0.0.0",
+        port=port,
         debug=os.getenv("FLASK_ENV") != "production",
-        threaded=False,
+        threaded=True,
         use_reloader=False
     )

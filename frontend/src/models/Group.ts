@@ -6,6 +6,7 @@ export interface Group {
     course_id: string;
     leader_id: string;
     max_members: number;
+    needed_members?: number;
     members: string[];
     status: GroupStatus;
     recruitment_deadline: string | null;
