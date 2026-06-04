@@ -1,79 +1,180 @@
-import { getProfile } from "../api/userApi";
-import { getUserReviews, updateReview, deleteReview, type Review } from "../api/reviewApi"; 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
+  AlertTriangle,
   BookOpen,
   Calendar,
-  Hash,
-  Edit2,
-  Check,
-  X,
   Camera,
-  Star,
-  Trophy,
-  AlertTriangle,
+  Check,
+  Edit2,
+  Hash,
   MapPin,
-  Trash2, 
+  MessageSquare,
   Save,
-  MessageSquare
+  Star,
+  Trash2,
+  Trophy,
+  X,
 } from "lucide-react";
 
-import { Card, CardContent } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Input } from "../components/ui/input";
-import { API_BASE_URL } from "../config/api";
-import { useAuth } from "../context/AuthContext";
-import { 
-  getUserDiscussions, getUserReplies, 
-  updateDiscussion, deleteDiscussion, 
-  updateReply, deleteReply, 
-  type Discussion, type Reply 
+import { getProfile } from "../api/userApi";
+import { getBookmarks } from "../api/bookmarkApi";
+import { getCourse } from "../api/courseApi";
+import {
+  deleteReview,
+  getUserReviews,
+  updateReview,
+  type Review,
+} from "../api/reviewApi";
+import {
+  deleteDiscussion,
+  deleteReply,
+  getUserDiscussions,
+  getUserReplies,
+  updateDiscussion,
+  updateReply,
+  type Discussion,
+  type Reply,
 } from "../api/discussionApi";
 
-const mockAchievements = [
-  { id: "1", title: "Top Reviewer", description: "Wrote several helpful course reviews.", icon: Star },
-  { id: "2", title: "Community Contributor", description: "Participated in discussions and group applications.", icon: Trophy },
-];
+import { API_BASE_URL } from "../config/api";
+import { useAuth } from "../context/AuthContext";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import {
+  getStudentBadges,
+  getAchievementScore,
+  checkStudentBadges,
+} from "../api/achievementApi";
+import type { Badge as AchievementBadge } from "../models/Achievement";
+
+type UserProfileState = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  department: string;
+  studentID: string;
+  avatar: string;
+  bio: string;
+  birthday: string;
+  interests: string[];
+  reviewCount: number;
+  replyCount: number;
+  applyCount: number;
+};
+
+type FavoriteCourse = {
+  courseID: string;
+  courseCode?: string;
+  title: string;
+  department?: string;
+  timeAndLocation?: string;
+};
 
 const mockReports = [
-  { id: "REP-001", type: "Review", status: "pending", reason: "Spam or Advertisement", date: "2026-05-20" },
+  {
+    id: "REP-001",
+    type: "Review",
+    status: "pending",
+    reason: "Spam or Advertisement",
+    date: "2026-05-20",
+  },
 ];
 
+function parseNTNUSchedule(value?: string) {
+  if (!value) {
+    return {
+      schedule: "尚無時間資料",
+      location: "尚無地點資料",
+    };
+  }
+
+  const parts = value.split(/\s+/).filter(Boolean);
+
+  return {
+    schedule: parts[0] || value,
+    location: parts.slice(1).join(" ") || "尚無地點資料",
+  };
+}
+
+function getErrorMessage(err: unknown, fallback: string) {
+  if (err instanceof Error) return err.message;
+  return fallback;
+}
+function getAchievementIcon(category: string) {
+  switch (category) {
+    case "reviewer":
+      return Star;
+    case "replier":
+      return MessageSquare;
+    case "group_participant":
+      return Trophy;
+    case "contributor":
+      return Trophy;
+    default:
+      return Trophy;
+  }
+}
+
+function getAchievementCategoryLabel(category: string) {
+  switch (category) {
+    case "reviewer":
+      return "評論成就";
+    case "replier":
+      return "回覆成就";
+    case "group_participant":
+      return "找組員成就";
+    case "contributor":
+      return "平台貢獻";
+    default:
+      return category;
+  }
+}
 export default function UserProfile() {
   const { user: authUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const [myReviews, setMyReviews] = useState<Review[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
-  const [editReviewForm, setEditReviewForm] = useState({ content: "", sweetnessScore: 5, workloadScore: 5 });
+  const [editReviewForm, setEditReviewForm] = useState({
+    content: "",
+    sweetnessScore: 5,
+    workloadScore: 5,
+  });
 
   const [myDiscussions, setMyDiscussions] = useState<Discussion[]>([]);
   const [myReplies, setMyReplies] = useState<Reply[]>([]);
-  
   const [editingDiscId, setEditingDiscId] = useState<string | null>(null);
   const [editDiscForm, setEditDiscForm] = useState({ title: "", content: "" });
-  
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editReplyContent, setEditReplyContent] = useState("");
 
-  const [user, setUser] = useState({
-    id: authUser?.id || "S001",
+  const [favoriteCourses, setFavoriteCourses] = useState<FavoriteCourse[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+
+  const [achievementBadges, setAchievementBadges] = useState<AchievementBadge[]>([]);
+  const [achievementScore, setAchievementScore] = useState<number>(0);
+  const [isLoadingAchievements, setIsLoadingAchievements] = useState(false);
+
+  const [user, setUser] = useState<UserProfileState>({
+    id: authUser?.id || "",
     name: authUser?.name || "Test Student",
     email: authUser?.email || "student@example.com",
     role: authUser?.role || "Student",
     department: authUser?.department || "Computer Science",
-    studentID: authUser?.id || "41271122H",
+    studentID: authUser?.id || "",
     avatar: authUser?.avatar || "",
-    bio: authUser?.bio || "No bio provided yet.", 
-    birthday: authUser?.birthday || "2000-01-01", 
+    bio: authUser?.bio || "No bio provided yet.",
+    birthday: authUser?.birthday || "2000-01-01",
     interests: authUser?.interests || [],
     reviewCount: 0,
     replyCount: 0,
@@ -87,104 +188,146 @@ export default function UserProfile() {
     interests: user.interests.join(", "),
   });
 
-  // 2. 獲取後端最新 Profile 資料
-  const [favoriteCourses, setFavoriteCourses] = useState<Course[]>([]);
-  const [favoritesLoading, setFavoritesLoading] = useState(false);
-
-  
   useEffect(() => {
+    if (!authUser) return;
+
     const fetchFullProfile = async () => {
-      if (!authUser) return; 
       const token = localStorage.getItem("token");
       if (!token) return;
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
-          method: "GET",
-          headers: {
-            // 💡 修正：依據後端程式碼，組長的 request.headers.get("Authorization") 通常要帶 Bearer
-            "Authorization": `Bearer ${token}`
-          }
-        });
-        const data = await response.json();
-        console.log("=== ⚠️ 後端吐給前端的真實物件結構 ⚠️ ===");
-        console.log(JSON.stringify(data, null, 2));
-
-        if (response.ok && data.success) {
         const data: any = await getProfile(token);
-        if (data && data.success) {
-          const profile = data.student || data.user || data;
-          setUser({
-            id: authUser.id,
-            name: profile.name || authUser.name,
-            email: profile.email || authUser.email,
-            role: authUser.role || "Student",
-            department: profile.department || authUser.department,
-            studentID: authUser.id,
-            avatar: profile.avatar || "", // 🎯 取得 GridFS 圖片 ID
-            bio: profile.bio || "No bio provided yet.",
-            birthday: profile.birthday || "2000-01-01",
-            interests: profile.interests || [],
-            reviewCount: profile.reviewCount || 0,
-            replyCount: profile.replyCount || 0,
-            applyCount: profile.applyCount || 0,
-          });
 
-          setEditForm({
-            name: profile.name || authUser.name,
-            bio: profile.bio || "",
-            birthday: profile.birthday || "2000-01-01",
-            interests: (profile.interests || []).join(", "),
-          });
+        if (!data?.success) {
+          return;
         }
+
+        const profile = data.student || data.user || data;
+        const nextUser: UserProfileState = {
+          id: authUser.id,
+          name: profile.name || authUser.name,
+          email: profile.email || authUser.email,
+          role: authUser.role || "Student",
+          department: profile.department || authUser.department || "",
+          studentID: authUser.id,
+          avatar: profile.avatar || authUser.avatar || "",
+          bio: profile.bio || "No bio provided yet.",
+          birthday: profile.birthday || "2000-01-01",
+          interests: profile.interests || [],
+          reviewCount: profile.reviewCount || 0,
+          replyCount: profile.replyCount || 0,
+          applyCount: profile.applyCount || 0,
+        };
+
+        setUser(nextUser);
+        setEditForm({
+          name: nextUser.name,
+          bio: nextUser.bio === "No bio provided yet." ? "" : nextUser.bio,
+          birthday: nextUser.birthday,
+          interests: nextUser.interests.join(", "),
+        });
       } catch (err) {
         console.error("Failed to load backend profile data:", err);
+        setErrorMsg("個人資料載入失敗，請稍後再試。");
       }
     };
 
     const fetchReviews = async () => {
-      if (!authUser) return;
       setIsLoadingReviews(true);
       try {
         const reviews = await getUserReviews(authUser.id);
         setMyReviews(reviews);
       } catch (err) {
-        console.error("Failed to fetch reviews", err);
+        console.error("Failed to fetch reviews:", err);
       } finally {
         setIsLoadingReviews(false);
       }
     };
 
-    // 💡 NEW: Fetch Discussions and Replies
     const fetchCommunityData = async () => {
-      if (!authUser) return;
       try {
-        const [discs, reps] = await Promise.all([
+        const [discussions, replies] = await Promise.all([
           getUserDiscussions(authUser.id),
-          getUserReplies(authUser.id)
+          getUserReplies(authUser.id),
         ]);
-        setMyDiscussions(discs);
-        setMyReplies(reps);
+        setMyDiscussions(discussions);
+        setMyReplies(replies);
       } catch (err) {
-        console.error("Failed to fetch community data");
+        console.error("Failed to fetch community data:", err);
       }
     };
 
-    if (authUser) {
-      fetchFullProfile();
-      fetchReviews(); 
-      fetchCommunityData(); // 💡 Called here
-    }
+    const fetchFavorites = async () => {
+      setFavoritesLoading(true);
+      try {
+        const bookmarks = await getBookmarks(authUser.id);
+        const courses = await Promise.all(
+          bookmarks.map((bookmark: any) =>
+            getCourse(bookmark.courseId || bookmark.courseID).catch(() => null),
+          ),
+        );
+        setFavoriteCourses(courses.filter(Boolean) as FavoriteCourse[]);
+      } catch (err) {
+        console.error("Failed to load favorites:", err);
+      } finally {
+        setFavoritesLoading(false);
+      }
+    };
+
+    const fetchAchievements = async () => {
+      setIsLoadingAchievements(true);
+
+      try {
+        // 先讓後端重新檢查一次目前是否有新 badge
+        await checkStudentBadges(authUser.id).catch((err) => {
+          console.warn("Failed to check badges:", err);
+        });
+
+        const [badgeResult, scoreResult] = await Promise.all([
+          getStudentBadges(authUser.id),
+          getAchievementScore(authUser.id),
+        ]);
+
+        setAchievementBadges(badgeResult.badges || []);
+        setAchievementScore(scoreResult.achievementScore || 0);
+
+        setUser((prev) => ({
+          ...prev,
+          reviewCount: scoreResult.reviewCount ?? prev.reviewCount,
+          replyCount: scoreResult.replyCount ?? prev.replyCount,
+          applyCount: scoreResult.applyCount ?? prev.applyCount,
+        }));
+      } catch (err) {
+        console.error("Failed to load achievements:", err);
+      } finally {
+        setIsLoadingAchievements(false);
+      }
+    };
+
+    fetchFullProfile();
+    fetchReviews();
+    fetchCommunityData();
+    fetchFavorites();
+    fetchAchievements();
   }, [authUser]);
 
-  // 3. 🎯 核心功能：處理大頭貼檔案選擇與「即時」GridFS 上傳
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditForm({
+      name: user.name,
+      bio: user.bio === "No bio provided yet." ? "" : user.bio,
+      birthday: user.birthday,
+      interests: user.interests.join(", "),
+    });
+  };
+
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 限制 2MB 大小
     if (file.size > 2 * 1024 * 1024) {
       alert("圖片大小不能超過 2MB");
+      e.target.value = "";
       return;
     }
 
@@ -198,98 +341,90 @@ export default function UserProfile() {
     setErrorMsg("");
 
     try {
-      // 📦 包裝成 FormData 格式送給後端
       const formData = new FormData();
-      formData.append("avatar", file); // 🎯 key值 "avatar" 必須和後端對應
+      formData.append("avatar", file);
 
-      const response = await fetch("http://127.0.0.1:5000/api/user/avatar", {
+      const response = await fetch(`${API_BASE_URL}/api/user/avatar`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}` // 帶上權限認證
+          Authorization: `Bearer ${token}`,
         },
-        body: formData // 不要手動寫 Content-Type，讓瀏覽器自動配置
+        body: formData,
       });
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
-        // 更新當前頁面 State
-        setUser((prev) => ({ ...prev, avatar: data.avatar_id }));
-        
-        // 🔄 同步全域 AuthContext 狀態，讓 Layout.tsx 的右上角大頭貼秒同步改變！
-        if (authUser) {
-          const updatedUser = { ...authUser, avatar: data.avatar_id };
-          localStorage.setItem("user", JSON.stringify(updatedUser));
-          // 如果 AuthContext 有提供 setUser，可以用 setUser(updatedUser)。
-          // 這裡用最保險且文文最愛用的手段：直接觸發頁面刷新，讓 Context 重新加載 localStorage 資料
-          window.location.reload(); 
-        }
-
-        alert("大頭貼上傳並同步成功！");
-      } else {
+      if (!response.ok || !data.success) {
         alert(data.message || "大頭貼上傳失敗");
+        return;
       }
+
+      setUser((prev) => ({ ...prev, avatar: data.avatar_id }));
+
+      if (authUser) {
+        const updatedUser = { ...authUser, avatar: data.avatar_id };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+
+      alert("大頭貼上傳成功！重新整理後右上角也會同步更新。");
     } catch (err) {
       console.error("Error uploading avatar:", err);
       alert("網路錯誤，大頭貼上傳失敗");
     } finally {
       setIsLoading(false);
+      e.target.value = "";
     }
   };
 
-  // 4. 儲存其他個人檔案文字資料
-  // 收藏課程
-  useEffect(() => {
-    if (!authUser) return;
-    const fetchFavorites = async () => {
-      setFavoritesLoading(true);
-      try {
-        const bookmarks = await getBookmarks(authUser.id);
-        const courses = await Promise.all(
-          bookmarks.map((b: any) => getCourse(b.courseId || b.courseID).catch(() => null))
-        );
-        setFavoriteCourses(courses.filter(Boolean) as Course[]);
-      } catch (err) {
-        console.error("Failed to load favorites:", err);
-      } finally {
-        setFavoritesLoading(false);
-      }
-    };
-    fetchFavorites();
-  }, [authUser]);
-
   const handleSave = async () => {
     if (!authUser) return;
+
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      alert("請先重新登入");
+      return;
+    }
+
+    const interests = editForm.interests
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
 
     setIsLoading(true);
+    setErrorMsg("");
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/user/${authUser.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           name: editForm.name,
           bio: editForm.bio,
           birthday: editForm.birthday,
-          interests: editForm.interests.split(",").map(i => i.trim()).filter(i => i !== "")
-        })
+          interests,
+        }),
       });
 
       const data = await response.json();
-      if (response.ok && data.success) {
-        setUser((prevUser) => ({
-          ...prevUser,                        
-          name: editForm.name,                
-          bio: editForm.bio,                    
-          birthday: editForm.birthday,        
-          interests: editForm.interests.split(",").map(i => i.trim()).filter(i => i !== "") 
-        }));
-        alert("Profile updated successfully!");
-        setIsEditing(false); 
-      } else {
+
+      if (!response.ok || !data.success) {
         alert(data.message || "Update failed");
+        return;
       }
+
+      setUser((prevUser) => ({
+        ...prevUser,
+        name: editForm.name,
+        bio: editForm.bio || "No bio provided yet.",
+        birthday: editForm.birthday,
+        interests,
+      }));
+
+      setIsEditing(false);
+      alert("個人資料更新成功！");
     } catch (err) {
       console.error("Error updating profile:", err);
       alert("網路連線錯誤，修改失敗");
@@ -300,116 +435,164 @@ export default function UserProfile() {
 
   const handleDeleteReview = async (reviewID: string) => {
     if (!authUser) return;
-    if (!window.confirm("Are you sure you want to delete this review?")) return;
+    if (!window.confirm("確定要刪除這則評論嗎？")) return;
+
     try {
       await deleteReview(reviewID, authUser.id);
-      setMyReviews(prev => prev.filter(r => r.reviewID !== reviewID));
-      setUser(prev => ({ ...prev, reviewCount: Math.max(0, prev.reviewCount - 1) }));
-    } catch (err: any) { alert(err.message || "Failed to delete review"); }
+      setMyReviews((prev) => prev.filter((review) => review.reviewID !== reviewID));
+      setUser((prev) => ({
+        ...prev,
+        reviewCount: Math.max(0, prev.reviewCount - 1),
+      }));
+    } catch (err) {
+      alert(getErrorMessage(err, "刪除評論失敗"));
+    }
   };
 
   const handleUpdateReview = async (reviewID: string) => {
     if (!authUser) return;
+
     try {
       const updatedReview = await updateReview(reviewID, {
         authorID: authUser.id,
         content: editReviewForm.content,
         sweetnessScore: editReviewForm.sweetnessScore,
-        workloadScore: editReviewForm.workloadScore
+        workloadScore: editReviewForm.workloadScore,
       });
-      setMyReviews(prev => prev.map(r => r.reviewID === reviewID ? updatedReview : r));
+
+      setMyReviews((prev) =>
+        prev.map((review) => (review.reviewID === reviewID ? updatedReview : review)),
+      );
       setEditingReviewId(null);
-    } catch (err: any) { alert(err.message || "Failed to update review"); }
+    } catch (err) {
+      alert(getErrorMessage(err, "更新評論失敗"));
+    }
   };
 
-  // 💡 NEW: Discussion & Reply CRUD Handlers
-  const handleUpdateDisc = async (discID: string) => {
+  const handleUpdateDisc = async (discussionID: string) => {
     if (!authUser) return;
+
     try {
-      const updated = await updateDiscussion(discID, authUser.id, editDiscForm.title, editDiscForm.content);
-      setMyDiscussions(prev => prev.map(d => d.discussionID === discID ? updated : d));
+      const updatedDiscussion = await updateDiscussion(
+        discussionID,
+        authUser.id,
+        editDiscForm.title,
+        editDiscForm.content,
+      );
+
+      setMyDiscussions((prev) =>
+        prev.map((discussion) =>
+          discussion.discussionID === discussionID ? updatedDiscussion : discussion,
+        ),
+      );
       setEditingDiscId(null);
-    } catch (err) { alert("Update failed"); }
+    } catch (err) {
+      alert(getErrorMessage(err, "更新貼文失敗"));
+    }
   };
 
-  const handleDeleteDisc = async (discID: string) => {
+  const handleDeleteDisc = async (discussionID: string) => {
     if (!authUser) return;
-    if (!window.confirm("Delete this discussion? All replies will be deleted too.")) return;
+    if (!window.confirm("確定要刪除這篇討論嗎？相關回覆也可能會被刪除。")) return;
+
     try {
-      await deleteDiscussion(discID, authUser.id);
-      setMyDiscussions(prev => prev.filter(d => d.discussionID !== discID));
-    } catch (err) { alert("Delete failed"); }
+      await deleteDiscussion(discussionID, authUser.id);
+      setMyDiscussions((prev) =>
+        prev.filter((discussion) => discussion.discussionID !== discussionID),
+      );
+    } catch (err) {
+      alert(getErrorMessage(err, "刪除貼文失敗"));
+    }
   };
 
   const handleUpdateReply = async (replyID: string) => {
     if (!authUser) return;
+
     try {
-      const updated = await updateReply(replyID, authUser.id, editReplyContent);
-      setMyReplies(prev => prev.map(r => r.replyID === replyID ? updated : r));
+      const updatedReply = await updateReply(replyID, authUser.id, editReplyContent);
+      setMyReplies((prev) =>
+        prev.map((reply) => (reply.replyID === replyID ? updatedReply : reply)),
+      );
       setEditingReplyId(null);
-    } catch (err) { alert("Update failed"); }
+    } catch (err) {
+      alert(getErrorMessage(err, "更新回覆失敗"));
+    }
   };
 
   const handleDeleteReply = async (replyID: string) => {
     if (!authUser) return;
-    if (!window.confirm("Delete this reply?")) return;
+    if (!window.confirm("確定要刪除這則回覆嗎？")) return;
+
     try {
       await deleteReply(replyID, authUser.id);
-      setMyReplies(prev => prev.filter(r => r.replyID !== replyID));
-      setUser(prev => ({ ...prev, replyCount: Math.max(0, prev.replyCount - 1) }));
-    } catch (err) { alert("Delete failed"); }
+      setMyReplies((prev) => prev.filter((reply) => reply.replyID !== replyID));
+      setUser((prev) => ({
+        ...prev,
+        replyCount: Math.max(0, prev.replyCount - 1),
+      }));
+    } catch (err) {
+      alert(getErrorMessage(err, "刪除回覆失敗"));
+    }
   };
+
+  if (!authUser) {
+    return (
+      <Card className="border-dashed border-2 border-slate-200 shadow-none">
+        <CardContent className="p-8 text-center">
+          <h2 className="text-xl font-bold text-slate-800">請先登入</h2>
+          <p className="mt-2 text-sm text-slate-500">登入後才能查看個人資料。</p>
+          <Button asChild className="mt-4">
+            <Link to="/login">前往登入</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-12">
       {errorMsg && (
-        <div className="p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg border border-red-200">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
           {errorMsg}
         </div>
       )}
 
-      {/* --- Profile Header Card --- */}
       <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-card to-card/50 shadow-sm">
         <div className="absolute left-0 top-0 h-28 w-full bg-gradient-to-r from-primary/10 to-transparent" />
         <CardContent className="relative z-10 p-8">
           <div className="flex flex-col gap-6 md:flex-row md:items-start">
-            
-            {/* 📸 大頭貼區塊：與後端 GridFS 串接路由連動 */}
             <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full border-4 border-background bg-gradient-to-tr from-rose-500 to-amber-400 shadow-md">
               {user.avatar ? (
-                // 🎯 核心修改：如果後端存在 GridFS 圖片 ID，就指向讀取流 API 網址
                 <img
-                  src={`http://127.0.0.1:5000/api/user/avatar/${user.avatar}`}
+                  src={`${API_BASE_URL}/api/user/avatar/${user.avatar}`}
                   alt="Profile"
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-4xl font-black text-white select-none">
+                <div className="flex h-full w-full select-none items-center justify-center text-4xl font-black text-white">
                   {user.name ? user.name.charAt(0).toUpperCase() : "S"}
                 </div>
               )}
 
-              {/* 檔案選取隱藏 input */}
               <input
-                type="file"
                 ref={fileInputRef}
+                type="file"
                 accept="image/*"
                 className="hidden"
                 disabled={isLoading}
-                onChange={handleAvatarChange} // 🎯 觸發剛寫好的 GridFS 上傳方法
+                onChange={handleAvatarChange}
               />
 
-              {/* 只要處於編輯模式，就可以點擊相機圖示更換照片 */}
               {isEditing && (
                 <button
-                  className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white transition-opacity duration-200"
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 text-white transition-opacity duration-200"
                   title="Upload photo"
                   type="button"
                   disabled={isLoading}
-                  onClick={() => fileInputRef.current?.click()} 
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   <Camera size={20} />
-                  <span className="text-[10px] mt-0.5 font-bold">換照片</span>
+                  <span className="mt-0.5 text-[10px] font-bold">換照片</span>
                 </button>
               )}
             </div>
@@ -420,18 +603,21 @@ export default function UserProfile() {
                   {isEditing ? (
                     <Input
                       value={editForm.name}
-                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, name: e.target.value }))
+                      }
                       className="text-2xl font-bold"
                     />
                   ) : (
                     <h1 className="text-3xl font-bold text-slate-900">{user.name}</h1>
                   )}
-                  <p className="mt-2 flex items-center gap-2 text-muted-foreground font-medium">
+
+                  <p className="mt-2 flex items-center gap-2 font-medium text-muted-foreground">
                     <BookOpen size={16} />
                     {user.role === "Admin" ? "管理員" : "學生"} · {user.department}
-                    <BookOpen size={16} /> {user.role} Account · {user.department}
                   </p>
-                  <p className="mt-1 text-sm text-muted-foreground font-mono">
+
+                  <p className="mt-1 text-sm font-mono text-muted-foreground">
                     {user.email} · {user.studentID}
                   </p>
                 </div>
@@ -448,27 +634,22 @@ export default function UserProfile() {
                 ) : (
                   <div className="flex gap-2">
                     <Button
-                      onClick={() => {
-                        setIsEditing(false);
-                        setEditForm({ name: user.name, bio: user.bio, birthday: user.birthday, interests: user.interests.join(", ") });
-                      }}
-                      variant="ghost" className="gap-2 text-muted-foreground font-bold"
+                      onClick={handleCancelEdit}
+                      variant="ghost"
+                      className="gap-2 font-bold text-muted-foreground"
+                      disabled={isLoading}
                     >
                       <X size={16} />
                       取消
                     </Button>
 
-                    <Button 
-                      onClick={handleSave} 
-                      className="gap-2 bg-slate-900 hover:bg-slate-800 font-bold"
+                    <Button
+                      onClick={handleSave}
+                      className="gap-2 bg-slate-900 font-bold hover:bg-slate-800"
                       disabled={isLoading}
                     >
                       <Check size={16} />
                       {isLoading ? "儲存中..." : "儲存"}
-                      <X size={16} /> Cancel
-                    </Button>
-                    <Button onClick={handleSave} className="gap-2 bg-slate-900 hover:bg-slate-800 font-bold">
-                      <Check size={16} /> Save
                     </Button>
                   </div>
                 )}
@@ -482,10 +663,13 @@ export default function UserProfile() {
                     </label>
                     <textarea
                       value={editForm.bio}
-                      onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
-                      className="min-h-[90px] w-full resize-none rounded-xl border border-slate-300 bg-background p-3 text-sm font-medium outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 transition-all text-slate-800"
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, bio: e.target.value }))
+                      }
+                      className="min-h-[90px] w-full resize-none rounded-xl border border-slate-300 bg-background p-3 text-sm font-medium text-slate-800 outline-none transition-all focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
                     />
                   </div>
+
                   <div>
                     <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700">
                       <Calendar size={14} />
@@ -496,15 +680,11 @@ export default function UserProfile() {
                       value={editForm.birthday}
                       className="rounded-xl"
                       onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          birthday: e.target.value,
-                        })
+                        setEditForm((prev) => ({ ...prev, birthday: e.target.value }))
                       }
                     />
-                    <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700"><Calendar size={14} /> Birthday</label>
-                    <Input type="date" value={editForm.birthday} className="rounded-xl" onChange={(e) => setEditForm({ ...editForm, birthday: e.target.value })} />
                   </div>
+
                   <div>
                     <label className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-700">
                       <Hash size={14} />
@@ -514,28 +694,31 @@ export default function UserProfile() {
                       value={editForm.interests}
                       className="rounded-xl"
                       onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          interests: e.target.value,
-                        })
+                        setEditForm((prev) => ({ ...prev, interests: e.target.value }))
                       }
-                      placeholder="e.g. Coding, Reading, Sports"
+                      placeholder="例如：Coding, Reading, Sports"
                     />
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <p className="max-w-3xl leading-relaxed text-slate-600 font-medium">
+                  <p className="max-w-3xl font-medium leading-relaxed text-slate-600">
                     {user.bio || "尚未填寫個人簡介。"}
                   </p>
 
                   <div className="flex flex-wrap gap-2">
                     {user.interests.length > 0 ? (
                       user.interests.map((interest) => (
-                        <Badge key={interest} variant="secondary" className="bg-slate-100 text-slate-700 font-bold rounded-lg px-2.5 py-1">{interest}</Badge>
+                        <Badge
+                          key={interest}
+                          variant="secondary"
+                          className="rounded-lg bg-slate-100 px-2.5 py-1 font-bold text-slate-700"
+                        >
+                          {interest}
+                        </Badge>
                       ))
                     ) : (
-                      <span className="text-xs text-slate-400 italic">尚未新增興趣。</span>
+                      <span className="text-xs italic text-slate-400">尚未新增興趣。</span>
                     )}
                   </div>
                 </div>
@@ -549,14 +732,18 @@ export default function UserProfile() {
         <Card className="border-slate-100 shadow-sm">
           <CardContent className="p-5">
             <p className="text-sm font-bold text-slate-500">評論數</p>
-            <p className="mt-2 text-3xl font-black text-slate-900">{user.reviewCount}</p>
+            <p className="mt-2 text-3xl font-black text-slate-900">
+              {user.reviewCount || myReviews.length}
+            </p>
           </CardContent>
         </Card>
 
         <Card className="border-slate-100 shadow-sm">
           <CardContent className="p-5">
             <p className="text-sm font-bold text-slate-500">回覆數</p>
-            <p className="mt-2 text-3xl font-black text-slate-900">{user.replyCount}</p>
+            <p className="mt-2 text-3xl font-black text-slate-900">
+              {user.replyCount || myReplies.length}
+            </p>
           </CardContent>
         </Card>
 
@@ -568,24 +755,50 @@ export default function UserProfile() {
         </Card>
       </section>
 
-      {/* 頁籤內容區塊 */}
       <Tabs defaultValue="favorites" className="w-full">
-        <TabsList className="mb-6 grid w-full max-w-[600px] grid-cols-3 bg-slate-100 p-1 rounded-xl">
-          <TabsTrigger value="favorites" className="font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900">我的收藏</TabsTrigger>
-          <TabsTrigger value="achievements" className="font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900">成就</TabsTrigger>
-          <TabsTrigger value="reports" className="font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900">我的檢舉</TabsTrigger>
+        <TabsList className="mb-6 flex h-auto w-full flex-wrap rounded-xl bg-slate-100 p-1">
+          <TabsTrigger
+            value="favorites"
+            className="min-w-[120px] flex-1 rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900"
+          >
+            我的收藏
+          </TabsTrigger>
+          <TabsTrigger
+            value="reviews"
+            className="min-w-[120px] flex-1 rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900"
+          >
+            我的評論
+          </TabsTrigger>
+          <TabsTrigger
+            value="posts"
+            className="min-w-[120px] flex-1 rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900"
+          >
+            我的貼文
+          </TabsTrigger>
+          <TabsTrigger
+            value="achievements"
+            className="min-w-[120px] flex-1 rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900"
+          >
+            成就
+          </TabsTrigger>
+          <TabsTrigger
+            value="reports"
+            className="min-w-[120px] flex-1 rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:text-slate-900"
+          >
+            我的檢舉
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="favorites" className="mt-6">
           {favoritesLoading ? (
-            <p className="text-center text-sm text-muted-foreground py-8">載入中...</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">載入中...</p>
           ) : favoriteCourses.length === 0 ? (
             <Card className="border-dashed border-2 border-slate-200 shadow-none">
               <CardContent className="p-8 text-center">
                 <h2 className="text-xl font-bold text-slate-800">尚無收藏課程</h2>
                 <p className="mt-2 text-sm text-slate-500">
                   前往{" "}
-                  <Link to="/courses" className="text-primary hover:underline font-medium">
+                  <Link to="/courses" className="font-medium text-primary hover:underline">
                     課程總覽
                   </Link>{" "}
                   收藏你感興趣的課程。
@@ -596,17 +809,22 @@ export default function UserProfile() {
             <div className="grid gap-4 sm:grid-cols-2">
               {favoriteCourses.map((course) => {
                 const parsed = parseNTNUSchedule(course.timeAndLocation);
+
                 return (
                   <Link key={course.courseID} to={`/courses/${course.courseID}`}>
-                    <Card className="border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
-                      <CardContent className="p-5 space-y-2">
+                    <Card className="border-slate-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+                      <CardContent className="space-y-2 p-5">
                         <div>
-                          <p className="text-xs text-muted-foreground font-medium">{course.courseCode}</p>
-                          <h3 className="text-base font-bold text-slate-900 leading-snug mt-0.5">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            {course.courseCode || course.courseID}
+                          </p>
+                          <h3 className="mt-0.5 text-base font-bold leading-snug text-slate-900">
                             {course.title}
                           </h3>
                         </div>
-                        <p className="text-sm text-muted-foreground">{course.department}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {course.department || "尚無開課單位"}
+                        </p>
                         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1.5">
                             <Calendar size={12} />
@@ -623,154 +841,61 @@ export default function UserProfile() {
                 );
               })}
             </div>
-        <Card className="border-slate-100 shadow-sm"><CardContent className="p-5"><p className="text-sm font-bold text-slate-500">Reviews</p><p className="mt-2 text-3xl font-black text-slate-900">{myReviews.length}</p></CardContent></Card>
-        <Card className="border-slate-100 shadow-sm"><CardContent className="p-5"><p className="text-sm font-bold text-slate-500">Replies</p><p className="mt-2 text-3xl font-black text-slate-900">{myReplies.length}</p></CardContent></Card>
-        <Card className="border-slate-100 shadow-sm"><CardContent className="p-5"><p className="text-sm font-bold text-slate-500">Applications</p><p className="mt-2 text-3xl font-black text-slate-900">{user.applyCount}</p></CardContent></Card>
-      </section>
-
-      {/* --- Tabs Section --- */}
-      <Tabs defaultValue="posts" className="w-full">
-        {/* 💡 UPDATED: Added "My Posts" tab and made flex to fit */}
-        <TabsList className="mb-6 flex flex-wrap h-auto w-full bg-slate-100 p-1 rounded-xl">
-          <TabsTrigger value="favorites" className="flex-1 min-w-[120px] font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900">My Favorites</TabsTrigger>
-          <TabsTrigger value="reviews" className="flex-1 min-w-[120px] font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900">My Reviews</TabsTrigger>
-          <TabsTrigger value="posts" className="flex-1 min-w-[120px] font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900">My Posts</TabsTrigger>
-          <TabsTrigger value="achievements" className="flex-1 min-w-[120px] font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900">Achievements</TabsTrigger>
-          <TabsTrigger value="reports" className="flex-1 min-w-[120px] font-bold rounded-lg data-[state=active]:bg-white data-[state=active]:text-slate-900">My Reports</TabsTrigger>
-        </TabsList>
-
-        {/* 💡 NEW: My Posts Tab Content */}
-        <TabsContent value="posts" className="mt-6 space-y-8">
-          {/* DISCUSSIONS SECTION */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-800 border-b pb-2">My Discussions</h2>
-            {myDiscussions.length === 0 ? (
-              <p className="text-sm text-slate-500 italic">No discussions posted yet.</p>
-            ) : myDiscussions.map(disc => (
-              <Card key={disc.discussionID} className="border-slate-100 shadow-sm">
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 pr-4">
-                      {editingDiscId === disc.discussionID ? (
-                        <Input 
-                          value={editDiscForm.title} 
-                          onChange={(e) => setEditDiscForm(prev => ({...prev, title: e.target.value}))} 
-                          className="font-bold text-lg mb-2"
-                        />
-                      ) : (
-                        <h3 className="font-bold text-slate-900 text-lg">{disc.title}</h3>
-                      )}
-                      <p className="text-xs font-medium text-slate-500 mt-1">Course: {disc.courseID} · {new Date(disc.timestamp).toLocaleDateString()}</p>
-                    </div>
-                    
-                    {/* Controls */}
-                    {editingDiscId !== disc.discussionID && (
-                      <div className="flex gap-2">
-                        <button onClick={() => { setEditingDiscId(disc.discussionID); setEditDiscForm({ title: disc.title, content: disc.content }); }} className="p-1.5 text-slate-400 hover:text-slate-700 transition-colors" title="Edit"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDeleteDisc(disc.discussionID)} className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors" title="Delete"><Trash2 size={16} /></button>
-                      </div>
-                    )}
-                  </div>
-
-                  {editingDiscId === disc.discussionID ? (
-                    <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                      <textarea 
-                        className="w-full min-h-[80px] p-2 border rounded-md text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                        value={editDiscForm.content}
-                        onChange={(e) => setEditDiscForm(prev => ({...prev, content: e.target.value}))}
-                      />
-                      <div className="flex justify-end gap-2 pt-2">
-                        <Button variant="ghost" size="sm" onClick={() => setEditingDiscId(null)}>Cancel</Button>
-                        <Button size="sm" onClick={() => handleUpdateDisc(disc.discussionID)} className="bg-slate-900"><Save size={14} className="mr-2"/> Save</Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{disc.content}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* REPLIES SECTION */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-800 border-b pb-2">My Replies</h2>
-            {myReplies.length === 0 ? (
-              <p className="text-sm text-slate-500 italic">No replies posted yet.</p>
-            ) : myReplies.map(reply => (
-              <Card key={reply.replyID} className="border-slate-100 shadow-sm bg-slate-50/50">
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <p className="text-xs font-medium text-slate-500">Replied on {new Date(reply.timestamp).toLocaleDateString()}</p>
-                    {editingReplyId !== reply.replyID && (
-                      <div className="flex gap-2">
-                        <button onClick={() => { setEditingReplyId(reply.replyID); setEditReplyContent(reply.content); }} className="p-1.5 text-slate-400 hover:text-slate-700"><Edit2 size={16} /></button>
-                        <button onClick={() => handleDeleteReply(reply.replyID)} className="p-1.5 text-slate-400 hover:text-rose-600"><Trash2 size={16} /></button>
-                      </div>
-                    )}
-                  </div>
-
-                  {editingReplyId === reply.replyID ? (
-                    <div className="space-y-3 bg-white p-4 rounded-xl border border-slate-200">
-                      <textarea 
-                        className="w-full min-h-[60px] p-2 border rounded-md text-sm outline-none focus:ring-2 focus:ring-primary/20"
-                        value={editReplyContent}
-                        onChange={(e) => setEditReplyContent(e.target.value)}
-                      />
-                      <div className="flex justify-end gap-2 pt-2">
-                        <Button variant="ghost" size="sm" onClick={() => setEditingReplyId(null)}>Cancel</Button>
-                        <Button size="sm" onClick={() => handleUpdateReply(reply.replyID)} className="bg-slate-900"><Save size={14} className="mr-2"/> Save</Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{reply.content}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          )}
         </TabsContent>
 
         <TabsContent value="reviews" className="mt-6 space-y-4">
           {isLoadingReviews ? (
-            <p className="text-sm text-slate-500">Loading reviews...</p>
+            <p className="text-sm text-slate-500">載入評論中...</p>
           ) : myReviews.length === 0 ? (
             <Card className="border-dashed border-2 border-slate-200 shadow-none">
               <CardContent className="p-8 text-center">
-                <h2 className="text-xl font-bold text-slate-800">No Reviews Yet</h2>
-                <p className="mt-2 text-sm text-slate-500 font-medium">When you review a course, it will appear here.</p>
+                <h2 className="text-xl font-bold text-slate-800">尚無評論</h2>
+                <p className="mt-2 text-sm font-medium text-slate-500">
+                  你發表過的課程評論會顯示在這裡。
+                </p>
               </CardContent>
             </Card>
           ) : (
-            myReviews.map(review => {
+            myReviews.map((review) => {
               const isEditingReview = editingReviewId === review.reviewID;
-              const dateStr = new Date(review.timestamp).toLocaleDateString();
+              const dateStr = review.timestamp
+                ? new Date(review.timestamp).toLocaleDateString()
+                : "尚無日期";
 
               return (
                 <Card key={review.reviewID} className="border-slate-100 shadow-sm">
-                  <CardContent className="p-5 space-y-4">
-                    <div className="flex justify-between items-start">
+                  <CardContent className="space-y-4 p-5">
+                    <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="font-bold text-slate-900 text-lg">
-                          {review.courseName?.split('<')[0] || `Course ID: ${review.courseID}`}
+                        <h3 className="text-lg font-bold text-slate-900">
+                          {review.courseName?.split("<")[0] || `Course ID: ${review.courseID}`}
                         </h3>
-                        <p className="text-xs font-medium text-slate-500 mt-1">{dateStr}</p>
+                        <p className="mt-1 text-xs font-medium text-slate-500">{dateStr}</p>
                       </div>
-                      
+
                       {!isEditingReview && (
                         <div className="flex gap-2">
-                          <button 
+                          <button
+                            type="button"
                             onClick={() => {
                               setEditingReviewId(review.reviewID);
-                              setEditReviewForm({ content: review.content, sweetnessScore: review.sweetnessScore, workloadScore: review.workloadScore });
-                            }} 
-                            className="p-1.5 text-slate-400 hover:text-slate-700 transition-colors" title="Edit"
+                              setEditReviewForm({
+                                content: review.content,
+                                sweetnessScore: review.sweetnessScore,
+                                workloadScore: review.workloadScore,
+                              });
+                            }}
+                            className="p-1.5 text-slate-400 transition-colors hover:text-slate-700"
+                            title="Edit"
                           >
                             <Edit2 size={16} />
                           </button>
-                          <button 
+                          <button
+                            type="button"
                             onClick={() => handleDeleteReview(review.reviewID)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors" title="Delete"
+                            className="p-1.5 text-slate-400 transition-colors hover:text-rose-600"
+                            title="Delete"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -779,46 +904,101 @@ export default function UserProfile() {
                     </div>
 
                     {isEditingReview ? (
-                      <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <div className="flex gap-4">
                           <div className="flex-1">
-                            <label className="text-xs font-bold text-slate-600">Sweetness (1-5)</label>
-                            <select 
-                              value={editReviewForm.sweetnessScore} 
-                              onChange={(e) => setEditReviewForm(prev => ({...prev, sweetnessScore: Number(e.target.value)}))}
+                            <label className="text-xs font-bold text-slate-600">
+                              甜度 Sweetness 1-5
+                            </label>
+                            <select
+                              value={editReviewForm.sweetnessScore}
+                              onChange={(e) =>
+                                setEditReviewForm((prev) => ({
+                                  ...prev,
+                                  sweetnessScore: Number(e.target.value),
+                                }))
+                              }
                               className="mt-1 w-full rounded-md border p-1.5 text-sm"
                             >
-                              {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                              {[1, 2, 3, 4, 5].map((score) => (
+                                <option key={score} value={score}>
+                                  {score}
+                                </option>
+                              ))}
                             </select>
                           </div>
+
                           <div className="flex-1">
-                            <label className="text-xs font-bold text-slate-600">Workload (1-5)</label>
-                            <select 
-                              value={editReviewForm.workloadScore} 
-                              onChange={(e) => setEditReviewForm(prev => ({...prev, workloadScore: Number(e.target.value)}))}
+                            <label className="text-xs font-bold text-slate-600">
+                              負擔 Workload 1-5
+                            </label>
+                            <select
+                              value={editReviewForm.workloadScore}
+                              onChange={(e) =>
+                                setEditReviewForm((prev) => ({
+                                  ...prev,
+                                  workloadScore: Number(e.target.value),
+                                }))
+                              }
                               className="mt-1 w-full rounded-md border p-1.5 text-sm"
                             >
-                              {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                              {[1, 2, 3, 4, 5].map((score) => (
+                                <option key={score} value={score}>
+                                  {score}
+                                </option>
+                              ))}
                             </select>
                           </div>
                         </div>
-                        <textarea 
-                          className="w-full min-h-[80px] p-2 border rounded-md text-sm"
+
+                        <textarea
+                          className="min-h-[80px] w-full rounded-md border p-2 text-sm"
                           value={editReviewForm.content}
-                          onChange={(e) => setEditReviewForm(prev => ({...prev, content: e.target.value}))}
+                          onChange={(e) =>
+                            setEditReviewForm((prev) => ({
+                              ...prev,
+                              content: e.target.value,
+                            }))
+                          }
                         />
+
                         <div className="flex justify-end gap-2 pt-2">
-                          <Button variant="ghost" size="sm" onClick={() => setEditingReviewId(null)}>Cancel</Button>
-                          <Button size="sm" onClick={() => handleUpdateReview(review.reviewID)} className="bg-slate-900"><Save size={14} className="mr-2"/> Save</Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingReviewId(null)}
+                          >
+                            取消
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateReview(review.reviewID)}
+                            className="bg-slate-900"
+                          >
+                            <Save size={14} className="mr-2" />
+                            儲存
+                          </Button>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <div className="flex gap-4 mb-2">
-                          <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">Sweetness: {review.sweetnessScore}/5</Badge>
-                          <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">Workload: {review.workloadScore}/5</Badge>
+                        <div className="mb-2 flex gap-4">
+                          <Badge
+                            variant="outline"
+                            className="border-amber-200 bg-amber-50 text-amber-600"
+                          >
+                            Sweetness: {review.sweetnessScore}/5
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className="border-blue-200 bg-blue-50 text-blue-600"
+                          >
+                            Workload: {review.workloadScore}/5
+                          </Badge>
                         </div>
-                        <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{review.content}</p>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                          {review.content}
+                        </p>
                       </>
                     )}
                   </CardContent>
@@ -828,23 +1008,283 @@ export default function UserProfile() {
           )}
         </TabsContent>
 
-        <TabsContent value="favorites" className="mt-6">
-          <Card className="border-dashed border-2 border-slate-200 shadow-none"><CardContent className="p-8 text-center"><h2 className="text-xl font-bold text-slate-800">Saved Courses</h2><p className="mt-2 text-sm text-slate-500 font-medium">Favorite course cards will be shown here later.</p></CardContent></Card>
-        </TabsContent>
-        <TabsContent value="achievements" className="mt-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            {mockAchievements.map((achievement) => {
-              const Icon = achievement.icon;
-              return (
-                <Card key={achievement.id} className="border-slate-100 shadow-sm"><CardContent className="p-6"><div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-700"><Icon size={24} /></div><h3 className="text-lg font-bold text-slate-900">{achievement.title}</h3><p className="mt-1 text-sm text-slate-500 font-medium">{achievement.description}</p></CardContent></Card>
-              );
-            })}
+        <TabsContent value="posts" className="mt-6 space-y-8">
+          <div className="space-y-4">
+            <h2 className="flex items-center gap-2 border-b pb-2 text-xl font-bold text-slate-800">
+              <MessageSquare size={20} />
+              我的討論
+            </h2>
+
+            {myDiscussions.length === 0 ? (
+              <p className="text-sm italic text-slate-500">尚未發表討論。</p>
+            ) : (
+              myDiscussions.map((discussion) => (
+                <Card key={discussion.discussionID} className="border-slate-100 shadow-sm">
+                  <CardContent className="space-y-4 p-5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 pr-4">
+                        {editingDiscId === discussion.discussionID ? (
+                          <Input
+                            value={editDiscForm.title}
+                            onChange={(e) =>
+                              setEditDiscForm((prev) => ({
+                                ...prev,
+                                title: e.target.value,
+                              }))
+                            }
+                            className="mb-2 text-lg font-bold"
+                          />
+                        ) : (
+                          <h3 className="text-lg font-bold text-slate-900">
+                            {discussion.title}
+                          </h3>
+                        )}
+                        <p className="mt-1 text-xs font-medium text-slate-500">
+                          Course: {discussion.courseID} ·{" "}
+                          {discussion.timestamp
+                            ? new Date(discussion.timestamp).toLocaleDateString()
+                            : "尚無日期"}
+                        </p>
+                      </div>
+
+                      {editingDiscId !== discussion.discussionID && (
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingDiscId(discussion.discussionID);
+                              setEditDiscForm({
+                                title: discussion.title,
+                                content: discussion.content,
+                              });
+                            }}
+                            className="p-1.5 text-slate-400 transition-colors hover:text-slate-700"
+                            title="Edit"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDisc(discussion.discussionID)}
+                            className="p-1.5 text-slate-400 transition-colors hover:text-rose-600"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {editingDiscId === discussion.discussionID ? (
+                      <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <textarea
+                          className="min-h-[80px] w-full rounded-md border p-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                          value={editDiscForm.content}
+                          onChange={(e) =>
+                            setEditDiscForm((prev) => ({
+                              ...prev,
+                              content: e.target.value,
+                            }))
+                          }
+                        />
+                        <div className="flex justify-end gap-2 pt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingDiscId(null)}
+                          >
+                            取消
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateDisc(discussion.discussionID)}
+                            className="bg-slate-900"
+                          >
+                            <Save size={14} className="mr-2" />
+                            儲存
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                        {discussion.content}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="border-b pb-2 text-xl font-bold text-slate-800">我的回覆</h2>
+
+            {myReplies.length === 0 ? (
+              <p className="text-sm italic text-slate-500">尚未發表回覆。</p>
+            ) : (
+              myReplies.map((reply) => (
+                <Card key={reply.replyID} className="border-slate-100 bg-slate-50/50 shadow-sm">
+                  <CardContent className="space-y-4 p-5">
+                    <div className="flex items-start justify-between">
+                      <p className="text-xs font-medium text-slate-500">
+                        Replied on{" "}
+                        {reply.timestamp
+                          ? new Date(reply.timestamp).toLocaleDateString()
+                          : "尚無日期"}
+                      </p>
+
+                      {editingReplyId !== reply.replyID && (
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingReplyId(reply.replyID);
+                              setEditReplyContent(reply.content);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-slate-700"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteReply(reply.replyID)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {editingReplyId === reply.replyID ? (
+                      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                        <textarea
+                          className="min-h-[60px] w-full rounded-md border p-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                          value={editReplyContent}
+                          onChange={(e) => setEditReplyContent(e.target.value)}
+                        />
+                        <div className="flex justify-end gap-2 pt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingReplyId(null)}
+                          >
+                            取消
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateReply(reply.replyID)}
+                            className="bg-slate-900"
+                          >
+                            <Save size={14} className="mr-2" />
+                            儲存
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap text-sm text-slate-700">
+                        {reply.content}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
+
+        <TabsContent value="achievements" className="mt-6">
+          <div className="mb-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
+            <p className="text-sm font-bold text-slate-500">Achievement Score</p>
+            <p className="mt-2 text-3xl font-black text-slate-900">
+              {achievementScore}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              根據評論數、回覆數與找組員申請數計算。
+            </p>
+          </div>
+
+          {isLoadingAchievements ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              載入成就中...
+            </p>
+          ) : achievementBadges.length === 0 ? (
+            <Card className="border-dashed border-2 border-slate-200 shadow-none">
+              <CardContent className="p-8 text-center">
+                <Trophy className="mx-auto mb-3 h-10 w-10 text-slate-400" />
+                <h2 className="text-xl font-bold text-slate-800">尚未獲得成就</h2>
+                <p className="mt-2 text-sm font-medium text-slate-500">
+                  發表評論、參與討論或申請加入小組後，成就會顯示在這裡。
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {achievementBadges.map((badge) => {
+                const Icon = getAchievementIcon(badge.category);
+
+                return (
+                  <Card key={badge.badgeID} className="border-slate-100 shadow-sm">
+                    <CardContent className="p-6">
+                      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-700">
+                        <Icon size={24} />
+                      </div>
+
+                      <div className="mb-2 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-slate-900">
+                          {badge.badgeName}
+                        </h3>
+
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-rose-200 text-rose-700"
+                        >
+                          Lv. {badge.level}
+                        </Badge>
+                      </div>
+
+                      <p className="text-xs font-bold text-slate-400">
+                        {getAchievementCategoryLabel(badge.category)}
+                      </p>
+
+                      <p className="mt-2 text-sm font-medium text-slate-500">
+                        {badge.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="reports" className="mt-6">
           <div className="space-y-4">
             {mockReports.map((report) => (
-              <Card key={report.id} className="border-slate-100 shadow-sm"><CardContent className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center"><div className="flex items-start gap-4"><div className="rounded-2xl bg-amber-50 p-3 text-amber-700"><AlertTriangle size={20} /></div><div><h3 className="font-bold text-slate-900">{report.reason}</h3><p className="mt-1 text-sm text-slate-500 font-medium">Case {report.id} · {report.type}</p><p className="text-xs text-slate-400 font-mono mt-0.5">Submitted on {report.date}</p></div></div><Badge variant="outline" className="capitalize rounded-lg font-bold bg-amber-50/30 text-amber-800 border-amber-200">{report.status}</Badge></CardContent></Card>
+              <Card key={report.id} className="border-slate-100 shadow-sm">
+                <CardContent className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
+                  <div className="flex items-start gap-4">
+                    <div className="rounded-2xl bg-amber-50 p-3 text-amber-700">
+                      <AlertTriangle size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900">{report.reason}</h3>
+                      <p className="mt-1 text-sm font-medium text-slate-500">
+                        Case {report.id} · {report.type}
+                      </p>
+                      <p className="mt-0.5 font-mono text-xs text-slate-400">
+                        Submitted on {report.date}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="rounded-lg border-amber-200 bg-amber-50/30 font-bold capitalize text-amber-800"
+                  >
+                    {report.status}
+                  </Badge>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </TabsContent>
