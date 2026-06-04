@@ -154,3 +154,56 @@ export async function getProfile(token: string) {
 
   return parseResponse(response);
 }
+
+
+// 科系前後端串接
+export interface CollegeData {
+  college: string;
+  departments: string[];
+}
+
+export async function getColleges(): Promise<CollegeData[]> {
+  try {
+    // 🎯 網址必須改成對應 Flask 的 /api/departments
+    const response = await fetch("http://127.0.0.1:5000/api/departments", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" }
+    });
+    
+    const data = await response.json();
+    if (response.ok && data.success) {
+      return data.data; // 這樣就能順利拿到 Flask 吐出的 DEPARTMENTS_DATA 了！
+    }
+    return [];
+  } catch (error) {
+    console.error("Failed to fetch departments from Flask backend:", error);
+    return [];
+  }
+}
+
+/**
+ * 上傳使用者大頭貼到後端 GridFS
+ * @param token 儲存在 localStorage 或 AuthContext 中的 JWT Token
+ * @param file 檔案物件 (來自 <input type="file" />)
+ */
+export async function uploadAvatar(token: string, file: File): Promise<{ success: boolean; avatar_id?: string; message?: string }> {
+  try {
+    const formData = new FormData();
+    // 🎯 注意：這裡的 key 名稱必須與後端 request.files['avatar'] 一模一樣
+    formData.append("avatar", file);
+
+    const response = await fetch("http://127.0.0.1:5000/api/user/avatar", {
+      method: "POST",
+      headers: {
+        // 🎯 注意：使用 FormData 時，瀏覽器會自動生成 boundary，千萬「不要」手動寫 "Content-Type": "multipart/form-data"
+        "Authorization": token, 
+      },
+      body: formData,
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error("Upload avatar failed:", error);
+    return { success: false, message: "網路連線失敗" };
+  }
+}

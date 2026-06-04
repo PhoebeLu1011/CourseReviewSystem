@@ -17,7 +17,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Input } from "../components/ui/input";
-import { useAuth } from "../context/AuthContext"; // 💡 引入全域登入狀態
+import { useAuth } from "../context/AuthContext"; 
 
 const mockAchievements = [
   {
@@ -52,7 +52,7 @@ const mockReports = [
 ];
 
 export default function UserProfile() {
-  const { user: authUser, login } = useAuth();
+  const { user: authUser, login } = useAuth(); // 🔄 引入全域狀態與 login (用來刷新 Context 用)
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -66,10 +66,10 @@ export default function UserProfile() {
     role: authUser?.role || "Student",
     department: authUser?.department || "Computer Science",
     studentID: authUser?.id || "41271122H",
-    profilePicURL: "",
-    bio: "  ",
-    birthday: "2000-01-01",
-    interests: [" "],
+    avatar: authUser?.avatar || "", // 🎯 改為與後端一致的 avatar (存放 GridFS id)
+    bio: authUser?.bio || "No bio provided yet.", 
+    birthday: authUser?.birthday || "2000-01-01", 
+    interests: authUser?.interests || [],
     reviewCount: 0,
     replyCount: 0,
     applyCount: 0,
@@ -82,7 +82,7 @@ export default function UserProfile() {
     interests: user.interests.join(", "),
   });
 
-  
+  // 2. 獲取後端最新 Profile 資料
   useEffect(() => {
     const fetchFullProfile = async () => {
       if (!authUser) return; 
@@ -94,13 +94,13 @@ export default function UserProfile() {
         const response = await fetch("http://127.0.0.1:5000/api/user/profile", {
           method: "GET",
           headers: {
+            // 💡 修正：依據後端程式碼，組長的 request.headers.get("Authorization") 通常要帶 Bearer
             "Authorization": `Bearer ${token}`
           }
         });
         const data = await response.json();
         console.log("=== ⚠️ 後端吐給前端的真實物件結構 ⚠️ ===");
         console.log(JSON.stringify(data, null, 2));
-                
 
         if (response.ok && data.success) {
           const profile = data.student || data.user || data;
@@ -112,7 +112,7 @@ export default function UserProfile() {
             role: authUser.role || "Student",
             department: profile.department || authUser.department,
             studentID: authUser.id,
-            profilePicURL: profile.profilePicURL || "",
+            avatar: profile.avatar || "", // 🎯 取得 GridFS 圖片 ID
             bio: profile.bio || "No bio provided yet.",
             birthday: profile.birthday || "2000-01-01",
             interests: profile.interests || [],
@@ -138,11 +138,73 @@ export default function UserProfile() {
     }
   }, [authUser]);
 
+  // 3. 🎯 核心功能：處理大頭貼檔案選擇與「即時」GridFS 上傳
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 限制 2MB 大小
+    if (file.size > 2 * 1024 * 1024) {
+      alert("圖片大小不能超過 2MB");
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("請先重新登入");
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMsg("");
+
+    try {
+      // 📦 包裝成 FormData 格式送給後端
+      const formData = new FormData();
+      formData.append("avatar", file); // 🎯 key值 "avatar" 必須和後端對應
+
+      const response = await fetch("http://127.0.0.1:5000/api/user/avatar", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}` // 帶上權限認證
+        },
+        body: formData // 不要手動寫 Content-Type，讓瀏覽器自動配置
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // 更新當前頁面 State
+        setUser((prev) => ({ ...prev, avatar: data.avatar_id }));
+        
+        // 🔄 同步全域 AuthContext 狀態，讓 Layout.tsx 的右上角大頭貼秒同步改變！
+        if (authUser) {
+          const updatedUser = { ...authUser, avatar: data.avatar_id };
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+          // 如果 AuthContext 有提供 setUser，可以用 setUser(updatedUser)。
+          // 這裡用最保險且文文最愛用的手段：直接觸發頁面刷新，讓 Context 重新加載 localStorage 資料
+          window.location.reload(); 
+        }
+
+        alert("大頭貼上傳並同步成功！");
+      } else {
+        alert(data.message || "大頭貼上傳失敗");
+      }
+    } catch (err) {
+      console.error("Error uploading avatar:", err);
+      alert("網路錯誤，大頭貼上傳失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 4. 儲存其他個人檔案文字資料
   const handleSave = async () => {
     if (!authUser) return;
     const token = localStorage.getItem("token");
     if (!token) return;
 
+    setIsLoading(true);
     try {
       const response = await fetch(`http://127.0.0.1:5000/api/user/${authUser.id}`, {
         method: "PUT",
@@ -177,6 +239,8 @@ export default function UserProfile() {
     } catch (err) {
       console.error("Error updating profile:", err);
       alert("網路連線錯誤，修改失敗");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -194,11 +258,12 @@ export default function UserProfile() {
         <CardContent className="relative z-10 p-8">
           <div className="flex flex-col gap-6 md:flex-row md:items-start">
             
-            {}
+            {/* 📸 大頭貼區塊：與後端 GridFS 串接路由連動 */}
             <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full border-4 border-background bg-gradient-to-tr from-rose-500 to-amber-400 shadow-md">
-              {user.profilePicURL ? (
+              {user.avatar ? (
+                // 🎯 核心修改：如果後端存在 GridFS 圖片 ID，就指向讀取流 API 網址
                 <img
-                  src={user.profilePicURL}
+                  src={`http://127.0.0.1:5000/api/user/avatar/${user.avatar}`}
                   alt="Profile"
                   className="h-full w-full object-cover"
                 />
@@ -208,35 +273,27 @@ export default function UserProfile() {
                 </div>
               )}
 
-              {}
+              {/* 檔案選取隱藏 input */}
               <input
                 type="file"
                 ref={fileInputRef}
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    
-                    if (file.size > 2 * 1024 * 1024) {
-                      alert("Image size should be less than 2MB");
-                      return;
-                    }
-                    
-                    const previewURL = URL.createObjectURL(file);
-                    setUser((prev) => ({ ...prev, profilePicURL: previewURL }));
-                  }
-                }}
+                disabled={isLoading}
+                onChange={handleAvatarChange} // 🎯 觸發剛寫好的 GridFS 上傳方法
               />
 
+              {/* 只要處於編輯模式，就可以點擊相機圖示更換照片 */}
               {isEditing && (
                 <button
-                  className="absolute bottom-1 right-1 rounded-full bg-slate-900 p-2 text-white shadow hover:bg-slate-800 transition-colors"
+                  className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white transition-opacity duration-200"
                   title="Upload photo"
                   type="button"
+                  disabled={isLoading}
                   onClick={() => fileInputRef.current?.click()} 
                 >
-                  <Camera size={16} />
+                  <Camera size={20} />
+                  <span className="text-[10px] mt-0.5 font-bold">換照片</span>
                 </button>
               )}
             </div>
@@ -354,7 +411,7 @@ export default function UserProfile() {
                           interests: e.target.value,
                         })
                       }
-                      placeholder=" "
+                      placeholder="e.g. Coding, Reading, Sports"
                     />
                   </div>
                 </div>

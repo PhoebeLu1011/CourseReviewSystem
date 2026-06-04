@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router";
-import { useAuth } from "../context/AuthContext"; // 🔄 引入文傑寫好的 Auth 全域狀態
+import { useAuth } from "../context/AuthContext"; // 
 import {
   BookOpen,
   Star,
@@ -12,14 +12,13 @@ import {
 
 export default function Layout() {
   const location = useLocation();
-  const { user, logout } = useAuth(); // 🔄 直接從全域狀態拿 user (目前登入者) 與 logout (登出函數)
+  const { user, logout } = useAuth(); // 
 
   const navItems = [
     { path: "/courses", label: "Courses", icon: BookOpen },
     { path: "/reviews", label: "Reviews", icon: Star },
     { path: "/discussions", label: "Discussions", icon: MessageSquare },
     { path: "/groups", label: "Find Groupmates", icon: Users },
-    // 💡 只有當 user 存在（代表已登入）時，才在導覽列顯示「My Schedule (我的課表)」
     ...(user ? [{ path: "/schedule", label: "My Schedule", icon: Calendar }] : []),
   ];
 
@@ -77,11 +76,9 @@ export default function Layout() {
                   to="/profile"
                   className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-secondary"
                 >
-                  <img
-                    src="https://i.pravatar.cc/100?img=12" // 預設頭像
-                    alt="User avatar"
-                    className="h-10 w-10 rounded-full object-cover shadow-sm"
-                  />
+                  <div className="h-10 w-10 bg-gradient-to-tr from-rose-500 to-amber-400 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm shrink-0">
+                    {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
+                  </div>
 
                   <span className="text-base font-bold leading-tight text-foreground">
                     {user.name}

@@ -1,8 +1,10 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-from mongo import db
+from mongo import db, fs
+
+
 
 from services.auth_service import AuthService
 from services.password_service import PasswordService
@@ -90,7 +92,7 @@ def create_app():
         password_service=password_service,
         token_service=token_service
     )
-    user_service = UserService(student_repo=student_repo, auth_service=auth_service)
+    user_service = UserService(student_repo=student_repo, auth_service=auth_service, fs=fs)
     notification_service = NotificationService(notification_repo)
     achievement_service = AchievementService(badge_repo)
     course_service = CourseService(course_repo)
@@ -140,3 +142,4 @@ if __name__ == "__main__":
         threaded=False,
         use_reloader=False
     )
+

@@ -2,6 +2,7 @@ from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 import certifi
+import gridfs
 
 load_dotenv()
 
@@ -14,3 +15,4 @@ client = MongoClient(
 )
 
 db = client[os.getenv("DB_NAME")]
+fs = gridfs.GridFS(db)

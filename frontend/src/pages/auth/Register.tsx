@@ -12,7 +12,8 @@ import {
   EyeOff,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { registerUser } from "../../api/userApi";
+import { registerUser, } from "../../api/userApi";
+
 
 const DEPARTMENTS = [
   {
