@@ -1,268 +1,236 @@
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router";
-import {
-  ArrowLeft,
-  ThumbsUp,
-  MessageSquare,
-  Flag,
-  Clock,
-  User,
-  Send,
-} from "lucide-react";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { ArrowLeft, ThumbsUp, MessageSquare, Send, Loader2 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import { useAuth } from "../context/AuthContext";
+import { 
+  getDiscussionByID, 
+  getDiscussionReplies, 
+  createReply, 
+  toggleLikeDiscussion, 
+  toggleLikeReply, 
+  type Discussion, 
+  type Reply 
+} from "../api/discussionApi";
 
-// ─── Types ───────────────────────────────────────────────────
-interface Reply {
-  replyID: string;
-  author: string;
-  initials: string;
-  date: string;
-  content: string;
-  likes: number;
-}
-
-interface DiscussionPost {
-  discussionID: string;
-  courseID: string;
-  courseLabel: string;
-  title: string;
-  author: string;
-  initials: string;
-  date: string;
-  content: string;
-  tags: string[];
-  likes: number;
-  replies: Reply[];
-}
-
-// ─── Mock Data ───────────────────────────────────────────────
-const mockDiscussions: Record<string, DiscussionPost> = {
-  d001: {
-    discussionID: "d001",
-    courseID: "CS101",
-    courseLabel: "CS 101: Introduction to Computer Science",
-    title: "Tips for the final project?",
-    author: "Erik Pedersen",
-    initials: "EP",
-    date: "2026/4/9",
-    content:
-      "Hey everyone! I'm starting to think about the final project. For those who took this last semester, any advice on choosing a topic? I'm torn between a game and a web app.",
-    tags: ["project", "advice"],
-    likes: 15,
-    replies: [
-      {
-        replyID: "rep001",
-        author: "Sara Kristensen",
-        initials: "SK",
-        date: "2026/4/10",
-        content:
-          "I did a game last semester and it was fun, but make sure you scope it appropriately. A simple game with polish is better than an ambitious one that's buggy.",
-        likes: 12,
-      },
-      {
-        replyID: "rep002",
-        author: "Thomas Eriksen",
-        initials: "TE",
-        date: "2026/4/11",
-        content:
-          "Web app is a solid choice - you can show it off easily and it looks good on your portfolio. Plus, Dr. Johnson has more resources for web debugging.",
-        likes: 8,
-      },
-    ],
-  },
-  d002: {
-    discussionID: "d002",
-    courseID: "CS101",
-    courseLabel: "CS 101: Introduction to Computer Science",
-    title: "How do you approach debugging?",
-    author: "Ida Johansen",
-    initials: "IJ",
-    date: "2026/4/16",
-    content:
-      "I keep getting stuck on bugs and spend hours trying to figure them out. What strategies do you all use when debugging your code? Any tips for a beginner?",
-    tags: ["advice", "debugging"],
-    likes: 23,
-    replies: [
-      {
-        replyID: "rep003",
-        author: "Lars Andersen",
-        initials: "LA",
-        date: "2026/4/16",
-        content:
-          "Print statements are your best friend when starting out. Add them at key points to see what values your variables have.",
-        likes: 19,
-      },
-      {
-        replyID: "rep004",
-        author: "Mia Sørensen",
-        initials: "MS",
-        date: "2026/4/17",
-        content:
-          "Learn to use the debugger built into VS Code — breakpoints will change your life. You can step through your code line by line.",
-        likes: 14,
-      },
-      {
-        replyID: "rep005",
-        author: "Ole Kristensen",
-        initials: "OK",
-        date: "2026/4/17",
-        content:
-          "Also, try explaining your code to someone else (or a rubber duck!). Often just talking through the logic helps you spot the bug yourself.",
-        likes: 11,
-      },
-    ],
-  },
-};
-
-// ─── Avatar ───────────────────────────────────────────────────
-function Avatar({ initials }: { initials: string }) {
-  return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-600">
-      {initials}
-    </div>
-  );
-}
-
-// ─── Main Component ───────────────────────────────────────────
 export default function DiscussionDetail() {
-  const { courseID, discussionID } = useParams<{
-    courseID: string;
-    discussionID: string;
-  }>();
+  const { courseID, discussionID } = useParams<{ courseID: string; discussionID: string }>();
+  const { user } = useAuth();
+  
+  const [discussion, setDiscussion] = useState<Discussion | null>(null);
+  const [replies, setReplies] = useState<Reply[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [replyText, setReplyText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const post = discussionID ? mockDiscussions[discussionID] : null;
+  const loadThreadData = async () => {
+    if (!discussionID) return;
+    try {
+      const [discData, repliesData] = await Promise.all([
+        getDiscussionByID(discussionID),
+        getDiscussionReplies(discussionID)
+      ]);
+      setDiscussion(discData);
+      setReplies(repliesData);
+    } catch (err) {
+      console.error("Error loading discussion details thread:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  if (!post) {
+  useEffect(() => {
+    loadThreadData();
+  }, [discussionID]);
+
+  const handleLikeDiscussion = async () => {
+    if (!user || !discussion) return alert("Please log in to like this post!");
+    try {
+      const res = await toggleLikeDiscussion(discussion.discussionID, user.id);
+      setDiscussion(prev => prev ? { 
+        ...prev, 
+        likeCount: res.likeCount,
+        likedBy: prev.likedBy?.includes(user.id)
+          ? prev.likedBy.filter(id => id !== user.id)
+          : [...(prev.likedBy || []), user.id]
+      } : null);
+    } catch (err) {}
+  };
+
+  const handleLikeReply = async (replyID: string) => {
+    if (!user) return alert("Please log in to like this reply!");
+    try {
+      const res = await toggleLikeReply(replyID, user.id);
+      setReplies(prev => prev.map(r => r.replyID === replyID ? { 
+        ...r, 
+        likeCount: res.likeCount,
+        likedBy: r.likedBy?.includes(user.id)
+          ? r.likedBy.filter(id => id !== user.id)
+          : [...(r.likedBy || []), user.id]
+      } : r));
+    } catch (err) {}
+  };
+
+  const handlePostReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !discussionID || !replyText.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      await createReply(discussionID, {
+        authorID: user.id,
+        content: replyText
+      });
+      setReplyText("");
+      // Refresh comment list and increment parent render
+      const updatedReplies = await getDiscussionReplies(discussionID);
+      setReplies(updatedReplies);
+      setDiscussion(prev => prev ? { ...prev, replyCount: prev.replyCount + 1 } : null);
+    } catch (err) {
+      alert("Failed to post comment reply.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="py-20 text-center space-y-4">
-        <p className="text-xl font-semibold text-slate-700">Discussion not found.</p>
-        <Link to={`/courses/${courseID}`} className="text-primary hover:underline text-sm">
-          ← Back to course
-        </Link>
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="animate-spin text-primary" size={36} />
       </div>
     );
   }
 
+  if (!discussion) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Thread post could not be located or has been archived.
+        <div className="mt-4"><Link to="/discussions" className="text-primary hover:underline">Return to Hub</Link></div>
+      </div>
+    );
+  }
+
+  const isPostLikedByMe = user && discussion.likedBy?.includes(user.id);
+
   return (
-    <div className="space-y-6 pb-12 max-w-3xl mx-auto">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <Link
-          to={`/courses/${post.courseID}`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+    <div className="max-w-4xl mx-auto pb-16 space-y-6">
+      {/* Back Navigation Bar */}
+      <div className="flex items-center gap-3">
+        <Link 
+          to="/discussions" 
+          className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
         >
-          <ArrowLeft size={15} /> Back to All Discussions
+          <ArrowLeft size={16} /> Back to All Discussions
         </Link>
-        <span className="rounded-md border bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700">
-          {post.courseLabel}
+        <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border">
+          {discussion.courseID}
         </span>
       </div>
 
-      {/* Main Post */}
-      <Card className="border-slate-100 shadow-sm">
+      {/* Main Discussion Opener Card */}
+      <Card className="border-slate-100 shadow-sm bg-white">
         <CardContent className="p-6 space-y-4">
-          {/* Header */}
-          <div className="flex items-start gap-3">
-            <Avatar initials={post.initials} />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-slate-900">{post.title}</h1>
-              <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
-                <span className="flex items-center gap-1">
-                  <User size={13} /> {post.author}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock size={13} /> {post.date}
-                </span>
-              </div>
+          <div className="flex gap-4 items-start">
+            <div className="h-10 w-10 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm shrink-0 uppercase select-none">
+              {discussion.authorID.charAt(0)}
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">{discussion.title}</h1>
+              <p className="text-xs text-slate-400 mt-1">
+                Posted by <span className="font-medium text-slate-600">{discussion.authorID}</span> • {new Date(discussion.timestamp).toLocaleDateString()}
+              </p>
             </div>
           </div>
 
-          {/* Content */}
-          <p className="text-sm leading-relaxed text-slate-700">{post.content}</p>
+          <div className="text-sm text-slate-700 leading-relaxed bg-slate-50/50 border rounded-xl p-4 whitespace-pre-wrap">
+            {discussion.content}
+          </div>
 
-          {/* Tags */}
-          {post.tags.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {post.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs rounded-full px-3">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-            <div className="flex items-center gap-4">
-              <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-slate-100 hover:text-slate-800">
-                <ThumbsUp size={15} /> {post.likes}
-              </button>
-              <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-slate-100 hover:text-slate-800">
-                <MessageSquare size={15} /> {post.replies.length} Replies
-              </button>
-            </div>
-            <button className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-500">
-              <Flag size={14} /> Report Post
+          <div className="flex items-center gap-4 pt-2 text-slate-500 border-t">
+            <button 
+              onClick={handleLikeDiscussion} 
+              className={`flex items-center gap-1.5 text-xs font-medium transition-colors py-1 px-2 rounded-md ${
+                isPostLikedByMe ? "text-rose-600 bg-rose-50 font-semibold" : "hover:text-rose-600 hover:bg-rose-50"
+              }`}
+            >
+              <ThumbsUp size={14} className={isPostLikedByMe ? "fill-rose-500" : ""} /> 
+              {discussion.likeCount} Likes
             </button>
+            <span className="flex items-center gap-1.5 text-xs font-medium">
+              <MessageSquare size={14} /> {discussion.replyCount} Replies
+            </span>
           </div>
         </CardContent>
       </Card>
 
-      {/* Replies */}
-      <div className="space-y-3">
-        <h2 className="flex items-center gap-2 text-base font-bold text-slate-800">
-          <MessageSquare size={17} className="text-primary" />
-          Replies ({post.replies.length})
-        </h2>
+      {/* Comments Header Title */}
+      <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mt-4">
+        <MessageSquare size={18} className="text-slate-400" /> Replies ({replies.length})
+      </h2>
 
-        {post.replies.map((reply) => (
-          <Card key={reply.replyID}>
-            <CardContent className="p-5 space-y-3">
-              <div className="flex items-center gap-3">
-                <Avatar initials={reply.initials} />
-                <div>
-                  <span className="font-bold text-slate-800 text-sm">{reply.author}</span>
-                  <span className="ml-2 text-xs text-muted-foreground">{reply.date}</span>
-                </div>
-              </div>
-              <p className="text-sm leading-relaxed text-slate-700 pl-[52px]">
-                {reply.content}
-              </p>
-              <div className="pl-[52px]">
-                <button className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-slate-100 hover:text-slate-800">
-                  <ThumbsUp size={13} /> {reply.likes}
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Comment Responses Feed Stream */}
+      <div className="space-y-3">
+        {replies.length === 0 ? (
+          <div className="text-center p-8 border border-dashed rounded-xl text-slate-400 bg-white text-sm">
+            No feedback left on this topic yet. Leave a constructive reply below!
+          </div>
+        ) : (
+          replies.map(reply => {
+            const isReplyLikedByMe = user && reply.likedBy?.includes(user.id);
+            return (
+              <Card key={reply.replyID} className="border-slate-100 shadow-none bg-white">
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-xs uppercase select-none">
+                        {reply.authorID.charAt(0)}
+                      </div>
+                      <span className="text-xs font-bold text-slate-700">{reply.authorID}</span>
+                      <span className="text-[10px] text-slate-400">• {new Date(reply.timestamp).toLocaleDateString()}</span>
+                    </div>
+
+                    <button 
+                      onClick={() => handleLikeReply(reply.replyID)}
+                      className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded hover:bg-slate-50 transition-colors ${
+                        isReplyLikedByMe ? "text-rose-600 font-bold" : "text-slate-400"
+                      }`}
+                    >
+                      <ThumbsUp size={12} className={isReplyLikedByMe ? "fill-rose-500" : ""} /> {reply.likeCount}
+                    </button>
+                  </div>
+
+                  <p className="text-sm text-slate-600 pl-8 whitespace-pre-wrap leading-relaxed">{reply.content}</p>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
       </div>
 
-      {/* Post a Reply */}
-      <Card className="border-slate-100 shadow-sm">
-        <CardContent className="p-5 space-y-3">
-          <h3 className="font-bold text-slate-800">Post a Reply</h3>
-          <textarea
-            className="w-full resize-none rounded-lg border bg-slate-50 p-3 text-sm text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-h-[100px]"
-            placeholder="Share your thoughts, answer questions, or contribute to the discussion..."
-          />
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              Be respectful and constructive in your response
-            </p>
-            <Button size="sm" className="gap-2 font-semibold">
-              <Send size={14} /> Login to Post
-            </Button>
+      {/* Sticky Bottom Write a Reply Form Block */}
+      {user ? (
+        <form onSubmit={handlePostReply} className="flex gap-3 bg-white p-4 border rounded-xl shadow-sm items-end">
+          <div className="flex-1 space-y-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Write your comment response</label>
+            <textarea
+              className="w-full min-h-[70px] max-h-[150px] p-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 bg-slate-50/50 resize-y"
+              placeholder="Provide a helpful response, insight, or solution..."
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              required
+            />
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-100 pt-6 text-center text-xs text-muted-foreground space-y-1">
-        <p className="font-semibold">NTNU Course Selection Toolbox</p>
-        <p>Spring 2026 • Academic Year 2025-2026</p>
-      </footer>
+          <Button type="submit" disabled={isSubmitting || !replyText.trim()} className="h-10 shrink-0 px-4">
+            {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
+          </Button>
+        </form>
+      ) : (
+        <div className="p-4 bg-slate-50 border border-dashed rounded-xl text-center text-sm text-slate-500">
+          Please <Link to="/auth/login" className="text-primary font-bold hover:underline">Log In</Link> to contribute to this discussion thread board.
+        </div>
+      )}
     </div>
   );
 }
