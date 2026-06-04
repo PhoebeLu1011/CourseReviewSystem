@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { registerUser } from "../../api/userApi";
+import { API_BASE_URL } from "../../config/api";
 
-// 💡 定義後端回傳的科系資料型別結構
 interface DepartmentGroup {
   college: string;
   departments: string[];
@@ -33,29 +33,28 @@ export function Register() {
     confirmPassword: "",
   });
 
-  // 🎯 新增：儲存從後端 API 撈回來的動態科系清單狀態
   const [dbDepartments, setDbDepartments] = useState<DepartmentGroup[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingDepts, setIsLoadingDepts] = useState(true); // 科系載入狀態
+  const [isLoadingDepts, setIsLoadingDepts] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // 🎯 核心修改一：頁面載入時，動態對接新路由 '/api/user/departments' 獲取科系
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
         setIsLoadingDepts(true);
-        const response = await fetch("http://127.0.0.1:5000/api/user/departments");
+        const response = await fetch(`${API_BASE_URL}/api/user/departments`);
         const data = await response.json();
-        
+
         if (response.ok && data.success) {
-          setDbDepartments(data.data);
+          setDbDepartments(data.data || []);
         } else {
-          console.error("後端回傳獲取科系失敗");
+          setErrorMsg(data.message || "科系清單載入失敗，請稍後再試。");
         }
       } catch (err) {
-        console.error("無法連線至後端獲取科系清單:", err);
+        console.error("Failed to fetch departments:", err);
+        setErrorMsg("無法連線至後端取得科系清單。");
       } finally {
         setIsLoadingDepts(false);
       }
@@ -70,7 +69,7 @@ export function Register() {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === "studentId" ? value.toUpperCase() : value,
     }));
   };
 
@@ -78,16 +77,24 @@ export function Register() {
     e.preventDefault();
     setErrorMsg("");
 
-    if (formData.password !== formData.confirmPassword) {
-      setErrorMsg("兩次輸入的密碼不一致。");
+    if (!formData.fullName.trim()) {
+      setErrorMsg("請輸入姓名。");
+      return;
+    }
+
+    if (!formData.department) {
+      setErrorMsg("請選擇系所。");
       return;
     }
 
     const studentIdRegex = /^\d{8}[A-Z]$/;
     if (!studentIdRegex.test(formData.studentId)) {
-      setErrorMsg(
-        "學號格式錯誤，請輸入 8 位數字加 1 個大寫英文字母，例如：41271122H。"
-      );
+      setErrorMsg("學號格式錯誤，請輸入 8 位數字加 1 個大寫英文字母，例如：41271122H。");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMsg("兩次輸入的密碼不一致。");
       return;
     }
 
@@ -97,21 +104,17 @@ export function Register() {
       const { user, token } = await registerUser({
         studentID: formData.studentId,
         password: formData.password,
-        name: formData.fullName,
-        email: formData.email,
+        name: formData.fullName.trim(),
+        email: formData.email.trim(),
         department: formData.department,
       });
 
-      // 🎯 核心修改二：確保註冊成功登入時，user 物件結構包含 avatar 屬性
       const userWithAvatar = {
         ...user,
-        avatar: user.avatar || "" // 若剛註冊後端尚未生成 avatar_id，則預設為空字串
+        avatar: user?.avatar || "",
       };
-      login(result.user, result.token);
 
       login(userWithAvatar, token);
-      navigate("/profile"); 
-
       navigate("/profile");
     } catch (err: any) {
       console.error("Register Error:", err);
@@ -192,13 +195,11 @@ export function Register() {
                 required
                 disabled={isSubmitting || isLoadingDepts}
               >
-                {isLoadingDepts ? (
-                  <option value="" disabled>科系清單載入中...</option>
-                ) : (
-                  <option value="" disabled>請選擇系所</option>
-                )}
-                
-                {dbDepartments.map(group => (
+                <option value="" disabled>
+                  {isLoadingDepts ? "科系清單載入中..." : "請選擇系所"}
+                </option>
+
+                {dbDepartments.map((group) => (
                   <optgroup key={group.college} label={group.college}>
                     {group.departments.map((dept) => (
                       <option key={dept} value={dept}>
@@ -320,9 +321,7 @@ export function Register() {
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
                 className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition-colors"
                 disabled={isSubmitting}
-                aria-label={
-                  showConfirmPassword ? "隱藏確認密碼" : "顯示確認密碼"
-                }
+                aria-label={showConfirmPassword ? "隱藏確認密碼" : "顯示確認密碼"}
               >
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
