@@ -62,3 +62,46 @@ export async function createReview(data: {
   
   return res.json();
 }
+
+export async function getUserReviews(studentID: string): Promise<Review[]> {
+  const res = await fetch(`${API_BASE_URL}/users/${studentID}/reviews`);
+  if (!res.ok) throw new Error("Failed to fetch your reviews");
+  return res.json();
+}
+
+export async function updateReview(reviewID: string, data: { 
+  authorID: string; 
+  content: string; 
+  sweetnessScore: number; 
+  workloadScore: number 
+}): Promise<Review> {
+  const res = await fetch(`${API_BASE_URL}/reviews/${reviewID}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update review");
+  return res.json();
+}
+
+export async function deleteReview(reviewID: string, authorID: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/reviews/${reviewID}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ authorID }),
+  });
+  if (!res.ok) throw new Error("Failed to delete review");
+}
+
+export async function toggleLikeReview(reviewID: string, studentID: string): Promise<{ likeCount: number }> {
+  const res = await fetch(`${API_BASE_URL}/reviews/${reviewID}/like`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ student_id: studentID }),
+  });
+  
+  if (!res.ok) throw new Error("Failed to toggle like");
+  return res.json();
+}
