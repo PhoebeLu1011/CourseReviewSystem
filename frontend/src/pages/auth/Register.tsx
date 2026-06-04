@@ -104,6 +104,7 @@ export function Register() {
         ...user,
         avatar: user.avatar || "" // 若剛註冊後端尚未生成 avatar_id，則預設為空字串
       };
+      login(result.user, result.token);
 
       login(userWithAvatar, token);
       navigate("/profile"); 

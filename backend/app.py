@@ -30,6 +30,7 @@ from repository.discussion_repository import DiscussionRepository
 from repository.reply_repository import ReplyRepository
 from repository.report_repository import ReportRepository
 from repository.announcement_repository import AnnouncementRepository
+from repository.bookmark_repository import BookmarkRepository
 
 from services.application_service import ApplicationService
 from services.notification_service import NotificationService
@@ -38,6 +39,7 @@ from services.achievement_service import AchievementService
 from services.course_service import CourseService
 from services.review_service import ReviewService
 from services.discussion_service import DiscussionService
+from services.favorite_service import FavoriteService
 
 from routes.application_routes import create_application_routes
 from routes.group_routes import create_group_routes
@@ -46,6 +48,7 @@ from routes.achievement_routes import create_achievement_routes
 from routes.review_routes import create_review_routes
 from routes.course_routes import create_course_routes
 from routes.discussion_routes import create_discussion_routes
+from routes.bookmark_routes import create_bookmark_routes
 
 
 load_dotenv()
@@ -82,6 +85,7 @@ def create_app():
     reply_repo = ReplyRepository(db)
     report_repo = ReportRepository(db)
     announcement_repo = AnnouncementRepository(db)
+    bookmark_repo = BookmarkRepository(db)
 
     # ====== Services ======
     password_service = PasswordService()
@@ -112,9 +116,10 @@ def create_app():
     )
     group_recommendation_service = GroupRecommendationService(group_repo)
 
-    admin_service = AdminService(report_repo=report_repo, review_repo=review_repo)
+    admin_service = AdminService(report_repo=report_repo, review_repo=review_repo, course_service=course_service)
     announcement_service = AnnouncementService(announcement_repo)
     report_service = ReportService(report_repo)
+    favorite_service = FavoriteService(bookmark_repo)
 
     app.register_blueprint(create_application_routes(application_service))
     app.register_blueprint(create_group_routes(group_recommendation_service))
@@ -123,6 +128,7 @@ def create_app():
     app.register_blueprint(create_review_routes(review_service))
     app.register_blueprint(create_course_routes(course_service))
     app.register_blueprint(create_discussion_routes(discussion_service))
+    app.register_blueprint(create_bookmark_routes(favorite_service))
     app.register_blueprint(create_admin_routes(admin_service, announcement_service))
     app.register_blueprint(create_report_routes(report_service))
 

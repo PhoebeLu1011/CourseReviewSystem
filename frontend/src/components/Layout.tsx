@@ -15,11 +15,11 @@ export default function Layout() {
   const { user, logout } = useAuth(); // 
 
   const navItems = [
-    { path: "/courses", label: "Courses", icon: BookOpen },
-    { path: "/reviews", label: "Reviews", icon: Star },
-    { path: "/discussions", label: "Discussions", icon: MessageSquare },
-    { path: "/groups", label: "Find Groupmates", icon: Users },
-    ...(user ? [{ path: "/schedule", label: "My Schedule", icon: Calendar }] : []),
+    { path: "/courses", label: "課程", icon: BookOpen },
+    { path: "/reviews", label: "評價", icon: Star },
+    { path: "/discussions", label: "討論", icon: MessageSquare },
+    { path: "/groups", label: "找組員", icon: Users },
+    ...(user ? [{ path: "/schedule", label: "我的課表", icon: Calendar }] : []),
   ];
 
   return (
@@ -39,7 +39,7 @@ export default function Layout() {
                 Toolbox
               </h1>
               <p className="text-sm font-medium text-muted-foreground">
-                Course Selection
+                選課工具箱
               </p>
             </div>
           </Link>

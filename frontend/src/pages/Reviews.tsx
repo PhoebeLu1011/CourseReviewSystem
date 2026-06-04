@@ -3,7 +3,9 @@ import { Search, Star, ThumbsUp, CheckCircle2, Lock, Loader2, Send, BookOpen } f
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Link } from "react-router";
-import { getCourseReviews, getAllReviews, createReview, type Review } from "../api/reviewApi";
+// 💡 UPDATED: Imported toggleLikeReview
+import { getCourseReviews, getAllReviews, createReview, toggleLikeReview, type Review } from "../api/reviewApi";
+import { useAuth } from "../context/AuthContext"; // 💡 NEW: Import Auth Context
 
 function RatingIcons({ rating, type, interactive = false, setRating = () => {} }: { rating: number, type: "sweetness" | "workload", interactive?: boolean, setRating?: (r: number) => void }) {
   const Icon = type === "sweetness" ? Star : BookOpen;
@@ -25,26 +27,27 @@ function RatingIcons({ rating, type, interactive = false, setRating = () => {} }
 }
 
 export default function Reviews() {
+  const { user } = useAuth(); // 💡 NEW: Pull true student state info
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("All Courses"); 
 
-  // --- NEW: Form State ---
+  // Form State
   const [isWriting, setIsWriting] = useState(false);
-  const [newReviewCourse, setNewReviewCourse] = useState(""); // <-- No more 5002!
+  const [newReviewCourse, setNewReviewCourse] = useState(""); 
   const [content, setContent] = useState("");
-  const [sweetness, setSweetness] = useState(0); // <-- Starts at 0 stars
-  const [workload, setWorkload] = useState(0); // <-- Starts at 0 books
+  const [sweetness, setSweetness] = useState(0); 
+  const [workload, setWorkload] = useState(0); 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const fetchReviews = async () => {
     setLoading(true);
     try {
       let data;
       if (!selectedCourse || selectedCourse === "All Courses") {
-        data = await getAllReviews(""); // Fetch everything
+        data = await getAllReviews(""); 
       } else {
-        data = await getAllReviews(selectedCourse); // Search globally by name OR id!
+        data = await getAllReviews(selectedCourse); 
       }
       setReviews(data);
     } catch (err) {
@@ -58,7 +61,28 @@ export default function Reviews() {
     fetchReviews();
   }, [selectedCourse]);
 
-  // --- NEW: Submit Handler ---
+  // 💡 NEW: Like Click Handler Function
+  const handleToggleLike = async (reviewID: string) => {
+    if (!user) return alert("Please log in to like a review!");
+    
+    try {
+      const result = await toggleLikeReview(reviewID, user.id);
+      
+      // Dynamic local map array state shift: updates count without jarring list refetches
+      setReviews(prev => 
+        prev.map(r => r.reviewID === reviewID ? { 
+          ...r, 
+          likeCount: result.likeCount,
+          likedBy: r.likedBy?.includes(user.id) 
+            ? r.likedBy.filter(id => id !== user.id) 
+            : [...(r.likedBy || []), user.id]
+        } : r)
+      );
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim() || !newReviewCourse.trim()) return;
@@ -67,22 +91,18 @@ export default function Reviews() {
       return;
     }
     
-
     setIsSubmitting(true);
     try {
       await createReview({
-        authorID: "student_123", // FAKE USER BYPASS!
+        authorID: user?.id || "student_123", // 💡 UPDATED: Uses live authenticated ID if present
         courseID: newReviewCourse,
         content: content,
         sweetnessScore: sweetness,
         workloadScore: workload
       });
       
-      // Reset form and close it
       setContent("");
       setIsWriting(false);
-      
-      // Refresh the feed to show the new review!
       fetchReviews();
     } catch (error: any) {
       console.error("Error posting review:", error);
@@ -102,7 +122,6 @@ export default function Reviews() {
         </div>
         <button 
           onClick={() => {
-            // Wipes the slate clean every time they open the form
             if (!isWriting) {
               setNewReviewCourse("");
               setContent("");
@@ -138,7 +157,6 @@ export default function Reviews() {
 
         {/* Right Column: Reviews Feed */}
         <div className="lg:col-span-3 space-y-5">
-          
           {/* Write a Review Form */}
           {isWriting && (
             <Card className="border-primary/20 shadow-md bg-slate-50/50">
@@ -193,8 +211,8 @@ export default function Reviews() {
             </Card>
           )}
 
-          {/* Login Banner (Visible only if not writing) */}
-          {!isWriting && (
+          {/* Login Banner */}
+          {!user && !isWriting && (
             <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <Lock size={16} className="text-slate-400" />
@@ -225,6 +243,10 @@ export default function Reviews() {
             const titleParts = (review.courseName || "").split(/<\/?br\s*\/?>/i);
             const mainTitle = titleParts[0];
             const subTitle = titleParts[1] ? titleParts[1].trim() : "";
+            
+            // 💡 Check if current user has liked this specific review
+            const isLikedByMe = user && review.likedBy?.includes(user.id);
+
             return (
               <Card key={review.reviewID} className="border-slate-100 shadow-sm transition-shadow hover:shadow-md">
                 <CardContent className="p-6 space-y-4">
@@ -244,7 +266,7 @@ export default function Reviews() {
                       </p>
                     </div>
                     
-                    {/* NEW: Dual Ratings in Top Right */}
+                    {/* Ratings */}
                     <div className="flex flex-col gap-1.5 items-end shrink-0 pt-1">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sweet</span>
@@ -265,7 +287,6 @@ export default function Reviews() {
                   {/* Footer */}
                   <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-4 text-xs font-medium text-slate-600">
-                      {/* Cleaned up the redundant text here! */}
                       {review.sweetnessScore >= 4 && (
                         <span className="flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-600 px-2.5 py-0.5 border border-emerald-100">
                           <CheckCircle2 size={12} /> Would Recommend
@@ -273,8 +294,17 @@ export default function Reviews() {
                       )}
                     </div>
                     
-                    <button className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary transition-colors">
-                      <ThumbsUp size={14} /> {review.likeCount} Helpful
+                    {/* 💡 UPDATED: Linked button to click handler and styled active state */}
+                    <button 
+                      onClick={() => handleToggleLike(review.reviewID)}
+                      className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md transition-all ${
+                        isLikedByMe 
+                          ? "text-rose-600 bg-rose-50 border border-rose-100 font-bold shadow-sm scale-105" 
+                          : "text-slate-500 hover:text-rose-600 hover:bg-rose-50"
+                      }`}
+                    >
+                      <ThumbsUp size={14} className={isLikedByMe ? "fill-rose-500 text-rose-500" : ""} /> 
+                      {review.likeCount} Helpful
                     </button>
                   </div>
                 </CardContent>
