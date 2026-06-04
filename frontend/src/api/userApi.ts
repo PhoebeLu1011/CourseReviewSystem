@@ -8,6 +8,9 @@ export interface AuthUser {
   role: Role;
   email?: string;
   department?: string;
+  bio?: string;
+  birthday?: string;
+  interests?: string[];
 }
 
 interface LoginRequest {
@@ -35,6 +38,9 @@ interface AuthResponse {
     email?: string;
     department?: string;
     role?: Role;
+    bio?: string;
+    birthday?: string;
+    interests?: string[];
   };
   user?: {
     studentID?: string;
@@ -43,6 +49,9 @@ interface AuthResponse {
     email?: string;
     department?: string;
     role?: Role;
+    bio?: string;
+    birthday?: string;
+    interests?: string[];
   };
 }
 
@@ -77,6 +86,9 @@ function normalizeAuthUser(data: AuthResponse, fallbackRole: Role): AuthUser {
     role: rawUser.role || fallbackRole,
     email: rawUser.email,
     department: rawUser.department,
+    bio: rawUser.bio || "",
+    birthday: rawUser.birthday || "",
+    interests: rawUser.interests || [],
   };
 }
 
