@@ -98,6 +98,9 @@ export default function UserProfile() {
           }
         });
         const data = await response.json();
+        console.log("=== ⚠️ 後端吐給前端的真實物件結構 ⚠️ ===");
+        console.log(JSON.stringify(data, null, 2));
+                
 
         if (response.ok && data.success) {
           const profile = data.student || data.user || data;
