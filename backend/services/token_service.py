@@ -31,6 +31,23 @@ class TokenService:
             algorithm=self.JWT_ALGORITHM
         )
 
+    def generate_admin_token(self, admin: dict) -> str:
+        now = datetime.now(timezone.utc)
+
+        payload = {
+            "account": admin.get("account"),
+            "email": admin.get("email"),
+            "role": "Admin",
+            "iat": now,
+            "exp": now + timedelta(days=self.JWT_EXPIRE_DAYS)
+        }
+
+        return jwt.encode(
+            payload,
+            self.JWT_SECRET,
+            algorithm=self.JWT_ALGORITHM
+        )
+
     def verify_token(self, token: str) -> dict:
         if not token:
             return {

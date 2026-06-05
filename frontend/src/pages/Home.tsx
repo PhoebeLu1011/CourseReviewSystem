@@ -1,50 +1,11 @@
 import { Link } from "react-router";
-import {
-  BookOpen,
-  Calendar,
-  Star,
-  MessageSquare,
-  Users,
-  Bell,
-  ChevronRight,
-  AlertCircle,
-  Info,
-  CheckCircle2,
-} from "lucide-react";
+import {BookOpen, Calendar, Star, MessageSquare, Users, Bell, ChevronRight, AlertCircle, Info, CheckCircle2 } from "lucide-react";
 import { clsx } from "clsx";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getPublicAnnouncements } from "../api/announcementApi";
+import type { Announcement } from "../models/Announcement";
+import { useAuth } from "../context/AuthContext";
 
-
-
-const announcements = [
-  {
-    id: 1,
-    title: "系統維護公告",
-    content:
-      "選課系統將於本週六凌晨 2:00 至 6:00 進行例行維護，請提前完成選課作業。",
-    date: "2026-04-24",
-    category: "System",
-    isPinned: true,
-  },
-  {
-    id: 2,
-    title: "114 學年度第二學期退選截止日提醒",
-    content:
-      "提醒同學：本學期退選截止日即將到來，請把握時間確認選課狀況。",
-    date: "2026-04-20",
-    category: "Emergency",
-    isPinned: false,
-  },
-  {
-    id: 3,
-    title: "歡迎使用新版選課工具箱",
-    content:
-      "新版工具箱全面升級，整合課程評價、課表管理與找組員功能，歡迎體驗！",
-    date: "2026-04-15",
-    category: "General",
-    isPinned: false,
-  },
-];
 
 const CATEGORY_LABEL: Record<string, string> = {
   System: "系統公告",
@@ -53,13 +14,75 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 export default function Home() {
-  const storedUser = localStorage.getItem("user");
-  const user = storedUser ? JSON.parse(storedUser) : { role: "Guest", name: "訪客" };
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<
-    (typeof announcements)[0] | null
-  >(null);
+  const { user } = useAuth();
+  const displayUser = user ?? { role: "Guest", name: "訪客" };
+  const [announcements, setAnnouncements] =
+    useState<Announcement[]>([]);
+  const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(true);
+  const [announcementError, setAnnouncementError] = useState<string | null>(
+    null
+  );
+  const [selectedAnnouncement, setSelectedAnnouncement] =
+    useState<Announcement | null>(null);
 
-  const isGuest = user.role === "Guest";
+  const isGuest = !user;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getPublicAnnouncements()
+      .then((items) => {
+        if (!isMounted) return;
+
+        const sortedItems = [...items].sort((a, b) => {
+          if (a.is_pinned !== b.is_pinned) {
+            return a.is_pinned ? -1 : 1;
+          }
+
+          return (
+            new Date(b.created_at).getTime() -
+            new Date(a.created_at).getTime()
+          );
+        });
+
+        setAnnouncements(sortedItems);
+        setAnnouncementError(null);
+      })
+      .catch((error) => {
+        console.warn("Failed to load public announcements:", error);
+        if (isMounted) {
+          setAnnouncementError("公告暫時無法載入");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingAnnouncements(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const getAnnouncementCategory = (announcement: Announcement) =>
+    announcement.tags?.[0] ?? "General";
+
+  const getAnnouncementDate = (announcement: Announcement) =>
+    announcement.scheduled_at || announcement.created_at;
+
+  const formatAnnouncementDate = (
+    announcement: Announcement,
+    options: Intl.DateTimeFormatOptions
+  ) => {
+    const date = new Date(getAnnouncementDate(announcement));
+
+    if (Number.isNaN(date.getTime())) {
+      return "日期未定";
+    }
+
+    return date.toLocaleDateString("zh-TW", options);
+  };
 
   const shortcuts = [
     {
@@ -132,7 +155,8 @@ export default function Home() {
             ) : (
               <>
                 歡迎回來，{" "}
-                <span className="text-blue-300">{user.name.split(" ")[0]}</span>！
+                <span className="text-blue-300"> {displayUser.name.split(" ")[0]}</span>
+                ！
               </>
             )}
           </h1>
@@ -211,47 +235,72 @@ export default function Home() {
             </div>
 
             <div className="divide-y divide-slate-100">
-              {announcements.map((announcement) => (
-                <button
-                  key={announcement.id}
-                  onClick={() => setSelectedAnnouncement(announcement)}
-                  className="flex w-full gap-4 p-4 text-left transition-colors hover:bg-slate-50"
-                >
-                  <div className="mt-0.5 shrink-0">
-                    {announcement.category === "System" && (
-                      <Info size={18} className="text-blue-500" />
-                    )}
-                    {announcement.category === "Emergency" && (
-                      <AlertCircle size={18} className="text-rose-500" />
-                    )}
-                    {announcement.category === "General" && (
-                      <CheckCircle2 size={18} className="text-emerald-500" />
-                    )}
+              {isLoadingAnnouncements && (
+                <div className="p-4 text-sm font-medium text-slate-500">
+                  載入公告中...
+                </div>
+              )}
+
+              {!isLoadingAnnouncements && announcementError && (
+                <div className="flex gap-3 p-4 text-sm font-medium text-rose-600">
+                  <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                  <span>{announcementError}</span>
+                </div>
+              )}
+
+              {!isLoadingAnnouncements &&
+                !announcementError &&
+                announcements.length === 0 && (
+                  <div className="p-4 text-sm font-medium text-slate-500">
+                    目前沒有公告
                   </div>
+                )}
 
-                  <div className="flex-1">
-                    <div className="mb-1 flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-slate-800">
-                        {announcement.title}
-                      </h4>
-
-                      {announcement.isPinned && (
-                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700">
-                          置頂
-                        </span>
+              {!isLoadingAnnouncements &&
+                !announcementError &&
+                announcements.map((announcement) => (
+                  <button
+                    key={announcement.announcementID}
+                    onClick={() => setSelectedAnnouncement(announcement)}
+                    className="flex w-full gap-4 p-4 text-left transition-colors hover:bg-slate-50"
+                  >
+                    <div className="mt-0.5 shrink-0">
+                      {getAnnouncementCategory(announcement) === "System" && (
+                        <Info size={18} className="text-blue-500" />
+                      )}
+                      {getAnnouncementCategory(announcement) === "Emergency" && (
+                        <AlertCircle size={18} className="text-rose-500" />
+                      )}
+                      {!["System", "Emergency"].includes(
+                        getAnnouncementCategory(announcement)
+                      ) && (
+                        <CheckCircle2 size={18} className="text-emerald-500" />
                       )}
                     </div>
 
-                    <p className="text-xs font-medium text-slate-400">
-                      {new Date(announcement.date).toLocaleDateString("zh-TW", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </p>
-                  </div>
-                </button>
-              ))}
+                    <div className="flex-1">
+                      <div className="mb-1 flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-slate-800">
+                          {announcement.title}
+                        </h4>
+
+                        {announcement.is_pinned && (
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700">
+                            置頂
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs font-medium text-slate-400">
+                        {formatAnnouncementDate(announcement, {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  </button>
+                ))}
             </div>
           </div>
         </div>
@@ -262,18 +311,16 @@ export default function Home() {
           <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="border-b bg-slate-50 px-6 py-4">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                {CATEGORY_LABEL[selectedAnnouncement.category] ?? selectedAnnouncement.category}
+                {CATEGORY_LABEL[getAnnouncementCategory(selectedAnnouncement)] ??
+                  getAnnouncementCategory(selectedAnnouncement)}
               </p>
               <p className="text-sm font-medium text-slate-700">
-                {new Date(selectedAnnouncement.date).toLocaleDateString(
-                  "zh-TW",
-                  {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                    weekday: "long",
-                  }
-                )}
+                {formatAnnouncementDate(selectedAnnouncement, {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  weekday: "long",
+                })}
               </p>
             </div>
 

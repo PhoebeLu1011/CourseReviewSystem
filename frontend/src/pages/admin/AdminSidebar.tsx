@@ -1,12 +1,12 @@
-import { NavLink, Link } from "react-router";
-import { 
-  ShieldAlert, 
-  Megaphone, 
-  Users, 
-  Settings, 
-  LogOut, 
+import { NavLink, Link, useNavigate } from "react-router";
+import {
+  ShieldAlert,
+  Megaphone,
+  Users,
+  Settings,
+  LogOut,
   Menu,
-  Home
+  Home,
 } from "lucide-react";
 import { useState } from "react";
 import { clsx } from "clsx";
@@ -19,55 +19,68 @@ const navItems = [
 ];
 
 export function AdminSidebar() {
+  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(true);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
 
   return (
     <aside
       className={clsx(
-        "bg-slate-900 text-slate-300 h-full flex flex-col transition-all duration-300 relative border-r border-slate-800",
-        isExpanded ? "w-64" : "w-20"
+        "relative flex h-full flex-col border-r border-slate-800 bg-slate-900 text-slate-300 transition-all duration-300",
+        isExpanded ? "w-64" : "w-20",
       )}
     >
-      <div className="p-4 flex items-center justify-between border-b border-slate-800 shrink-0 h-[89px]">
+      <div className="flex h-[89px] shrink-0 items-center justify-between border-b border-slate-800 p-4">
         {isExpanded && (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white text-lg shadow-inner">
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-indigo-500 to-purple-600 text-lg font-bold text-white shadow-inner">
               N
             </div>
-            <span className="font-bold text-white tracking-wide whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
+
+            <span className="max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap font-bold tracking-wide text-white">
               Admin Panel
             </span>
           </div>
         )}
+
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+          onClick={() => setIsExpanded((prev) => !prev)}
+          className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
           title="Toggle Sidebar"
+          type="button"
         >
           <Menu size={20} />
         </button>
       </div>
 
-      <nav className="flex-1 py-6 px-3 overflow-y-auto space-y-2 flex flex-col gap-1">
+      <nav className="flex flex-1 flex-col gap-1 space-y-2 overflow-y-auto px-3 py-6">
         {navItems.map((item) => {
           const Icon = item.icon;
+
           return (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
                 clsx(
-                  "flex items-center gap-4 px-3 py-3 rounded-lg transition-all",
+                  "flex items-center gap-4 rounded-lg px-3 py-3 transition-all",
                   isActive
                     ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/50"
-                    : "hover:bg-slate-800 hover:text-white text-slate-400"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white",
+                  !isExpanded && "justify-center",
                 )
               }
               title={!isExpanded ? item.label : undefined}
             >
               <Icon size={22} className="shrink-0" />
+
               {isExpanded && (
-                <span className="font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                <span className="overflow-hidden text-ellipsis whitespace-nowrap font-medium">
                   {item.label}
                 </span>
               )}
@@ -76,22 +89,25 @@ export function AdminSidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-800 flex flex-col gap-2">
+      <div className="flex flex-col gap-2 border-t border-slate-800 p-4">
         <Link
           to="/"
           className={clsx(
-            "flex items-center gap-4 px-3 py-3 rounded-lg w-full text-left text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 transition-colors",
-            !isExpanded && "justify-center"
+            "flex w-full items-center gap-4 rounded-lg px-3 py-3 text-left text-indigo-400 transition-colors hover:bg-indigo-500/10 hover:text-indigo-300",
+            !isExpanded && "justify-center",
           )}
           title={!isExpanded ? "Back to Site" : undefined}
         >
           <Home size={22} className="shrink-0" />
           {isExpanded && <span className="font-medium">Back to Site</span>}
         </Link>
+
         <button
+          type="button"
+          onClick={handleLogout}
           className={clsx(
-            "flex items-center gap-4 px-3 py-3 rounded-lg w-full text-left text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors",
-            !isExpanded && "justify-center"
+            "flex w-full items-center gap-4 rounded-lg px-3 py-3 text-left text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300",
+            !isExpanded && "justify-center",
           )}
           title={!isExpanded ? "Logout" : undefined}
         >

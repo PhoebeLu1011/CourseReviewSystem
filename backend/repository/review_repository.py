@@ -107,6 +107,23 @@ class ReviewRepository:
 
         return reviews
 
+    def find_visible_by_student(self, student_id):
+        cursor = (
+            self.collection
+            .find({
+                "authorID": student_id,
+                "visibilityState": "VISIBLE",
+            })
+            .sort("timestamp", -1)
+        )
+
+        reviews = []
+        for data in cursor:
+            data.pop("_id", None)
+            reviews.append(Review(**data))
+
+        return reviews
+
     def calc_course_averages(self, course_id):
         """
         從 VISIBLE + HIDDEN 評論計算平均。
