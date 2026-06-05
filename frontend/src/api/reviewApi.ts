@@ -27,16 +27,14 @@ export async function getCourseReviews(courseID: string, sortBy = "newest", limi
   return res.json();
 }
 
-export async function getAllReviews(search = "", sortBy = "newest", limit = 20, skip = 0): Promise<Review[]> {
-  const params = new URLSearchParams({
-    search: search,
-    sort_by: sortBy,
-    limit: limit.toString(),
-    skip: skip.toString(),
-  });
-
+export async function getAllReviews(query = "", sortBy = "newest", department = ""): Promise<Review[]> {
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (sortBy) params.set("sort_by", sortBy);
+  if (department) params.set("department", department);
+  
   const res = await fetch(`${API_BASE_URL}/reviews?${params}`);
-  if (!res.ok) throw new Error("Failed to fetch all reviews");
+  if (!res.ok) throw new Error("Failed to fetch reviews");
   return res.json();
 }
 

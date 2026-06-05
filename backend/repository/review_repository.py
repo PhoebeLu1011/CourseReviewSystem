@@ -74,37 +74,61 @@ class ReviewRepository:
 
         return reviews
 
-    def find_all_reviews(self, search_query="", sort_by="newest", limit=20, skip=0):
-        """
-        管理端或總覽頁取得所有可見評論。
-        這裡只抓 VISIBLE，因為一般列表不需要顯示 HIDDEN 佔位。
-        """
-        query = {"visibilityState": "VISIBLE"}
-
+    def find_all_reviews(self, search_query="", sort_by="newest", department="", limit=20, skip=0):
+        pipeline = [{"$match": {"visibilityState": "VISIBLE"}}]
+        
+        # 1. Search Query Match
         if search_query:
-            query["$or"] = [
-                {"courseID": {"$regex": search_query, "$options": "i"}},
-                {"courseName": {"$regex": search_query, "$options": "i"}}
-            ]
+            pipeline.append({
+                "$match": {
+                    "$or": [
+                        {"courseID": {"$regex": search_query, "$options": "i"}},
+                        {"courseName": {"$regex": search_query, "$options": "i"}}
+                    ]
+                }
+            })
 
+        # 2. Department Filter (Join with Courses collection)
+        if department:
+            import re
+            pipeline.extend([
+                {
+                    "$lookup": {
+                        "from": "courses",
+                        "localField": "courseID",
+                        "foreignField": "courseID",
+                        "as": "course_info"
+                    }
+                },
+                {
+                    "$match": {
+                        "$or": [
+                            {"course_info.department": {"$regex": re.escape(department), "$options": "i"}},
+                            {"course_info.開課系所": {"$regex": re.escape(department), "$options": "i"}}
+                        ]
+                    }
+                }
+            ])
+
+        # 3. Sorting
         if sort_by in ["popular", "likes"]:
-            sort_criteria = [("likeCount", -1), ("timestamp", -1)]
+            pipeline.append({"$sort": {"likeCount": -1, "timestamp": -1}})
         else:
-            sort_criteria = [("timestamp", -1)]
-            
-        cursor = (
-            self.collection
-            .find(query)
-            .sort(sort_criteria)
-            .skip(skip)
-            .limit(limit)
-        )
+            pipeline.append({"$sort": {"timestamp": -1}})
 
+        # 4. Pagination
+        pipeline.append({"$skip": skip})
+        pipeline.append({"$limit": limit})
+
+        cursor = self.collection.aggregate(pipeline)
+        
+        from models.review import Review
         reviews = []
         for data in cursor:
             data.pop("_id", None)
+            data.pop("course_info", None) # Clean up the joined data
             reviews.append(Review(**data))
-
+            
         return reviews
 
     def find_visible_by_student(self, student_id):
