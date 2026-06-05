@@ -24,6 +24,7 @@ class GroupRepository:
             "recruitment_deadline",
             "description",
             "tags",
+            "visibilityState",
         }
 
         data = {
@@ -39,12 +40,35 @@ class GroupRepository:
 
         return Group(**data)
 
+    def _visible_query(self, query):
+        return {
+            "$and": [
+                query,
+                {
+                    "$or": [
+                        {"visibilityState": "VISIBLE"},
+                        {"visibilityState": {"$exists": False}},
+                    ]
+                },
+            ]
+        }
+
     def find_by_id(self, group_id: str):
+        data = self.collection.find_one(
+            self._visible_query({"group_id": group_id})
+        )
+        return self._to_group(data)
+
+    def find_by_id_or_legacy_id(self, group_id: str):
         data = self.collection.find_one({"group_id": group_id})
+
+        if not data:
+            data = self.collection.find_one({"groupID": group_id})
+
         return self._to_group(data)
 
     def find_all(self) -> list[Group]:
-        cursor = self.collection.find({})
+        cursor = self.collection.find(self._visible_query({}))
 
         groups = []
         for data in cursor:
@@ -55,7 +79,9 @@ class GroupRepository:
         return groups
 
     def find_by_course(self, course_id: str) -> list[Group]:
-        cursor = self.collection.find({"course_id": course_id})
+        cursor = self.collection.find(
+            self._visible_query({"course_id": course_id})
+        )
 
         groups = []
         for data in cursor:
@@ -78,11 +104,36 @@ class GroupRepository:
 
     def find_by_course_and_member(self, course_id: str, student_id: str):
         data = self.collection.find_one({
-            "course_id": course_id,
-            "members": student_id,
+            "$and": [
+                {
+                    "course_id": course_id,
+                    "members": student_id,
+                },
+                {
+                    "$or": [
+                        {"visibilityState": "VISIBLE"},
+                        {"visibilityState": {"$exists": False}},
+                    ]
+                },
+            ]
         })
 
         return self._to_group(data)
+
+    def delete_by_id(self, group_id: str):
+        self._update_visibility(group_id, "DELETED")
+
+    def hide_by_id(self, group_id: str):
+        self._update_visibility(group_id, "HIDDEN")
+
+    def _update_visibility(self, group_id: str, visibility_state: str):
+        update = {"$set": {"visibilityState": visibility_state}}
+
+        result = self.collection.update_one({"group_id": group_id}, update)
+        if result.matched_count:
+            return
+
+        self.collection.update_one({"groupID": group_id}, update)
 
     def save(self, group: Group):
         self.collection.update_one(

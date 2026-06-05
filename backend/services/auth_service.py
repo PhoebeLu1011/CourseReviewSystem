@@ -81,21 +81,22 @@ class AuthService:
                 password=hashed_password,
                 department=department,
                 studentID=student_id,
-                avatar=""
+                avatar=profile_pic_url
             )
 
             self.student_repo.save(new_student)
 
             token = self.token_service.generate_student_token(new_student)
-            
-            student_data = new_student.to_dict()
-            student_data.pop("password", None)  # 安全起見，把密碼欄位拔掉
+
+            user_data = new_student.to_dict()
+            user_data.pop("password", None)
 
             return {
                 "success": True,
                 "message": "Registration successful.",
-                "token": token,         # 👈 把 Token 傳給前端
-                "student": student_data # 👈 把剛建好的學生資料傳給前端
+                "token": token,
+                "user": user_data,
+                "student": user_data
             }
 
         except Exception as e:
@@ -134,14 +135,68 @@ class AuthService:
 
         token = self.token_service.generate_student_token(student)
 
-        student_data = student.to_dict()
-        student_data.pop("password", None)
+        user_data = student.to_dict()
+        user_data.pop("password", None)
 
         return {
             "success": True,
             "message": "Login successful.",
             "token": token,
-            "student": student_data
+            "user": user_data,
+            "student": user_data
+        }
+
+    def login_admin(self, account: str, input_password: str):
+        if not account or not input_password:
+            return {
+                "success": False,
+                "message": "Admin account and password are required."
+            }
+
+        account = account.strip()
+
+        admin = self.student_repo.find_admin_by_account(account)
+
+        if not admin:
+            return {
+                "success": False,
+                "message": "Admin account not found."
+            }
+
+        hashed_password = admin.get("password_hash") or admin.get("password")
+
+        if not hashed_password:
+            return {
+                "success": False,
+                "message": "Admin password is missing."
+            }
+
+        is_password_correct = self.password_service.verify_password(
+            raw_password=input_password,
+            hashed_password=hashed_password
+        )
+
+        if not is_password_correct:
+            return {
+                "success": False,
+                "message": "Invalid admin password."
+            }
+
+        token = self.token_service.generate_admin_token(admin)
+
+        user_data = {
+            "id": str(admin.get("_id")),
+            "account": admin.get("account"),
+            "email": admin.get("email"),
+            "name": admin.get("name", "Admin"),
+            "role": "Admin",
+        }
+
+        return {
+            "success": True,
+            "message": "Admin login successful.",
+            "token": token,
+            "user": user_data
         }
 
     def verify_token(self, token: str):
