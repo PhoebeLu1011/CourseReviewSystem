@@ -21,15 +21,18 @@ def create_review_routes(review_service):
     
     @review_bp.route("/reviews", methods=["GET"])
     def list_all_reviews():
-        # Global feed for all reviews (now with search!)
-        search_query = request.args.get("search", "") # Grab search term
+        # Grab query parameters matching the React frontend URLSearchParams
+        search_query = request.args.get("q", "") 
         sort_by = request.args.get("sort_by", "newest")
+        department = request.args.get("department", "")
         limit = int(request.args.get("limit", 20))
         skip = int(request.args.get("skip", 0))
 
-        reviews = review_service.get_all_reviews(search_query, sort_by, limit, skip)
-        return jsonify([r.to_dict() for r in reviews]), 200
-
+        # Pass the new department filter into your service!
+        reviews = review_service.get_all_reviews(search_query, sort_by, department, limit, skip)
+        
+        # Safely return whether your service returned dicts or models
+        return jsonify([r.to_dict() if hasattr(r, 'to_dict') else r for r in reviews]), 200
 
     @review_bp.route("/reviews", methods=["POST"])
     def create_review():

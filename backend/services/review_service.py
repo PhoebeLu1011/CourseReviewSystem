@@ -50,8 +50,9 @@ class ReviewService:
     def get_reviews_by_course(self, course_id, sort_by="newest", limit=10, skip=0):
         return self.review_repo.find_by_course_id(course_id, sort_by, limit, skip)
 
-    def get_all_reviews(self, search_query="", sort_by="newest", limit=20, skip=0):
-        return self.review_repo.find_all_reviews(search_query, sort_by, limit, skip)
+    def get_all_reviews(self, search_query="", sort_by="newest", department="", limit=20, skip=0):
+        reviews = self.review_repo.find_all_reviews(search_query, sort_by, department, limit, skip)
+        return [r.to_dict() for r in reviews]
 
     def get_reviews_by_student(self, student_id):
         return self.review_repo.find_visible_by_student(student_id)
