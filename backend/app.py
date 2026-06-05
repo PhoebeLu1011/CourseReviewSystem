@@ -18,6 +18,7 @@ from routes.auth_routes import create_auth_routes
 from routes.user_routes import create_user_routes
 from routes.admin_routes import create_admin_routes
 from routes.report_routes import create_report_routes
+from routes.announcement_routes import create_announcement_routes
 
 from repository.group_repository import GroupRepository
 from repository.application_repository import ApplicationRepository
@@ -126,7 +127,14 @@ def create_app():
     group_service = GroupService(group_repo)
     group_recommendation_service = GroupRecommendationService(group_repo)
 
-    admin_service = AdminService(report_repo=report_repo, review_repo=review_repo, course_service=course_service)
+    admin_service = AdminService(
+        report_repo=report_repo,
+        review_repo=review_repo,
+        reply_repo=reply_repo,
+        discussion_repo=discussion_repo,
+        group_repo=group_repo,
+        course_service=course_service,
+    )
     announcement_service = AnnouncementService(announcement_repo)
     report_service = ReportService(report_repo)
     favorite_service = FavoriteService(bookmark_repo)
@@ -141,6 +149,7 @@ def create_app():
     app.register_blueprint(create_discussion_routes(discussion_service))
     app.register_blueprint(create_bookmark_routes(favorite_service))
     app.register_blueprint(create_admin_routes(admin_service, announcement_service))
+    app.register_blueprint(create_announcement_routes(announcement_service))
     app.register_blueprint(create_report_routes(report_service))
 
     app.register_blueprint(create_auth_routes(auth_service), url_prefix="/api/auth")
@@ -160,4 +169,3 @@ if __name__ == "__main__":
         threaded=True,
         use_reloader=False
     )
-

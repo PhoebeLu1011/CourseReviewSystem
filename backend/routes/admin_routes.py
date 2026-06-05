@@ -1,6 +1,7 @@
 """
 GET    /admin/reports                       - 取得所有待處理的檢舉案件
-GET    /admin/reports/all                   - 取得所有案件（含已處理）
+GET    /admin/reports/all                   - 取得所有案件，含已處理
+GET    /admin/reports/<report_id>/content   - 取得被檢舉內容
 POST   /admin/reports/<report_id>/resolve   - 管理員處理檢舉案件
 GET    /admin/announcements                 - 取得所有公告
 POST   /admin/announcements                 - 發佈新公告
@@ -9,8 +10,6 @@ DELETE /admin/announcements/<id>            - 刪除公告
 """
 
 from flask import Blueprint, request, jsonify
-from mongo import db
-
 
 def create_admin_routes(admin_service, announcement_service):
     admin_bp = Blueprint("admin", __name__)
@@ -22,45 +21,31 @@ def create_admin_routes(admin_service, announcement_service):
         """取得所有待處理的檢舉案件"""
         try:
             reports = admin_service.get_report_queue()
-            return jsonify([r.to_dict() for r in reports]), 200
+            return jsonify([report.to_dict() for report in reports]), 200
         except Exception as e:
             return jsonify({"message": str(e)}), 500
 
     @admin_bp.route("/admin/reports/all", methods=["GET"])
     def get_all_reports():
-        """取得所有案件（包含已處理與駁回）"""
+        """取得所有案件，包含已處理與駁回"""
         try:
             reports = admin_service.get_all_reports()
-            return jsonify([r.to_dict() for r in reports]), 200
+            return jsonify([report.to_dict() for report in reports]), 200
         except Exception as e:
             return jsonify({"message": str(e)}), 500
 
     @admin_bp.route("/admin/reports/<report_id>/content", methods=["GET"])
     def get_report_content(report_id):
-        """取得被檢舉內容（依 reported_type 查對應 collection）"""
+        """取得被檢舉內容"""
         try:
-            report_data = db["reports"].find_one({"reportID": report_id}, {"_id": 0})
-            if not report_data:
-                return jsonify({"message": "Report not found"}), 404
+            return jsonify(admin_service.get_report_content(report_id)), 200
 
-            reported_type = report_data.get("reported_type", "review")
-            reported_id = report_data.get("reported_id") or report_data.get("reviewID")
+        except LookupError as e:
+            return jsonify({"message": str(e)}), 404
 
-            if reported_type == "review":
-                content = db["reviews"].find_one({"reviewID": reported_id}, {"_id": 0})
-            elif reported_type == "comment":
-                content = db["replies"].find_one({"replyID": reported_id}, {"_id": 0})
-                if not content:
-                    content = db["replies"].find_one({"_id": reported_id}, {"_id": 0})
-            elif reported_type == "teammate_post":
-                content = db["groups"].find_one({"group_id": reported_id}, {"_id": 0})
-            else:
-                content = None
+        except ValueError as e:
+            return jsonify({"message": str(e)}), 400
 
-            if not content:
-                return jsonify({"message": "Content not found", "reported_type": reported_type, "reported_id": reported_id}), 404
-
-            return jsonify({"reported_type": reported_type, "content": content}), 200
         except Exception as e:
             return jsonify({"message": str(e)}), 500
 
@@ -68,7 +53,8 @@ def create_admin_routes(admin_service, announcement_service):
     def resolve_report(report_id):
         """管理員處理檢舉案件"""
         try:
-            data = request.get_json()
+            data = request.get_json() or {}
+
             decision = data.get("decision")
             handler_id = data.get("handler_id")
             resolution = data.get("resolution")
@@ -76,11 +62,24 @@ def create_admin_routes(admin_service, announcement_service):
             if not decision:
                 return jsonify({"message": "decision is required."}), 400
 
-            report = admin_service.process_report(report_id, decision, handler_id, resolution)
-            return jsonify({"message": "處理成功", "report": report.to_dict()}), 200
+            report = admin_service.process_report(
+                report_id=report_id,
+                decision=decision,
+                handler_id=handler_id,
+                resolution=resolution,
+            )
+
+            return jsonify({
+                "message": "處理成功",
+                "report": report.to_dict(),
+            }), 200
 
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
+
+        except LookupError as e:
+            return jsonify({"message": str(e)}), 404
+
         except Exception as e:
             return jsonify({"message": str(e)}), 500
 
@@ -99,7 +98,8 @@ def create_admin_routes(admin_service, announcement_service):
     def create_announcement():
         """發佈新公告"""
         try:
-            data = request.get_json()
+            data = request.get_json() or {}
+
             if not data.get("title") or not data.get("content"):
                 return jsonify({"message": "title and content are required."}), 400
 
@@ -110,9 +110,13 @@ def create_admin_routes(admin_service, announcement_service):
                 target=data.get("target", "all"),
                 is_pinned=data.get("is_pinned", False),
                 scheduled_at=data.get("scheduled_at"),
-                created_by=data.get("created_by")
+                created_by=data.get("created_by"),
             )
-            return jsonify({"message": "公告發布成功", "announcement": announcement.to_dict()}), 201
+
+            return jsonify({
+                "message": "公告發布成功",
+                "announcement": announcement.to_dict(),
+            }), 201
 
         except Exception as e:
             return jsonify({"message": str(e)}), 400
@@ -121,11 +125,20 @@ def create_admin_routes(admin_service, announcement_service):
     def update_announcement(announcement_id):
         """更新公告內容"""
         try:
-            data = request.get_json()
-            announcement = announcement_service.update_announcement(announcement_id, **data)
-            return jsonify({"message": "公告更新成功", "announcement": announcement.to_dict()}), 200
+            data = request.get_json() or {}
+            announcement = announcement_service.update_announcement(
+                announcement_id,
+                **data,
+            )
+
+            return jsonify({
+                "message": "公告更新成功",
+                "announcement": announcement.to_dict(),
+            }), 200
+
         except ValueError as e:
             return jsonify({"message": str(e)}), 404
+
         except Exception as e:
             return jsonify({"message": str(e)}), 500
 
@@ -135,6 +148,7 @@ def create_admin_routes(admin_service, announcement_service):
         try:
             announcement_service.delete_announcement(announcement_id)
             return jsonify({"message": "公告已刪除"}), 200
+
         except Exception as e:
             return jsonify({"message": str(e)}), 500
 

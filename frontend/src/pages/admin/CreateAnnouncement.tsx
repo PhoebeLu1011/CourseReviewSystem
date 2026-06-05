@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../../config/api';
 import type { Announcement, CreateAnnouncementRequest } from '../../models/Announcement';
 import { createAnnouncement, getAllAnnouncements, deleteAnnouncement } from '../../api/announcementApi';
 

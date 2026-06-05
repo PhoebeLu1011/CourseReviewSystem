@@ -1,5 +1,5 @@
-import { X, AlertTriangle, Ban, EyeOff, ShieldAlert, Check } from "lucide-react";
-import { Report } from "./AuditCenter";
+import { X, AlertTriangle, Trash2, EyeOff, ShieldAlert, Check } from "lucide-react";
+import type { Report } from "./AuditCenter";
 
 interface ReportSidePanelProps {
   report: Report;
@@ -7,92 +7,131 @@ interface ReportSidePanelProps {
   onAction: (id: string, action: string) => void;
 }
 
+function getDeleteLabel(report: Report) {
+  if (report.reported_type === "review") return "Delete Review";
+  if (report.reported_type === "comment") return "Delete Comment";
+  if (report.reported_type === "teammate_post") return "Delete Post";
+  return "Delete Content";
+}
+
+function getHideLabel(report: Report) {
+  if (report.reported_type === "review") return "Hide Review";
+  if (report.reported_type === "comment") return "Hide Comment";
+  if (report.reported_type === "teammate_post") return "Hide Post";
+  return "Hide Content";
+}
+
 export function ReportSidePanel({ report, onClose, onAction }: ReportSidePanelProps) {
   return (
     <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-40 transition-opacity" 
+      <div
+        className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
-      
-      {/* Slide Panel */}
-      <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
-        <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+
+      <div className="animate-in slide-in-from-right fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col bg-white shadow-2xl duration-300">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-6 py-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 text-rose-600">
               <ShieldAlert size={20} />
             </div>
+
             <div>
-              <h3 className="text-xl font-bold text-slate-800 leading-tight">
-                Case Details: {report.id}
+              <h3 className="text-xl font-bold leading-tight text-slate-800">
+                Case Details: {report.id.slice(0, 8)}…
               </h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-700">
-                  Priority: {report.reason.includes("Harassment") || report.reason.includes("Hate") ? "High" : "Normal"}
+
+              <div className="mt-1 flex items-center gap-2">
+                <span className="inline-flex items-center rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                  Priority: {report.priority}
                 </span>
-                <span className="text-sm text-slate-500 font-medium">
+
+                <span className="text-sm font-medium text-slate-500">
                   {report.type}
+                </span>
+
+                <span className="font-mono text-xs text-slate-400">
+                  {report.reported_id}
                 </span>
               </div>
             </div>
           </div>
-          <button 
+
+          <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+            className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            type="button"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
-          <div className="grid grid-cols-2 gap-6 h-full min-h-[400px]">
-            {/* Left Column: Original Post */}
-            <div className="flex flex-col h-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="bg-slate-100 px-4 py-3 border-b border-slate-200">
-                <h4 className="font-bold text-slate-700 text-sm uppercase tracking-wider">Original Content</h4>
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
+          <div className="grid h-full min-h-[400px] grid-cols-2 gap-6">
+            <div className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-200 bg-slate-100 px-4 py-3">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-slate-700">
+                  Original Content
+                </h4>
               </div>
-              <div className="p-5 flex-1 flex flex-col">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
-                    {report.reportedUser.charAt(0).toUpperCase()}
+
+              <div className="flex flex-1 flex-col p-5">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+                    {report.reportedTarget.charAt(0).toUpperCase()}
                   </div>
+
                   <div>
-                    <p className="font-semibold text-slate-800 text-sm leading-none">{report.reportedUser}</p>
-                    <p className="text-xs text-slate-500 mt-1">Posted on {report.timestamp}</p>
+                    <p className="text-sm font-semibold leading-none text-slate-800">
+                      {report.type}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Target ID: {report.reported_id}
+                    </p>
                   </div>
                 </div>
-                
-                <div className="flex-1 bg-slate-50 p-4 rounded-lg border border-slate-100 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
-                  {report.content}
+
+                <div className="flex-1 whitespace-pre-wrap rounded-lg border border-slate-100 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">
+                  {report.originalContent || "載入內容中..."}
                 </div>
               </div>
             </div>
 
-            {/* Right Column: Reporter's Claim */}
-            <div className="flex flex-col h-full bg-white rounded-xl border border-rose-100 shadow-sm overflow-hidden">
-              <div className="bg-rose-50 px-4 py-3 border-b border-rose-100 flex items-center gap-2">
+            <div className="flex h-full flex-col overflow-hidden rounded-xl border border-rose-100 bg-white shadow-sm">
+              <div className="flex items-center gap-2 border-b border-rose-100 bg-rose-50 px-4 py-3">
                 <AlertTriangle size={16} className="text-rose-500" />
-                <h4 className="font-bold text-rose-800 text-sm uppercase tracking-wider">Reporter's Claim</h4>
+                <h4 className="text-sm font-bold uppercase tracking-wider text-rose-800">
+                  Reporter's Claim
+                </h4>
               </div>
-              <div className="p-5 flex-1 flex flex-col">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+
+              <div className="flex flex-1 flex-col p-5">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
                     {report.reporter.charAt(0).toUpperCase()}
                   </div>
+
                   <div>
-                    <p className="font-semibold text-slate-800 text-sm leading-none">{report.reporter}</p>
-                    <p className="text-xs text-slate-500 mt-1">Reported on {report.timestamp}</p>
+                    <p className="text-sm font-semibold leading-none text-slate-800">
+                      {report.reporter}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Reported on {report.timestamp}
+                    </p>
                   </div>
                 </div>
 
                 <div className="mb-4">
-                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Report Reason</p>
+                  <p className="mb-1 text-xs font-bold uppercase text-slate-400">
+                    Report Reason
+                  </p>
                   <p className="font-semibold text-rose-700">{report.reason}</p>
                 </div>
-                
-                <div className="flex-1 bg-rose-50/50 p-4 rounded-lg border border-rose-100/50 text-slate-700 text-sm leading-relaxed">
-                  <p className="text-xs font-bold text-slate-400 uppercase mb-2">Additional Details</p>
+
+                <div className="flex-1 rounded-lg border border-rose-100/50 bg-rose-50/50 p-4 text-sm leading-relaxed text-slate-700">
+                  <p className="mb-2 text-xs font-bold uppercase text-slate-400">
+                    Additional Details
+                  </p>
                   {report.description || "No additional details provided by the reporter."}
                 </div>
               </div>
@@ -100,28 +139,36 @@ export function ReportSidePanel({ report, onClose, onAction }: ReportSidePanelPr
           </div>
         </div>
 
-        <div className="p-6 border-t border-slate-100 bg-white flex justify-end items-center gap-3 shrink-0">
-          <button 
-            onClick={() => onAction(report.id, "dismiss")}
-            className="px-5 py-2.5 flex items-center gap-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
-          >
-            <Check size={18} /> Dismiss
-          </button>
-          
-          <button 
-            onClick={() => onAction(report.id, "hide")}
-            className="px-5 py-2.5 flex items-center gap-2 text-sm font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors border border-amber-200 shadow-sm"
-          >
-            <EyeOff size={18} /> Hide Content
-          </button>
-          
-          <button 
-            onClick={() => onAction(report.id, "ban")}
-            className="px-5 py-2.5 flex items-center gap-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-sm shadow-rose-200"
-          >
-            <Ban size={18} /> Ban User
-          </button>
-        </div>
+        {report.status === "PENDING" && (
+          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-100 bg-white p-6">
+            <button
+              onClick={() => onAction(report.id, "dismiss")}
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-200"
+              type="button"
+            >
+              <Check size={18} />
+              Dismiss
+            </button>
+
+            <button
+              onClick={() => onAction(report.id, "hide")}
+              className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-100 px-5 py-2.5 text-sm font-semibold text-amber-700 shadow-sm transition-colors hover:bg-amber-200"
+              type="button"
+            >
+              <EyeOff size={18} />
+              {getHideLabel(report)}
+            </button>
+
+            <button
+              onClick={() => onAction(report.id, "delete")}
+              className="flex items-center gap-2 rounded-lg bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-rose-200 transition-colors hover:bg-rose-700"
+              type="button"
+            >
+              <Trash2 size={18} />
+              {getDeleteLabel(report)}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

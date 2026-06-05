@@ -8,6 +8,13 @@ export async function getAllAnnouncements(): Promise<Announcement[]> {
   return res.json();
 }
 
+// 取得公開公告（首頁用）
+export async function getPublicAnnouncements(): Promise<Announcement[]> {
+  const res = await fetch(`${API_BASE_URL}/announcements`);
+  if (!res.ok) throw new Error("Failed to fetch public announcements");
+  return res.json();
+}
+
 // 發布新公告
 export async function createAnnouncement(body: CreateAnnouncementRequest): Promise<Announcement> {
   const res = await fetch(`${API_BASE_URL}/admin/announcements`, {

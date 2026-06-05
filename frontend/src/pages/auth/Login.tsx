@@ -17,6 +17,13 @@ export function Login() {
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const handleRoleChange = (nextRole: Role) => {
+    setRole(nextRole);
+    setEmail("");
+    setPassword("");
+    setErrorMsg("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
@@ -30,7 +37,12 @@ export function Login() {
       });
 
       login(result.user, result.token);
-      navigate("/");
+
+      if (result.user?.role === "Admin") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
     } catch (err: any) {
       console.error("Login Error:", err);
       setErrorMsg(err.message || "登入失敗，請確認帳號或密碼是否正確。");
@@ -53,7 +65,7 @@ export function Login() {
       <div className="flex p-1.5 bg-slate-100 rounded-xl mb-8 border border-slate-200/60 shadow-inner">
         <button
           type="button"
-          onClick={() => setRole("Student")}
+          onClick={() => handleRoleChange("Student")}
           className={clsx(
             "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all",
             role === "Student"
@@ -70,7 +82,7 @@ export function Login() {
 
         <button
           type="button"
-          onClick={() => setRole("Admin")}
+          onClick={() => handleRoleChange("Admin")}
           className={clsx(
             "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all",
             role === "Admin"
@@ -95,7 +107,7 @@ export function Login() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
           <label className="text-sm font-bold text-slate-700 ml-1">
-            電子信箱
+            {role === "Admin" ? "管理員帳號" : "電子信箱"}
           </label>
 
           <div className="relative">
@@ -104,10 +116,10 @@ export function Login() {
             </div>
 
             <input
-              type="email"
+              type={role === "Admin" ? "text" : "email"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="jane.doe@ntnu.edu.tw"
+              placeholder={role === "Admin" ? "admin" : "jane.doe@ntnu.edu.tw"}
               className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all font-medium text-slate-800 bg-slate-50 focus:bg-white"
               required
               disabled={isLoading}
@@ -158,17 +170,19 @@ export function Login() {
         </button>
       </form>
 
-      <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-        <p className="text-sm font-medium text-slate-500">
-          還沒有帳號嗎？{" "}
-          <Link
-            to="/auth/register"
-            className="font-bold text-rose-700 hover:text-rose-800 hover:underline transition-colors"
-          >
-            立即註冊
-          </Link>
-        </p>
-      </div>
+      {role === "Student" && (
+        <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+          <p className="text-sm font-medium text-slate-500">
+            還沒有帳號嗎？{" "}
+            <Link
+              to="/auth/register"
+              className="font-bold text-rose-700 hover:text-rose-800 hover:underline transition-colors"
+            >
+              立即註冊
+            </Link>
+          </p>
+        </div>
+      )}
     </div>
   );
 }
