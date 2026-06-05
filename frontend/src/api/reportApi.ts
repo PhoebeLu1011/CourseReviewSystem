@@ -21,3 +21,10 @@ export async function getPendingReports(): Promise<Report[]> {
     if (!res.ok) throw new Error("Failed to fetch pending reports");
     return res.json();
 }
+
+// 取得學生自己的所有檢舉
+export async function getMyReports(studentId: string): Promise<Report[]> {
+    const res = await fetch(`${BASE_URL}/students/${studentId}/reports`);
+    if (!res.ok) throw new Error("Failed to fetch my reports");
+    return res.json();
+}

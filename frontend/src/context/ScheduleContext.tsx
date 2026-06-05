@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 
 export interface ScheduledCourse {
   courseID: string;
@@ -20,10 +20,21 @@ interface ScheduleContextType {
   isScheduled: (courseID: string) => boolean;
 }
 
+const STORAGE_KEY = "mySchedule";
+
+function loadFromStorage(): ScheduledCourse[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveToStorage(courses: ScheduledCourse[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(courses)); } catch {}
+}
+
 const ScheduleContext = createContext<ScheduleContextType | null>(null);
 
-// 解析 "Mon, Wed, Fri • 13:10–16:00" → { days, timeSlot }
-// Also accepts raw NTNU format "一 6-8 校外 教室自排" by delegating to parseNTNUSchedule
 export function parseSchedule(scheduleStr: string): { days: string[]; timeSlot: string } {
   const parts = scheduleStr.split(" • ");
   if (parts.length < 2) return { days: [], timeSlot: scheduleStr };
@@ -33,7 +44,12 @@ export function parseSchedule(scheduleStr: string): { days: string[]; timeSlot: 
 }
 
 export function ScheduleProvider({ children }: { children: ReactNode }) {
-  const [scheduled, setScheduled] = useState<ScheduledCourse[]>([]);
+  const [scheduled, setScheduled] = useState<ScheduledCourse[]>(loadFromStorage);
+
+  // 每次 scheduled 變動時同步到 localStorage
+  useEffect(() => {
+    saveToStorage(scheduled);
+  }, [scheduled]);
 
   const addToSchedule = (course: ScheduledCourse) => {
     setScheduled((prev) =>

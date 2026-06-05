@@ -1,32 +1,56 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState } from "react";
+import type { ReactNode } from "react";
 
 interface User {
   id: string;
   name: string;
   role: "Student" | "Admin";
+  account?: string;
+  email?: string;
+  department?: string;
+  avatar?: string;
+  bio?: string; 
+  birthday?: string; 
+  interests?: string[];
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (role: "Student" | "Admin") => void;
+  login: (userData: User, token: string) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+function loadStoredUser(): User | null {
+  const savedUser = localStorage.getItem("user");
 
-  const login = (role: "Student" | "Admin") => {
-    // 目前使用 mock 資料，之後接真實 API 時替換
-    setUser({
-      id: "S001",
-      name: "Test Student",
-      role,
-    });
+  if (!savedUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(savedUser) as User;
+  } catch {
+    localStorage.removeItem("user");
+    return null;
+  }
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(loadStoredUser);
+
+  const login = (userData: User, token: string) => {
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", token);
+    setUser(userData);
   };
 
-  const logout = () => setUser(null);
+  const logout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    setUser(null);
+  };
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>

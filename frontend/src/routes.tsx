@@ -6,8 +6,14 @@ import CourseDetail from "./pages/CourseDetail";
 import DiscussionDetail from "./pages/DiscussionDetail";
 import GroupmatesIntegrated from "./pages/GroupmatesIntegrated";
 import UserProfile from "./pages/UserProfile";
-import AdminLayout from "./pages/admin/AdminLayout";  // 修正：補上 Admin 路由
+import AdminLayout from "./pages/admin/AdminLayout"; 
 import Schedule from "./pages/Schedule";
+import Reviews from "./pages/Reviews";
+import { AuditCenter } from "./pages/admin/AuditCenter";
+import { AnnouncementEditor } from "./pages/admin/AnnouncementEditor";
+import { Login } from "./pages/auth/Login"; 
+import { Register }from "./pages/auth/Register";
+import Discussions from "./pages/Discussions";
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -28,6 +34,14 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <Home />,
+      },
+      {
+        path: "auth/login",
+        element: <Login />,
+      },
+      {
+        path: "auth/register",
+        element: <Register />,
       },
       {
         path: "courses",
@@ -55,11 +69,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "reviews",
-        element: <PlaceholderPage title="Course Reviews" />,
+        element: <Reviews />, 
       },
       {
         path: "discussions",
-        element: <PlaceholderPage title="Discussions" />,
+        element: <Discussions/>,
       },
       {
         path: "profile",
@@ -69,7 +83,12 @@ export const router = createBrowserRouter([
   },
   // 修正：Admin panel 是獨立的 layout（不套用一般 Layout）
   {
-    path: "/admin",
-    element: <AdminLayout />,
-  },
+  path: "/admin",
+  element: <AdminLayout />,
+  children: [
+    { index: true, element: <AuditCenter /> },
+    { path: "audit", element: <AuditCenter /> },
+    { path: "announcements", element: <AnnouncementEditor /> },
+  ],
+  }
 ]);

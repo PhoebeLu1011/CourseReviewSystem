@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Group:
     def __init__(
@@ -13,6 +13,7 @@ class Group:
         recruitment_deadline: datetime | None = None,
         description: str | None = None,
         tags: list[str] | None = None,
+        visibilityState: str = "VISIBLE",
     ):
         if max_members <= 0:
             raise ValueError("max_members must be greater than 0.")
@@ -26,6 +27,7 @@ class Group:
         self.recruitment_deadline = recruitment_deadline
         self.description = description
         self.tags = tags or []
+        self.visibilityState = visibilityState
         self.members = self._normalize_members(leader_id, members)
 
         self._validate()
@@ -43,6 +45,8 @@ class Group:
     def _validate(self) -> None:
         if self.status not in {"open", "closed"}:
             raise ValueError(f"Invalid group status: {self.status}")
+        if self.visibilityState not in {"VISIBLE", "HIDDEN", "DELETED"}:
+            raise ValueError(f"Invalid group visibilityState: {self.visibilityState}")
         if len(self.members) > self.max_members:
             raise ValueError("Current member count cannot exceed max_members.")
 
@@ -52,13 +56,27 @@ class Group:
     def is_open(self) -> bool:
         return self.status == "open"
 
+    def is_visible(self) -> bool:
+        return self.visibilityState == "VISIBLE"
+
     def is_recruitment_open(self) -> bool:
         if self.recruitment_deadline is None:
             return True
-        return datetime.now() <= self.recruitment_deadline
 
+        deadline = self.recruitment_deadline
+
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=timezone.utc)
+
+        return datetime.now(timezone.utc) <= deadline
+    
     def is_joinable(self) -> bool:
-        return self.is_open() and not self.is_full() and self.is_recruitment_open()
+        return (
+            self.is_visible()
+            and self.is_open()
+            and not self.is_full()
+            and self.is_recruitment_open()
+        )
 
     def has_member(self, student_id: str) -> bool:
         return student_id in self.members
@@ -115,12 +133,15 @@ class Group:
             self.tags = tags
 
     def to_dict(self) -> dict:
+        needed_members = max(self.max_members - len(self.members), 0)
+
         return {
             "group_id": self.group_id,
             "group_name": self.group_name,
             "course_id": self.course_id,
             "leader_id": self.leader_id,
             "max_members": self.max_members,
+            "needed_members": needed_members,
             "members": self.members,
             "status": self.status,
             "recruitment_deadline": (
@@ -129,4 +150,5 @@ class Group:
             ),
             "description": self.description,
             "tags": self.tags,
+            "visibilityState": self.visibilityState,
         }
