@@ -13,7 +13,7 @@ const CreateAnnouncement: React.FC = () => {
     tags: [],
     target: 'all',
     is_pinned: false,
-    scheduled_at: undefined,
+    scheduled_at: '',
   });
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -42,25 +42,25 @@ const CreateAnnouncement: React.FC = () => {
       created_by: user?.id ?? null,
       scheduled_at: formData.scheduled_at || undefined,
       });
-      alert('Success!');
+      alert('公告發布成功！');
       setFormData({ title: '', content: '', tags: [], target: 'all', is_pinned: false, scheduled_at: undefined });
       fetchAnnouncements();
       setView('list');
     } catch (error) {
       console.error(error);
-      alert('Failed!');
+      alert('發布失敗，請確認後端是否正常運行');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure to delete?')) return;
+    if (!confirm('確定要刪除這則公告嗎？')) return;
     try {
       await deleteAnnouncement(id);
       fetchAnnouncements();
     } catch {
-      alert('Failed');
+      alert('刪除失敗');
     }
   };
 

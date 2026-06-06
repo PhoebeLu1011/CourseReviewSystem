@@ -89,7 +89,7 @@ export function AnnouncementEditor() {
       });
 
       if (res.ok) {
-        alert("Success！");
+        alert("公告發布成功！");
         setTitle("");
         setContent("");
         setCategory("General");
@@ -101,18 +101,18 @@ export function AnnouncementEditor() {
         setView("list");
       } else {
         const err = await res.json();
-        alert(`Failed：${err.message}`);
+        alert(`發布失敗：${err.message}`);
       }
     } catch (err) {
       console.error(err);
-      alert("Internet error, please check backend.");
+      alert("網路錯誤，請確認後端是否正常運行");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure to delete?")) return;
+    if (!confirm("確定要刪除這則公告嗎？")) return;
 
     try {
       const res = await fetch(`${API_BASE_URL}/admin/announcements/${id}`, {
@@ -122,10 +122,10 @@ export function AnnouncementEditor() {
       if (res.ok) {
         await fetchAnnouncements();
       } else {
-        alert("Failed");
+        alert("刪除失敗");
       }
     } catch {
-      alert("Error");
+      alert("網路錯誤");
     }
   };
 
@@ -395,7 +395,7 @@ export function AnnouncementEditor() {
       ) : (
         <div className="space-y-4 overflow-y-auto p-6">
           {announcements.length === 0 ? (
-            <div className="py-16 text-center text-slate-400">No Announcement</div>
+            <div className="py-16 text-center text-slate-400">目前沒有任何公告</div>
           ) : (
             announcements.map((announcement) => (
               <div
@@ -407,7 +407,7 @@ export function AnnouncementEditor() {
                     <div className="mb-1 flex items-center gap-2">
                       {announcement.is_pinned && (
                         <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
-                          📌
+                          📌 置頂
                         </span>
                       )}
 
@@ -447,7 +447,7 @@ export function AnnouncementEditor() {
                     type="button"
                     onClick={() => handleDelete(announcement.announcementID)}
                     className="ml-4 rounded-lg p-2 text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
-                    title="Delete Announcement"
+                    title="刪除公告"
                   >
                     <Trash2 size={18} />
                   </button>

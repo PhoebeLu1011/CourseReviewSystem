@@ -1,10 +1,21 @@
 # Python Backend
 backend/venv/
-backend/__pycache__/
+backend/**/__pycache__/
 *.pyc
+*.pyo
+*.pyd
 .env
+
+# Virtual Environment
+venv/
+.venv/
 
 # React Frontend
 frontend/node_modules/
 frontend/dist/
+
+# macOS
 .DS_Store
+
+# Seed / local scripts
+scripts/seed_admin/

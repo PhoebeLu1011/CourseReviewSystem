@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 class Announcement:
@@ -5,13 +6,15 @@ class Announcement:
         self,
         title,
         content,
-        tags=None,           # 標籤列表，例如 ["重要", "活動"]
-        target="all",        # "all" / "department:資訊工程" / "grade:大二"
-        is_pinned=False,     # 是否置頂
-        scheduled_at=None,   # 預約發布時間 (None = 立即發布)
-        created_by=None,     # 管理員 ID
+        announcementID=None,      # 新增：公告唯一 ID
+        tags=None,
+        target="all",
+        is_pinned=False,
+        scheduled_at=None,
+        created_by=None,
         created_at=None
     ):
+        self.announcementID = announcementID if announcementID else str(uuid.uuid4())
         self.title = title
         self.content = content
         self.tags = tags or []
@@ -23,6 +26,7 @@ class Announcement:
 
     def to_dict(self):
         return {
+            "announcementID": self.announcementID,
             "title": self.title,
             "content": self.content,
             "tags": self.tags,
