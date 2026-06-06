@@ -9,6 +9,7 @@ import {
 import { ReportSidePanel } from "./ReportSidePanel";
 import { clsx } from "clsx";
 import { API_BASE_URL } from "../../config/api";
+import { useAuth } from "../../context/AuthContext";
 
 export type ReportedType = "review" | "comment" | "teammate_post";
 export type ReportTypeLabel = "Review" | "Comment" | "Group";
@@ -56,21 +57,21 @@ function getTypeLabel(reportedType: string): ReportTypeLabel {
 }
 
 function getContentText(reportedType: ReportedType, content: any): string {
-  if (!content) return "（內容已刪除或無法載入）";
+  if (!content) return "（Content deleted or unavailable）";
 
   if (reportedType === "review") {
-    return content.content || "（此評論沒有文字內容）";
+    return content.content || "（No text content in this review）";
   }
 
   if (reportedType === "comment") {
-    return content.content || "（此回覆沒有文字內容）";
+    return content.content || "（No text content in this comment）";
   }
 
   if (reportedType === "teammate_post") {
-    return content.title || content.description || content.content || "（此組員招募沒有文字內容）";
+    return content.title || content.description || content.content || "（No text content in this post）";
   }
 
-  return "（內容無法顯示）";
+  return "（Content cannot be displayed）";
 }
 
 function mapApiReport(r: any): Report {
@@ -91,9 +92,9 @@ function mapApiReport(r: any): Report {
     reporterID: r.reporterID,
 
     rawTimestamp: r.timestamp,
-    timestamp: r.timestamp ? new Date(r.timestamp).toLocaleString("zh-TW") : "未知時間",
+    timestamp: r.timestamp ? new Date(r.timestamp).toLocaleString("zh-TW") : "Unknown time",
 
-    content: r.description || "（無詳細說明）",
+    content: r.description || "（No description）",
     originalContent: undefined,
     description: r.description,
 
@@ -128,24 +129,25 @@ function mapActionToDecision(report: Report, action: string): string {
 }
 
 function getActionLabel(report: Report, action: string): string {
-  if (action === "dismiss") return "駁回檢舉";
+  if (action === "dismiss") return "Dismiss report";
 
   if (report.reported_type === "review") {
-    return action === "hide" ? "隱藏評論" : "刪除評論";
+    return action === "hide" ? "Hide review" : "delete review";
   }
 
   if (report.reported_type === "comment") {
-    return action === "hide" ? "隱藏回覆" : "刪除回覆";
+    return action === "hide" ? "Hide comment" : "delete comment";
   }
 
   if (report.reported_type === "teammate_post") {
-    return action === "hide" ? "隱藏組員招募" : "刪除組員招募";
+    return action === "hide" ? "Hide post" : "delete post";
   }
 
   return action;
 }
 
 export function AuditCenter() {
+  const {user} = useAuth();
   const [reports, setReports] = useState<Report[]>([]);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [activeTab, setActiveTab] = useState<TabStatus>("PENDING");
@@ -156,7 +158,10 @@ export function AuditCenter() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/reports/all`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/admin/reports/all`, {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
 
       if (!res.ok) {
         throw new Error("Failed to fetch reports");
@@ -173,12 +178,15 @@ export function AuditCenter() {
 
   const fetchReportContent = async (report: Report) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/reports/${report.reportID}/content`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/admin/reports/${report.reportID}/content`, {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
 
       if (!res.ok) {
         setSelectedReport({
           ...report,
-          originalContent: "（內容已刪除或無法載入）",
+          originalContent: "（Content deleted or unavailable.）",
         });
         return;
       }
@@ -193,7 +201,7 @@ export function AuditCenter() {
       console.error("Error fetching report content:", err);
       setSelectedReport({
         ...report,
-        originalContent: "（內容載入失敗）",
+        originalContent: "（Failed to load content.）",
       });
     }
   };
@@ -217,17 +225,21 @@ export function AuditCenter() {
 
     const label = getActionLabel(targetReport, action);
 
-    if (!confirm(`確定要「${label}」嗎？`)) return;
+    if (!confirm(`Are you sure you want to "${label}"?`)) return;
 
     setProcessingId(id);
 
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(`${API_BASE_URL}/admin/reports/${id}/resolve`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token ?? ""}`,
+        },
         body: JSON.stringify({
           decision: mapActionToDecision(targetReport, action),
-          handler_id: "admin_001",
+          handler_id: user?.account ?? null,
         }),
       });
 
@@ -236,11 +248,11 @@ export function AuditCenter() {
         await fetchReports();
       } else {
         const err = await res.json();
-        alert(`處理失敗：${err.message}`);
+        alert(`Action failed: ${err.message}`);
       }
     } catch (err) {
       console.error(err);
-      alert("網路錯誤，請稍後再試");
+      alert("Network error, please try again");
     } finally {
       setProcessingId(null);
     }
@@ -253,7 +265,7 @@ export function AuditCenter() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center text-slate-400">
-        <span>載入中...</span>
+        <span>Loading...</span>
       </div>
     );
   }
