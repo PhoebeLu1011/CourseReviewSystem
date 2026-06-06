@@ -35,6 +35,7 @@ class TokenService:
         now = datetime.now(timezone.utc)
 
         payload = {
+            "id": str(admin.get("_id")),
             "account": admin.get("account"),
             "email": admin.get("email"),
             "role": "Admin",
