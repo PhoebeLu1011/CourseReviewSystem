@@ -1,5 +1,21 @@
+import { API_BASE_URL } from "../config/api";
+
+type ApiRequestOptions = RequestInit & {
+  auth?: boolean;
+  includeContentType?: boolean;
+};
+
+export function getAuthHeaders(includeContentType = true): Record<string, string> {
+  const token = localStorage.getItem("token");
+
+  return {
+    ...(includeContentType ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 export async function parseApiResponse<T>(res: Response): Promise<T> {
-  let data: any = null;
+  let data: unknown = null;
 
   try {
     data = await res.json();
@@ -7,13 +23,45 @@ export async function parseApiResponse<T>(res: Response): Promise<T> {
     data = null;
   }
 
-  if (!res.ok || data?.success === false) {
+  const errorData =
+    data && typeof data === "object"
+      ? (data as { success?: boolean; message?: string; error?: string })
+      : null;
+
+  if (!res.ok || errorData?.success === false) {
     throw new Error(
-      data?.message ||
-        data?.error ||
+      errorData?.message ||
+        errorData?.error ||
         `Request failed with status ${res.status}`
     );
   }
 
   return data as T;
+}
+
+export async function apiRequest<T>(
+  path: string,
+  {
+    auth = false,
+    includeContentType = true,
+    headers,
+    ...options
+  }: ApiRequestOptions = {}
+): Promise<T> {
+  const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+  const defaultHeaders = auth
+    ? getAuthHeaders(includeContentType)
+    : includeContentType
+      ? { "Content-Type": "application/json" }
+      : {};
+
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...(headers || {}),
+    },
+  });
+
+  return parseApiResponse<T>(res);
 }

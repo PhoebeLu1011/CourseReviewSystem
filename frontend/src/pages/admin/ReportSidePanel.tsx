@@ -1,5 +1,5 @@
 import { X, AlertTriangle, Trash2, EyeOff, ShieldAlert, Check } from "lucide-react";
-import type { Report } from "./AuditCenter";
+import type { Report } from "../../components/admin/audit/auditReportUtils";
 
 interface ReportSidePanelProps {
   report: Report;

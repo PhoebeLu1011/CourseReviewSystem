@@ -1,31 +1,22 @@
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useParams, Link } from "react-router";
 import { ArrowLeft, ThumbsUp, MessageSquare, Send, Loader2 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
-import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../context/AuthContext";
-import { 
-  getDiscussionByID, 
-  getDiscussionReplies, 
-  createReply, 
-  toggleLikeDiscussion, 
-  toggleLikeReply, 
-  type Discussion, 
-  type Reply 
-} from "../api/discussionApi";
+import { getDiscussionByID, getDiscussionReplies, createReply, toggleLikeDiscussion, toggleLikeReply, type Discussion, type Reply } from "../api/discussionApi";
 
 export default function DiscussionDetail() {
-  const { courseID, discussionID } = useParams<{ courseID: string; discussionID: string }>();
+  const { discussionID } = useParams<{ discussionID: string }>();
   const { user } = useAuth();
-  
+
   const [discussion, setDiscussion] = useState<Discussion | null>(null);
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loadThreadData = async () => {
+  const loadThreadData = useCallback(async () => {
     if (!discussionID) return;
     try {
       const [discData, repliesData] = await Promise.all([
@@ -39,38 +30,42 @@ export default function DiscussionDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [discussionID]);
 
   useEffect(() => {
     loadThreadData();
-  }, [discussionID]);
+  }, [loadThreadData]);
 
   const handleLikeDiscussion = async () => {
     if (!user || !discussion) return alert("Please log in to like this post!");
     try {
-      const res = await toggleLikeDiscussion(discussion.discussionID, user.id);
-      setDiscussion(prev => prev ? { 
-        ...prev, 
+      const res = await toggleLikeDiscussion(discussion.discussionID);
+      setDiscussion(prev => prev ? {
+        ...prev,
         likeCount: res.likeCount,
         likedBy: prev.likedBy?.includes(user.id)
           ? prev.likedBy.filter(id => id !== user.id)
           : [...(prev.likedBy || []), user.id]
       } : null);
-    } catch (err) {}
+    } catch (error) {
+      console.error("Failed to like discussion:", error);
+    }
   };
 
   const handleLikeReply = async (replyID: string) => {
     if (!user) return alert("Please log in to like this reply!");
     try {
-      const res = await toggleLikeReply(replyID, user.id);
-      setReplies(prev => prev.map(r => r.replyID === replyID ? { 
-        ...r, 
+      const res = await toggleLikeReply(replyID);
+      setReplies(prev => prev.map(r => r.replyID === replyID ? {
+        ...r,
         likeCount: res.likeCount,
         likedBy: r.likedBy?.includes(user.id)
           ? r.likedBy.filter(id => id !== user.id)
           : [...(r.likedBy || []), user.id]
       } : r));
-    } catch (err) {}
+    } catch (error) {
+      console.error("Failed to like reply:", error);
+    }
   };
 
   const handlePostReply = async (e: React.FormEvent) => {
@@ -80,7 +75,6 @@ export default function DiscussionDetail() {
     setIsSubmitting(true);
     try {
       await createReply(discussionID, {
-        authorID: user.id,
         content: replyText
       });
       setReplyText("");
@@ -88,7 +82,7 @@ export default function DiscussionDetail() {
       const updatedReplies = await getDiscussionReplies(discussionID);
       setReplies(updatedReplies);
       setDiscussion(prev => prev ? { ...prev, replyCount: prev.replyCount + 1 } : null);
-    } catch (err) {
+    } catch {
       alert("Failed to post comment reply.");
     } finally {
       setIsSubmitting(false);
@@ -118,8 +112,8 @@ export default function DiscussionDetail() {
     <div className="max-w-4xl mx-auto pb-16 space-y-6">
       {/* Back Navigation Bar */}
       <div className="flex items-center gap-3">
-        <Link 
-          to="/discussions" 
+        <Link
+          to="/discussions"
           className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
         >
           <ArrowLeft size={16} /> Back to All Discussions
@@ -149,13 +143,13 @@ export default function DiscussionDetail() {
           </div>
 
           <div className="flex items-center gap-4 pt-2 text-slate-500 border-t">
-            <button 
-              onClick={handleLikeDiscussion} 
+            <button
+              onClick={handleLikeDiscussion}
               className={`flex items-center gap-1.5 text-xs font-medium transition-colors py-1 px-2 rounded-md ${
                 isPostLikedByMe ? "text-rose-600 bg-rose-50 font-semibold" : "hover:text-rose-600 hover:bg-rose-50"
               }`}
             >
-              <ThumbsUp size={14} className={isPostLikedByMe ? "fill-rose-500" : ""} /> 
+              <ThumbsUp size={14} className={isPostLikedByMe ? "fill-rose-500" : ""} />
               {discussion.likeCount} Likes
             </button>
             <span className="flex items-center gap-1.5 text-xs font-medium">
@@ -191,7 +185,7 @@ export default function DiscussionDetail() {
                       <span className="text-[10px] text-slate-400">• {new Date(reply.timestamp).toLocaleDateString()}</span>
                     </div>
 
-                    <button 
+                    <button
                       onClick={() => handleLikeReply(reply.replyID)}
                       className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded hover:bg-slate-50 transition-colors ${
                         isReplyLikedByMe ? "text-rose-600 font-bold" : "text-slate-400"

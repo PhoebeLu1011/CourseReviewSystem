@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../config/api";
+import { apiRequest } from "./apiClient";
 
 export interface Review {
   reviewID: string;
@@ -22,9 +22,9 @@ export async function getCourseReviews(courseID: string, sortBy = "newest", limi
     skip: skip.toString(),
   });
 
-  const res = await fetch(`${API_BASE_URL}/courses/${courseID}/reviews?${params}`);
-  if (!res.ok) throw new Error("Failed to fetch reviews");
-  return res.json();
+  return apiRequest<Review[]>(`/courses/${courseID}/reviews?${params}`, {
+    includeContentType: false,
+  });
 }
 
 export async function getAllReviews(query = "", sortBy = "newest", department = ""): Promise<Review[]> {
@@ -33,73 +33,50 @@ export async function getAllReviews(query = "", sortBy = "newest", department = 
   if (sortBy) params.set("sort_by", sortBy);
   if (department) params.set("department", department);
   
-  const res = await fetch(`${API_BASE_URL}/reviews?${params}`);
-  if (!res.ok) throw new Error("Failed to fetch reviews");
-  return res.json();
+  return apiRequest<Review[]>(`/reviews?${params}`, { includeContentType: false });
 }
 
-export async function createReview(data: { 
-  authorID: string; 
-  courseID: string; 
-  content: string; 
-  sweetnessScore: number; 
+export async function createReview(data: {
+  courseID: string;
+  content: string;
+  sweetnessScore: number;
   workloadScore: number;
 }): Promise<Review> {
-  const res = await fetch(`${API_BASE_URL}/reviews`, {
+  return apiRequest<Review>("/reviews", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    auth: true,
     body: JSON.stringify(data),
   });
-  
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({})); 
-    throw new Error(errorData.message || "Failed to submit review");
-  }
-  
-  return res.json();
 }
 
 export async function getUserReviews(studentID: string): Promise<Review[]> {
-  const res = await fetch(`${API_BASE_URL}/users/${studentID}/reviews`);
-  if (!res.ok) throw new Error("Failed to fetch your reviews");
-  return res.json();
+  return apiRequest<Review[]>(`/users/${studentID}/reviews`, {
+    includeContentType: false,
+  });
 }
 
-export async function updateReview(reviewID: string, data: { 
-  authorID: string; 
-  content: string; 
-  sweetnessScore: number; 
-  workloadScore: number 
+export async function updateReview(reviewID: string, data: {
+  content: string;
+  sweetnessScore: number;
+  workloadScore: number
 }): Promise<Review> {
-  const res = await fetch(`${API_BASE_URL}/reviews/${reviewID}`, {
+  return apiRequest<Review>(`/reviews/${reviewID}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    auth: true,
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to update review");
-  return res.json();
 }
 
-export async function deleteReview(reviewID: string, authorID: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/reviews/${reviewID}`, {
+export async function deleteReview(reviewID: string): Promise<void> {
+  await apiRequest<{ success?: boolean }>(`/reviews/${reviewID}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ authorID }),
+    auth: true,
   });
-  if (!res.ok) throw new Error("Failed to delete review");
 }
 
-export async function toggleLikeReview(reviewID: string, studentID: string): Promise<{ likeCount: number }> {
-  const res = await fetch(`${API_BASE_URL}/reviews/${reviewID}/like`, {
+export async function toggleLikeReview(reviewID: string): Promise<{ likeCount: number }> {
+  return apiRequest<{ likeCount: number }>(`/reviews/${reviewID}/like`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ student_id: studentID }),
+    auth: true,
   });
-  
-  if (!res.ok) throw new Error("Failed to toggle like");
-  return res.json();
 }

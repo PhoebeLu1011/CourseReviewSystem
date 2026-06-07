@@ -18,7 +18,7 @@ const WEEK_DAYS = [
 ];
 
 export default function Schedule() {
-  const { scheduled, removeFromSchedule } = useSchedule();
+  const { scheduled, removeFromSchedule, isSyncing } = useSchedule();
 
   const removeCourse = (courseID: string) => {
     removeFromSchedule(courseID);
@@ -31,6 +31,7 @@ export default function Schedule() {
         <h1 className="text-2xl font-bold text-slate-900">我的課表</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           查看與管理你選取的課程
+          {isSyncing ? "，正在同步帳號課表..." : ""}
         </p>
       </div>
 

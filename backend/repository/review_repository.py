@@ -12,6 +12,9 @@ class ReviewRepository:
             {"$set": {"visibilityState": "DELETED"}}
         )
 
+    def hard_delete_by_id(self, review_id):
+        """Only used to compensate a failed create workflow."""
+        self.collection.delete_one({"reviewID": review_id})
     def hide_review(self, review_id):
         """隱藏評價（UC9 HIDE_REVIEW 使用）"""
         self.collection.update_one(

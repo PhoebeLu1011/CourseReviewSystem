@@ -5,7 +5,7 @@ POST /reviews/<review_id>/like
 """
 from flask import Blueprint, request, jsonify
 
-def create_review_routes(review_service):
+def create_review_routes(review_service, authorization_service):
     review_bp = Blueprint("reviews", __name__)
 
     @review_bp.route("/courses/<course_id>/reviews", methods=["GET"])
@@ -35,13 +35,14 @@ def create_review_routes(review_service):
         return jsonify([r.to_dict() if hasattr(r, 'to_dict') else r for r in reviews]), 200
 
     @review_bp.route("/reviews", methods=["POST"])
+    @authorization_service.require_student
     def create_review():
         try:
-            data = request.get_json()
+            data = request.get_json() or {}
             
             # The service returns the dictionary format directly based on your previous code
             new_review_dict = review_service.create_review(
-                student_id=data.get("authorID"),
+                student_id=authorization_service.current_student_id(),
                 course_id=data.get("courseID"),
                 content=data.get("content"),
                 sweetness=data.get("sweetnessScore"),
@@ -52,24 +53,26 @@ def create_review_routes(review_service):
 
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
+        except PermissionError as e:
+            return jsonify({"message": str(e)}), 403
 
 
     @review_bp.route("/reviews/<review_id>/like", methods=["POST"])
+    @authorization_service.require_student
     def toggle_like(review_id):
         try:
-            data = request.get_json()
-            student_id = data.get("student_id")
-
             # Call the service and get the updated like count
             new_like_count = review_service.handle_like(
-                review_id=review_id, 
-                student_id=student_id
+                review_id=review_id,
+                student_id=authorization_service.current_student_id()
             )
 
             return jsonify({"likeCount": new_like_count}), 200
 
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
+        except PermissionError as e:
+            return jsonify({"message": str(e)}), 403
         
     
     @review_bp.route("/users/<student_id>/reviews", methods=["GET"])
@@ -78,12 +81,13 @@ def create_review_routes(review_service):
         return jsonify([r.to_dict() for r in reviews]), 200
 
     @review_bp.route("/reviews/<review_id>", methods=["PUT"])
+    @authorization_service.require_student
     def edit_review(review_id):
         try:
-            data = request.get_json()
+            data = request.get_json() or {}
             updated_review = review_service.update_review(
                 review_id=review_id,
-                student_id=data.get("authorID"),
+                student_id=authorization_service.current_student_id(),
                 content=data.get("content"),
                 sweetness=data.get("sweetnessScore"),
                 workload=data.get("workloadScore")
@@ -91,15 +95,21 @@ def create_review_routes(review_service):
             return jsonify(updated_review), 200
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
+        except PermissionError as e:
+            return jsonify({"message": str(e)}), 403
 
     @review_bp.route("/reviews/<review_id>", methods=["DELETE"])
+    @authorization_service.require_student
     def delete_review(review_id):
         try:
-            data = request.get_json()
-            student_id = data.get("authorID")
-            review_service.delete_review(review_id, student_id)
+            review_service.delete_review(
+                review_id,
+                authorization_service.current_student_id(),
+            )
             return jsonify({"success": True, "message": "Review deleted."}), 200
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
+        except PermissionError as e:
+            return jsonify({"message": str(e)}), 403
 
     return review_bp

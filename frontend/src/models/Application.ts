@@ -8,6 +8,7 @@ export interface Application {
     application_id: string;
     student_id: string;
     group_id: string;
+    course_id: string | null;
     message: string;
     status: ApplicationStatus;
     apply_time: string;
@@ -16,11 +17,6 @@ export interface Application {
 }
 
 export interface SubmitApplicationRequest {
-    student_id: string;
     group_id: string;
     message?: string;
-}
-
-export interface ReviewApplicationRequest {
-    leader_id: string;
 }

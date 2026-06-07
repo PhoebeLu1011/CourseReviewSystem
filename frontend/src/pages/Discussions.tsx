@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { MessageSquare, ThumbsUp, Send, Loader2, BookOpen, Search } from "lucide-react";
+import { useCallback, useState, useEffect } from "react";
+import { MessageSquare, ThumbsUp, Send, Loader2 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Link } from "react-router";
@@ -20,7 +20,7 @@ export default function Discussions() {
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchDiscussions = async () => {
+  const fetchDiscussions = useCallback(async () => {
     setLoading(true);
     try {
       const query = selectedCourse;
@@ -31,11 +31,11 @@ export default function Discussions() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCourse]);
 
   useEffect(() => {
     fetchDiscussions();
-  }, [selectedCourse]);
+  }, [fetchDiscussions]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +45,6 @@ export default function Discussions() {
     setIsSubmitting(true);
     try {
       await createDiscussion({
-        authorID: user.id,
         courseID: newCourseID,
         title,
         content
@@ -55,7 +54,7 @@ export default function Discussions() {
       setNewCourseID("");
       setIsWriting(false);
       fetchDiscussions();
-    } catch (err) {
+    } catch {
       alert("發文失敗，請稍後再試。");
     } finally {
       setIsSubmitting(false);
@@ -66,9 +65,11 @@ export default function Discussions() {
     e.preventDefault(); // Prevents card link navigation click capture
     if (!user) return alert("請先登入！");
     try {
-      const res = await toggleLikeDiscussion(discussionID, user.id);
+      const res = await toggleLikeDiscussion(discussionID);
       setDiscussions(prev => prev.map(d => d.discussionID === discussionID ? { ...d, likeCount: res.likeCount } : d));
-    } catch (err) {}
+    } catch (error) {
+      console.error("Failed to like discussion:", error);
+    }
   };
 
   return (

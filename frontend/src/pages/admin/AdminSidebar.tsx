@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { clsx } from "clsx";
+import { useAuth } from "../../context/AuthContext";
 
 const navItems = [
   { path: "/admin/audit", label: "Audit Center", icon: ShieldAlert },
@@ -20,11 +21,11 @@ const navItems = [
 
 export function AdminSidebar() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [isExpanded, setIsExpanded] = useState(true);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout();
     navigate("/login");
   };
 

@@ -2,16 +2,49 @@ import uuid
 from datetime import datetime
 
 class Discussion:
-    def __init__(self, authorID, courseID, title, content, discussionID=None, likedBy=None, likeCount=0, replyCount=0, timestamp=None):
+    def __init__(
+        self,
+        authorID,
+        courseID,
+        title,
+        content,
+        discussionID=None,
+        likedBy=None,
+        likeCount=0,
+        replyCount=0,
+        timestamp=None,
+        visibilityState="VISIBLE",
+    ):
         self.discussionID = discussionID if discussionID else str(uuid.uuid4())
         self.authorID = authorID
         self.courseID = courseID
-        self.title = title
-        self.content = content
-        self.likedBy = likedBy if likedBy is not None else []
-        self.likeCount = likeCount
+        self.title = self._required_text(title, "title")
+        self.content = self._required_text(content, "content")
+        self.likedBy = list(dict.fromkeys(likedBy or []))
+        self.likeCount = len(self.likedBy)
         self.replyCount = replyCount
         self.timestamp = timestamp if timestamp else datetime.now()
+        self.visibilityState = visibilityState
+        self._validate()
+
+    @staticmethod
+    def _required_text(value, field_name):
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{field_name} is required.")
+        return value.strip()
+
+    def _validate(self):
+        if self.visibilityState not in {"VISIBLE", "HIDDEN", "DELETED"}:
+            raise ValueError("Invalid discussion visibilityState.")
+        if self.replyCount < 0:
+            raise ValueError("replyCount cannot be negative.")
+
+    def update_content(self, title, content):
+        self.title = self._required_text(title, "title")
+        self.content = self._required_text(content, "content")
+
+    def soft_delete(self):
+        self.visibilityState = "DELETED"
 
     def toggle_like(self, student_id):
         if student_id in self.likedBy:
@@ -31,7 +64,8 @@ class Discussion:
             "likedBy": self.likedBy,
             "likeCount": self.likeCount,
             "replyCount": self.replyCount,
-            "timestamp": self.timestamp
+            "timestamp": self.timestamp,
+            "visibilityState": self.visibilityState,
         }
 
 class Reply:
@@ -39,11 +73,19 @@ class Reply:
         self.replyID = replyID if replyID else str(uuid.uuid4())
         self.discussionID = discussionID
         self.authorID = authorID
-        self.content = content
-        self.likedBy = likedBy if likedBy is not None else []
-        self.likeCount = likeCount
+        self.content = Discussion._required_text(content, "content")
+        self.likedBy = list(dict.fromkeys(likedBy or []))
+        self.likeCount = len(self.likedBy)
         self.timestamp = timestamp if timestamp else datetime.now()
         self.visibilityState = visibilityState
+        if self.visibilityState not in {"VISIBLE", "HIDDEN", "DELETED"}:
+            raise ValueError("Invalid reply visibilityState.")
+
+    def update_content(self, content):
+        self.content = Discussion._required_text(content, "content")
+
+    def soft_delete(self):
+        self.visibilityState = "DELETED"
 
     def toggle_like(self, student_id):
         if student_id in self.likedBy:

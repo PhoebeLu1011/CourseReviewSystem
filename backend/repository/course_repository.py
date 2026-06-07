@@ -1,19 +1,21 @@
 import re
-from models.course import Course
+from models.course import Course, CourseSearchCriteria
 
 class CourseRepository:
     def __init__(self, db):
         self.collection = db["courses"]
 
     def find_by_id(self, course_id):
-        # Check both English ID and Chinese Serial Number
         data = self.collection.find_one({
-            "$or": [{"courseID": course_id}, {"開課序號": course_id}]
+            "$or": [
+                {"courseID": course_id},
+                {"serialNumber": course_id},
+                {"開課序號": course_id},
+            ]
         })
         if not data:
             return None
-        data.pop("_id", None)
-        return Course(**data)
+        return self._to_course(data)
 
     def save(self, course):
         self.collection.update_one(
@@ -22,74 +24,71 @@ class CourseRepository:
             upsert=True
         )
 
-    def _build_query(self, search_query="", department=None, level=None,
-                     semester=None, academicYear=None):
+    def _build_query(self, criteria: CourseSearchCriteria):
         conditions = []
 
-        if search_query:
+        if criteria.query:
+            pattern = re.escape(criteria.query)
             conditions.append({
                 "$or": [
-                    {"title":        {"$regex": search_query, "$options": "i"}},
-                    {"課程名稱":     {"$regex": search_query, "$options": "i"}},
-                    {"professors":   {"$regex": search_query, "$options": "i"}},
-                    {"老師":         {"$regex": search_query, "$options": "i"}},
-                    {"courseCode":   {"$regex": search_query, "$options": "i"}},
-                    {"課程資訊":     {"$regex": search_query, "$options": "i"}},
-                    {"serialNumber": {"$regex": search_query, "$options": "i"}},
-                    {"開課序號":     {"$regex": search_query, "$options": "i"}},
-                    {"department":   {"$regex": search_query, "$options": "i"}},
-                    {"開課系所":     {"$regex": search_query, "$options": "i"}},
+                    {field: {"$regex": pattern, "$options": "i"}}
+                    for field in (
+                        "title", "課程名稱", "professors", "老師", "courseCode",
+                        "課程資訊", "serialNumber", "開課序號", "department", "開課系所",
+                    )
                 ]
             })
 
-        if department:
+        if criteria.department:
+            pattern = re.escape(criteria.department)
             conditions.append({
                 "$or": [
-                    {"department": {"$regex": re.escape(department), "$options": "i"}},
-                    {"開課系所": {"$regex": re.escape(department), "$options": "i"}}
+                    {"department": {"$regex": pattern, "$options": "i"}},
+                    {"開課系所": {"$regex": pattern, "$options": "i"}}
                 ]
             })
 
-        if semester:
+        if criteria.semester:
             conditions.append({
-                "$or": [{"semester": semester}, {"學期": semester}]
+                "$or": [{"semester": criteria.semester}, {"學期": criteria.semester}]
             })
 
-        if academicYear:
+        if criteria.academic_year:
             conditions.append({
-                "$or": [{"academicYear": academicYear}, {"學年": academicYear}]
+                "$or": [
+                    {"academicYear": criteria.academic_year},
+                    {"學年": criteria.academic_year},
+                ]
             })
 
-        if level:
-            # Tell MongoDB how to translate the English level into the raw Chinese tags
+        if criteria.level:
             level_conditions = [
-                {"level": level}, 
-                {"學制": level}
+                {"level": criteria.level},
+                {"學制": criteria.level},
             ]
-            
-            if level == "博士班":
+
+            if criteria.level == "博士班":
                 level_conditions.append({"開課系所": {"$regex": r"[（\(]博[）\)]"}})
-            elif level == "碩士班":
+            elif criteria.level == "碩士班":
                 level_conditions.append({"開課系所": {"$regex": r"[（\(]碩[）\)]"}})
-            elif level == "學士班":
+            elif criteria.level == "學士班":
                 level_conditions.append({"開課系所": {"$regex": r"[（\(]學[）\)]|學程$"}})
-            elif level == "其他":
-                # For 'other', find courses that don't match any of the above tags
+            elif criteria.level == "其他":
                 level_conditions.append({"開課系所": {"$not": {"$regex": r"[（\(][博碩學][）\)]|學程$"}}})
-                
+
             conditions.append({"$or": level_conditions})
 
         return {"$and": conditions} if conditions else {}
 
-    def search_courses(self, search_query, limit=20, skip=0,
-                       department=None, level=None, semester=None, academicYear=None):
-        query = self._build_query(search_query, department, level, semester, academicYear)
-        cursor = self.collection.find(query).skip(skip).limit(limit)
-        courses = []
-        for data in cursor:
-            data.pop("_id", None)
-            courses.append(Course(**data))
-        return courses
+    def search_courses(self, criteria: CourseSearchCriteria):
+        query = self._build_query(criteria)
+        cursor = (
+            self.collection.find(query)
+            .sort([("academicYear", -1), ("semester", -1), ("courseID", 1)])
+            .skip(criteria.skip)
+            .limit(criteria.limit)
+        )
+        return [self._to_course(data) for data in cursor]
 
     def get_departments(self):
         # Scan both fields in the database
@@ -113,7 +112,11 @@ class CourseRepository:
         years = set(str(y).strip() for y in (raw_years + zh_years) if y)
         return sorted(list(years), reverse=True)
         
-    def count_courses(self, search_query="", department=None, level=None,
-                      semester=None, academicYear=None):
-        query = self._build_query(search_query, department, level, semester, academicYear)
-        return self.collection.count_documents(query)
+    def count_courses(self, criteria: CourseSearchCriteria):
+        return self.collection.count_documents(self._build_query(criteria))
+
+    @staticmethod
+    def _to_course(data):
+        data = dict(data)
+        data.pop("_id", None)
+        return Course(**data)

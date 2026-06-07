@@ -9,6 +9,7 @@ class BadgeRepository:
         if not data:
             return None
 
+        data = dict(data)
         data.pop("_id", None)
         return Badge(**data)
 
@@ -19,6 +20,12 @@ class BadgeRepository:
     def find_by_id(self, badge_id: str):
         data = self.collection.find_one({"badgeID": badge_id})
         return self._to_badge(data)
+
+    def find_by_ids(self, badge_ids):
+        if not badge_ids:
+            return []
+        cursor = self.collection.find({"badgeID": {"$in": list(badge_ids)}})
+        return [self._to_badge(data) for data in cursor]
 
     def save(self, badge: Badge):
         self.collection.update_one(

@@ -13,6 +13,10 @@ class ReportReason(Enum):
     OTHER = "OTHER"
 
 
+REPORT_TYPES = {"review", "comment", "teammate_post"}
+REPORT_STATUSES = {"PENDING", "RESOLVED", "DISMISSED", "WITHDRAWN"}
+
+
 class Report:
     def __init__(
         self,
@@ -29,19 +33,57 @@ class Report:
         **kwargs
     ):
         self.reportID = reportID if reportID else str(uuid.uuid4())
-        self.reporterID = reporterID
-        self.reported_type = reported_type
-        self.reported_id = reported_id
-        self.reason = reason
-        self.description = description
+        self.reporterID = self._required_text(reporterID, "reporterID")
+        self.reported_type = self._required_text(reported_type, "reported_type")
+        self.reported_id = self._required_text(reported_id, "reported_id")
+        self.reason = self._required_text(reason, "reason")
+        self.description = description.strip() if isinstance(description, str) else None
         self.status = status
         self.handler_id = handler_id
         self.resolution = resolution
+        self._validate()
 
         if isinstance(timestamp, datetime):
             self.timestamp = timestamp.isoformat()
         else:
             self.timestamp = timestamp or datetime.now().isoformat()
+
+    @staticmethod
+    def _required_text(value, field_name):
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{field_name} is required.")
+        return value.strip()
+
+    def _validate(self):
+        if self.reported_type not in REPORT_TYPES:
+            raise ValueError("Invalid reported_type.")
+        if self.reason not in {reason.value for reason in ReportReason}:
+            raise ValueError("Invalid report reason.")
+        if self.status not in REPORT_STATUSES:
+            raise ValueError("Invalid report status.")
+
+    def is_pending(self):
+        return self.status == "PENDING"
+
+    def resolve(self, handler_id, resolution):
+        self._complete("RESOLVED", handler_id, resolution)
+
+    def dismiss(self, handler_id, resolution="dismissed"):
+        self._complete("DISMISSED", handler_id, resolution)
+
+    def withdraw(self, reporter_id):
+        if self.reporterID != reporter_id:
+            raise PermissionError("Only the reporter can withdraw this report.")
+        if not self.is_pending():
+            raise ValueError("Only pending reports can be withdrawn.")
+        self.status = "WITHDRAWN"
+
+    def _complete(self, status, handler_id, resolution):
+        if not self.is_pending():
+            raise ValueError("Only pending reports can be processed.")
+        self.status = status
+        self.handler_id = self._required_text(handler_id, "handler_id")
+        self.resolution = self._required_text(resolution, "resolution")
 
     def to_dict(self):
         return {

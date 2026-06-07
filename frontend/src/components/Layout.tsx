@@ -1,9 +1,8 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import { BookOpen, Star, MessageSquare, Users, Calendar, LogOut, LogIn, ShieldAlert } from "lucide-react";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001/api";
+import { API_BASE_URL } from "../config/api";
+import { NotificationPopover } from "./notifications/NotificationPopover";
 
 export default function Layout() {
   const location = useLocation();
@@ -85,6 +84,8 @@ export default function Layout() {
           <div className="hidden items-center gap-6 border-l pl-8 md:flex">
             {user ? (
               <>
+                {!isAdmin && <NotificationPopover studentId={user.id} />}
+
                 <Link
                   to={isAdmin ? "/admin" : "/profile"}
                   className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-secondary"
@@ -92,7 +93,7 @@ export default function Layout() {
                   <div className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm shrink-0 overflow-hidden bg-gradient-to-tr from-rose-500 to-amber-400">
                     {!isAdmin && user?.avatar ? (
                       <img
-                        src={`${API_BASE_URL}/user/avatar/${user.avatar}`}
+                        src={`${API_BASE_URL}/api/user/avatar/${user.avatar}`}
                         alt="Avatar"
                         className="h-full w-full object-cover"
                       />

@@ -1,16 +1,16 @@
 from flask import Blueprint, jsonify
 
-def create_achievement_routes(achievement_service, student_repo):
+def create_achievement_routes(achievement_service, _student_repo, authorization_service):
     achievement_bp = Blueprint("achievement", __name__, url_prefix="/achievements")
+
+    @achievement_bp.errorhandler(ValueError)
+    def handle_value_error(error):
+        status = 404 if "not found" in str(error).lower() else 400
+        return jsonify({"message": str(error)}), status
 
     @achievement_bp.route("/students/<student_id>/badges", methods=["GET"])
     def get_student_badges(student_id):
-        student = student_repo.find_by_id(student_id)
-
-        if not student:
-            return jsonify({"error": "Student not found."}), 404
-
-        badges = achievement_service.get_current_badges(student)
+        student, badges = achievement_service.get_student_badges(student_id)
 
         return jsonify({
             "studentID": student.studentID,
@@ -19,12 +19,7 @@ def create_achievement_routes(achievement_service, student_repo):
 
     @achievement_bp.route("/students/<student_id>/score", methods=["GET"])
     def get_student_achievement_score(student_id):
-        student = student_repo.find_by_id(student_id)
-
-        if not student:
-            return jsonify({"error": "Student not found."}), 404
-
-        score = achievement_service.calculate_achievement_score(student)
+        student, score = achievement_service.get_student_score(student_id)
 
         return jsonify({
             "studentID": student.studentID,
@@ -35,14 +30,12 @@ def create_achievement_routes(achievement_service, student_repo):
         }), 200
 
     @achievement_bp.route("/students/<student_id>/badges/check", methods=["POST"])
+    @authorization_service.require_student
     def check_student_badges(student_id):
-        student = student_repo.find_by_id(student_id)
+        if student_id != authorization_service.current_student_id():
+            return jsonify({"message": "Permission denied."}), 403
 
-        if not student:
-            return jsonify({"error": "Student not found."}), 404
-
-        new_badges = achievement_service.update_student_badges(student)
-        student_repo.save(student)
+        student, new_badges = achievement_service.award_eligible_badges(student_id)
 
         return jsonify({
             "studentID": student.studentID,
