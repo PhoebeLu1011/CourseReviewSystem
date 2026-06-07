@@ -5,6 +5,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../context/AuthContext";
 import { getDiscussionByID, getDiscussionReplies, createReply, toggleLikeDiscussion, toggleLikeReply, type Discussion, type Reply } from "../api/discussionApi";
+import { formatCourseDisplayCode } from "../utils/courseDisplay";
 
 export default function DiscussionDetail() {
   const { discussionID } = useParams<{ discussionID: string }>();
@@ -107,6 +108,7 @@ export default function DiscussionDetail() {
   }
 
   const isPostLikedByMe = user && discussion.likedBy?.includes(user.id);
+  const courseDisplayCode = formatCourseDisplayCode(discussion.courseID);
 
   return (
     <div className="max-w-4xl mx-auto pb-16 space-y-6">
@@ -119,7 +121,7 @@ export default function DiscussionDetail() {
           <ArrowLeft size={16} /> Back to All Discussions
         </Link>
         <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border">
-          {discussion.courseID}
+          {courseDisplayCode}
         </span>
       </div>
 

@@ -1,4 +1,4 @@
-class GroupManagementFacade:
+class GroupDashboardService:
     """Builds the read model used by a student's group management dashboard."""
 
     def __init__(self, group_repo, application_repo):

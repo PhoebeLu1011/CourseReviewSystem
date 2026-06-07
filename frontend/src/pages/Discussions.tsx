@@ -6,6 +6,7 @@ import { Link } from "react-router";
 import { getAllDiscussions, createDiscussion, toggleLikeDiscussion, type Discussion } from "../api/discussionApi";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
+import { formatCourseDisplayCode } from "../utils/courseDisplay";
 
 export default function Discussions() {
   const { user } = useAuth();
@@ -144,7 +145,7 @@ export default function Discussions() {
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-md border">
-                        {disc.courseID}
+                        {formatCourseDisplayCode(disc.courseID)}
                       </span>
                       <h3 className="font-bold text-lg text-slate-900 mt-2 hover:text-primary transition-colors">
                         {disc.title}

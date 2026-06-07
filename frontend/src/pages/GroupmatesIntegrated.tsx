@@ -7,6 +7,7 @@ import { ALL_COURSES_ID } from "../components/groupmates/groupmateOptions";
 import { Card, CardContent } from "../components/ui/card";
 import { useAuth } from "../context/AuthContext";
 import { useGroupmateDiscovery } from "../hooks/useGroupmateDiscovery";
+import { formatCourseDisplayCode } from "../utils/courseDisplay";
 
 export default function GroupmatesIntegrated() {
   const { user } = useAuth();
@@ -57,7 +58,7 @@ export default function GroupmatesIntegrated() {
           <p className="mb-4 text-sm text-slate-500">
             共 {discovery.filteredGroups.length} 筆揪人
             {discovery.selectedCourseId !== ALL_COURSES_ID && selectedCourse
-              ? `（${selectedCourse.courseCode || selectedCourse.courseID}）`
+              ? `（${selectedCourse.courseCode || formatCourseDisplayCode(selectedCourse.courseID)}）`
               : ""}
           </p>
           {discovery.isLoadingGroups ? (

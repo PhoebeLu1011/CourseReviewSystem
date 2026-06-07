@@ -3,6 +3,7 @@ import { CheckCircle2, Flag, Loader2, Lock, ThumbsUp } from "lucide-react";
 
 import type { Review } from "../../api/reviewApi";
 import type { AuthUser } from "../../api/userApi";
+import { cleanCourseTitle, formatCourseDisplayCode } from "../../utils/courseDisplay";
 import { Card, CardContent } from "../ui/card";
 import { ReviewRatingIcons } from "./ReviewRatingIcons";
 
@@ -94,8 +95,9 @@ function ReviewCard({
 
   const date = new Date(review.timestamp).toLocaleDateString();
   const titleParts = (review.courseName || "").split(/<\/?br\s*\/?>/i);
-  const mainTitle = titleParts[0];
+  const mainTitle = cleanCourseTitle(review.courseName);
   const subTitle = titleParts[1] ? titleParts[1].trim() : "";
+  const courseCode = formatCourseDisplayCode(review.courseID);
   const isLikedByMe = Boolean(user && review.likedBy?.includes(user.id));
 
   return (
@@ -104,7 +106,7 @@ function ReviewCard({
         <div className="flex justify-between items-start gap-4">
           <div>
             <h3 className="font-bold text-lg text-slate-900">
-              {review.courseID} {mainTitle ? `— ${mainTitle}` : ""}
+              {courseCode} {mainTitle ? `— ${mainTitle}` : ""}
             </h3>
             {subTitle && (
               <p className="text-sm font-normal text-muted-foreground mt-0.5">

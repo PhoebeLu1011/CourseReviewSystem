@@ -104,34 +104,62 @@ services/engagement/      bookmark, achievement, schedule
 | Domain model | State transitions and invariants | Database or HTTP |
 | Repository | Queries, mapping, atomic writes | UI or cross-use-case flow |
 
-Important current patterns:
+Important architecture notes:
 
 - `backend/app.py` is the composition root.
 - Services receive repositories/collaborators by constructor injection.
 - `AuthorizationService` guards protected routes.
 - `CourseRatingSynchronizer` updates course rating projection after review changes.
-- `GroupManagementFacade` builds profile group dashboard data.
+- `GroupDashboardService` builds profile group dashboard data.
 - `AdminAnalyticsService` builds admin dashboard read models.
 - `BestEffortNotificationPublisher` prevents notification failures from breaking core flows.
 
+## Architecture Audit Score
+
+Latest review: model dependency, file responsibility, OOP boundaries, and over-engineering check.
+
+| Area | Score | Result |
+| --- | ---: | --- |
+| Domain model independence | 9.5/10 | `backend/models/` has no service/repository/route/Flask/Mongo dependency |
+| Backend responsibility split | 8.6/10 | Routes adapt HTTP, services orchestrate use cases, repositories own persistence |
+| Frontend responsibility split | 8.2/10 | API clients own HTTP; pages/hooks/components are mostly separated |
+| OOP fit | 8.7/10 | Domain objects own lifecycle rules; services own workflows |
+| Design pattern restraint | 8.4/10 | Removed unused factory/specification/strategy/facade layers; remaining patterns have real variation |
+| Overall maintainability | 8.5/10 | Solid first pass; a few large files remain |
+
+Current checks:
+
+- Models do not import services, repositories, routes, Flask, MongoDB, or frontend code.
+- `Badge.is_earned_by()` owns badge eligibility; `AchievementService` selects highest eligible badges.
+- Course/review/discussion display uses clean course codes while keeping composite `courseID` for data links.
+- Recommendation scoring is plain functions, not strategy classes.
+- Bookmark and notification creation no longer use unnecessary factory classes.
+
+Remaining cleanup candidates:
+
+- `frontend/src/components/courseDetail/ReviewsTab.tsx` is still large.
+- `frontend/src/components/profile/GroupManagementPanel.tsx` and `frontend/src/hooks/useUserProfile.ts` can be split further.
+- `backend/services/group/application_service.py` is the largest backend use case service; it is cohesive, but can be sectioned if it grows again.
+- `AuthorizationService` intentionally contains Flask route guard behavior; split only if we need a framework-neutral auth core.
+
 ## Main Use Cases
 
-| Use Case | Main Files | Pattern Notes |
+| Use Case | Main Files | Responsibility Notes |
 | --- | --- | --- |
-| Auth | `services/auth/`, `routes/auth_routes.py` | Strategy, Factory, JWT service |
-| User Profile | `services/profile/`, `routes/user_routes.py` | Service layer, GridFS adapter |
-| Course Search | `course_service.py`, `CourseSearchCriteria` | Query object, repository |
-| Review | `review_service.py`, `Review`, `CourseRatingSynchronizer` | Domain model, synchronizer |
-| Discussion | `discussion_service.py`, `Discussion`, `Reply` | Domain model, repository |
-| Group | `services/group/`, `Group` | Lifecycle model, facade |
-| Application | `application_service.py`, `Application` | Atomic insert, compensating action |
-| Recommendation | `group_recommendation_service.py` | Strategy scoring |
-| Notification | `notification_service.py`, `NotificationFactory` | Factory, best-effort decorator |
-| Report/Admin Audit | `report_service.py`, `admin_service.py` | Handler registry |
-| Announcement | `announcement_service.py`, `AnnouncementQuery` | Query object, soft delete |
-| Bookmark | `favorite_service.py`, `BookmarkFactory` | Idempotent insert |
-| Achievement | `achievement_service.py` | Strategy, specification |
-| Schedule | `schedule_service.py`, `ScheduleContext` | Account sync, local fallback |
+| Auth | `services/auth/`, `routes/auth_routes.py` | Registration validation, role login, JWT |
+| User Profile | `services/profile/`, `routes/user_routes.py` | Profile update and avatar storage |
+| Course Search | `course_service.py`, `CourseSearchCriteria` | Search filters and repository query |
+| Review | `review_service.py`, `Review`, `CourseRatingSynchronizer` | Review state change and rating projection sync |
+| Discussion | `discussion_service.py`, `Discussion`, `Reply` | Discussion/reply lifecycle |
+| Group | `services/group/`, `Group` | Group lifecycle and dashboard data |
+| Application | `application_service.py`, `Application` | Submit/approve/reject/cancel group applications |
+| Recommendation | `group_recommendation_service.py`, `group_recommendation_scoring.py` | Candidate filtering and rule-based score |
+| Notification | `notification_service.py`, `create_notification_from_event()` | Event template mapping and delivery |
+| Report/Admin Audit | `report_service.py`, `admin_service.py` | Report lifecycle and admin target actions |
+| Announcement | `announcement_service.py`, `AnnouncementQuery` | Announcement query, publish, soft delete |
+| Bookmark | `favorite_service.py`, `Bookmark` | Course bookmark add/remove/query |
+| Achievement | `achievement_service.py`, `Badge` | Score calculation and badge eligibility |
+| Schedule | `schedule_service.py`, `ScheduleContext` | Account schedule sync and local fallback |
 
 More detail:
 
@@ -259,23 +287,21 @@ Create feature branches from `develop`, then merge back through PR after tests p
 | Models | `frontend/src/models/` | Shared frontend DTO/type contracts |
 | Config/styles | `frontend/src/config/`, `frontend/src/styles/` | API config and global styles |
 
-## Appendix B: Design Pattern Index
+## Appendix B: Design Patterns Used
 
-| Pattern | Where | Why |
+| Pattern | Where | Purpose |
 | --- | --- | --- |
-| Repository | `backend/repository/` | Keeps MongoDB details out of services and domain models |
-| Dependency Injection | `backend/app.py` | Wires services/repositories once and keeps tests replaceable |
-| Strategy | Auth login, group recommendation, achievement score, admin report handlers | Keeps variable rules out of large condition-heavy services |
-| Factory Method | Student registration, notification, bookmark | Centralizes domain object creation and normalization |
-| Facade | `GroupManagementFacade` | Builds profile group dashboard data from multiple sources |
-| Adapter | `GridFSAvatarStorage`, `frontend/src/api/apiClient.ts` | Hides external/storage/HTTP details behind stable interfaces |
-| Query Object | `CourseSearchCriteria`, `AnnouncementQuery` | Encapsulates query filters and validation |
-| Specification | Badge eligibility | Expresses achievement eligibility rules cleanly |
-| Decorator | Authorization guards, `BestEffortNotificationPublisher` | Adds cross-cutting behavior without polluting use cases |
-| Synchronizer / Observer-style collaborator | `CourseRatingSynchronizer` | Updates course rating projection after review changes |
-| Read Model | `AdminAnalyticsService`, `GroupManagementFacade` | Produces UI-ready data without pushing aggregation into pages |
-| Compensating Action | Review/application/group/avatar flows | Repairs partial writes when multi-step operations fail |
-| Container + Presentational split | `useUserProfile`, `useGroupmateDiscovery`, feature panels | Hooks own orchestration; components own display |
+| Repository | `backend/repository/` | Hide MongoDB queries and document mapping |
+| Dependency Injection | `backend/app.py` | Wire services once and keep tests replaceable |
+| Strategy | Auth login, admin report handlers | Select different behavior by role or reported target |
+| Factory Method | `StudentRegistrationFactory` | Validate registration input and build `Student` consistently |
+| Adapter | `GridFSAvatarStorage`, `apiClient.ts` | Hide GridFS/HTTP details behind stable methods |
+| Query Object | `CourseSearchCriteria`, `AnnouncementQuery` | Keep query normalization out of routes |
+| Decorator | Route guards, `BestEffortNotificationPublisher` | Add auth/best-effort behavior around core use cases |
+| Read Model | `AdminAnalyticsService`, `GroupDashboardService` | Return UI-ready aggregate data |
+| Synchronizer | `CourseRatingSynchronizer` | Recalculate course rating projection after review changes |
+| Compensating Action | Review/application/group/avatar flows | Undo partial writes when a later step fails |
+| Container + Presentational | Feature hooks/pages plus components | Keep UI orchestration separate from rendering |
 
 ## Appendix C: Use Case Diagrams
 
@@ -291,7 +317,7 @@ flowchart LR
     Service --> Domain[Domain Models]
     Service --> Repo[Repositories]
     Repo --> Mongo[(MongoDB and GridFS)]
-    Service --> Collaborator[Strategies, Factories, Facades, Synchronizers]
+    Service --> Collaborator[Policies, Read Models, Synchronizers]
 ```
 
 ### Auth
@@ -388,11 +414,11 @@ sequenceDiagram
     participant Service as GroupRecommendationService
     participant Repo as GroupRepository
     participant AppRepo as ApplicationRepository
-    participant Strategy as ScoringStrategies
+    participant Scoring as scoring functions
     Service->>Repo: find joinable groups
     Service->>AppRepo: find joined/pending courses
     loop eligible groups
-        Service->>Strategy: calculate score
+        Service->>Scoring: calculate score
     end
     Service-->>Student: sorted recommendations
 ```
@@ -404,11 +430,11 @@ sequenceDiagram
     participant UseCase as Calling Use Case
     participant Publisher as BestEffortNotificationPublisher
     participant Service as NotificationService
-    participant Factory as NotificationFactory
+    participant Template as create_notification_from_event
     participant Repo as NotificationRepository
     UseCase->>Publisher: publish event
     Publisher->>Service: publish
-    Service->>Factory: create notification
+    Service->>Template: build notification
     Service->>Repo: save
     Publisher-->>UseCase: ignore secondary failure
 ```
@@ -492,11 +518,11 @@ sequenceDiagram
 | `models/group.py` | Group lifecycle and membership invariants |
 | `models/application.py` | Group application status lifecycle |
 | `models/schedule.py` | Account schedule course snapshots |
-| `models/notification.py` | Notification entity and factory |
+| `models/notification.py` | Notification entity and event template mapping |
 | `models/report.py` | Report reasons, status, resolve/withdraw behavior |
 | `models/announcement.py` | Announcement entity and query object |
-| `models/bookmark.py` | Bookmark entity and factory |
-| `models/badge.py` | Badge entity and validation |
+| `models/bookmark.py` | Bookmark entity |
+| `models/badge.py` | Badge entity, validation, eligibility rule |
 
 ### Backend Repositories
 
@@ -551,16 +577,16 @@ sequenceDiagram
 | `services/discussion/discussion_service.py` | Discussion/reply use cases |
 | `services/group/group_service.py` | Group lifecycle orchestration |
 | `services/group/application_service.py` | Group application submit/approve/reject/cancel |
-| `services/group/group_management_facade.py` | Profile group management read model |
+| `services/group/group_dashboard_service.py` | Profile group management read model |
 | `services/group/group_recommendation_service.py` | Group recommendation orchestration |
-| `services/group/group_recommendation_strategies.py` | Recommendation scoring strategies |
+| `services/group/group_recommendation_scoring.py` | Recommendation scoring functions |
 | `services/admin/admin_service.py` | Admin report handler registry and actions |
 | `services/admin/admin_analytics_service.py` | Admin dashboard summary read model |
-| `services/communication/notification_service.py` | Notification publish/read and best-effort decorator |
+| `services/communication/notification_service.py` | Notification publish/read and best-effort publisher |
 | `services/communication/announcement_service.py` | Announcement lifecycle |
 | `services/communication/report_service.py` | Student report submit/query/withdraw |
 | `services/engagement/favorite_service.py` | Bookmark use cases |
-| `services/engagement/achievement_service.py` | Achievement score and badge eligibility |
+| `services/engagement/achievement_service.py` | Achievement score and highest eligible badge selection |
 | `services/engagement/schedule_service.py` | Account schedule sync use cases |
 
 ### Backend Scripts, Migrations, Tests

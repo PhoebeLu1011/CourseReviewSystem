@@ -1,11 +1,7 @@
 from dataclasses import dataclass
 
 from models.group import Group
-from services.group.group_recommendation_strategies import (
-    CapacityScoringStrategy,
-    DeadlineUrgencyScoringStrategy,
-    StudentSimilarityScoringStrategy,
-)
+from services.group.group_recommendation_scoring import calculate_group_match_score
 
 
 @dataclass(frozen=True)
@@ -20,14 +16,9 @@ class GroupRecommendation:
 
 
 class GroupRecommendationService:
-    def __init__(self, group_repo, application_repo=None, scoring_strategies=None):
+    def __init__(self, group_repo, application_repo=None):
         self.group_repo = group_repo
         self.application_repo = application_repo
-        self.scoring_strategies = scoring_strategies or [
-            StudentSimilarityScoringStrategy(),
-            CapacityScoringStrategy(),
-            DeadlineUrgencyScoringStrategy(),
-        ]
 
     def list_joinable_groups(self, course_id: str | None = None) -> list[Group]:
         return self.group_repo.find_joinable_by_course(course_id)
@@ -81,7 +72,4 @@ class GroupRecommendationService:
         )
 
     def calculate_match_score(self, student_id: str, group: Group) -> float:
-        return sum(
-            strategy.score(student_id, group)
-            for strategy in self.scoring_strategies
-        )
+        return calculate_group_match_score(student_id, group)
