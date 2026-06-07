@@ -1,6 +1,7 @@
 from models.discussion import Reply
 from bson import ObjectId
 from bson.errors import InvalidId
+from pymongo import ReturnDocument
 
 
 class ReplyRepository:
@@ -11,6 +12,7 @@ class ReplyRepository:
         if not data:
             return None
 
+        data = dict(data)
         data.pop("_id", None)
         return Reply(**data)
 
@@ -73,7 +75,14 @@ class ReplyRepository:
         return results
 
     def delete_reply(self, reply_id):
-        self._update_visibility(reply_id, "DELETED")
+        result = self.collection.update_one(
+            self._visible_query({"replyID": reply_id}),
+            {"$set": {"visibilityState": "DELETED"}},
+        )
+        return result.modified_count > 0
+
+    def hard_delete_reply(self, reply_id):
+        self.collection.delete_one({"replyID": reply_id})
 
     def hide_reply(self, reply_id):
         self._update_visibility(reply_id, "HIDDEN")
@@ -84,6 +93,37 @@ class ReplyRepository:
             {"discussionID": discussion_id},
             {"$set": {"visibilityState": "DELETED"}}
         )
+
+    def toggle_like(self, reply_id, student_id):
+        data = self.collection.find_one_and_update(
+            self._visible_query({"replyID": reply_id}),
+            [
+                {
+                    "$set": {
+                        "likedBy": {
+                            "$cond": [
+                                {"$in": [student_id, {"$ifNull": ["$likedBy", []]}]},
+                                {
+                                    "$setDifference": [
+                                        {"$ifNull": ["$likedBy", []]},
+                                        [student_id],
+                                    ]
+                                },
+                                {
+                                    "$setUnion": [
+                                        {"$ifNull": ["$likedBy", []]},
+                                        [student_id],
+                                    ]
+                                },
+                            ]
+                        }
+                    }
+                },
+                {"$set": {"likeCount": {"$size": "$likedBy"}}},
+            ],
+            return_document=ReturnDocument.AFTER,
+        )
+        return self._to_reply(data)
 
     def _update_visibility(self, reply_id, visibility_state):
         update = {"$set": {"visibilityState": visibility_state}}

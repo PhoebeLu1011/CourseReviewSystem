@@ -1,16 +1,10 @@
 import { useEffect, useState } from "react";
 import { Users, FileWarning, Megaphone, TrendingUp } from "lucide-react";
 import { clsx } from "clsx";
-import { API_BASE_URL } from "../../config/api";
-
-type Report = {
-  status: "PENDING" | "RESOLVED" | "DISMISSED" | "WITHDRAWN";
-};
-
-type Announcement = {
-  announcementID: string;
-  is_pinned?: boolean;
-};
+import {
+  getAdminAnalyticsSummary,
+  type AdminAnalyticsSummary,
+} from "../../api/adminAnalyticsApi";
 
 type StatCard = {
   title: string;
@@ -23,9 +17,11 @@ type StatCard = {
 };
 
 export function AnalyticsCards() {
-  const [pendingReports, setPendingReports] = useState(0);
-  const [totalReports, setTotalReports] = useState(0);
-  const [activeAnnouncements, setActiveAnnouncements] = useState(0);
+  const [summary, setSummary] = useState<AdminAnalyticsSummary>({
+    pendingReports: 0,
+    totalReports: 0,
+    activeAnnouncements: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -33,19 +29,7 @@ export function AnalyticsCards() {
       setIsLoading(true);
 
       try {
-        const [reportsRes, announcementsRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/admin/reports/all`),
-          fetch(`${API_BASE_URL}/admin/announcements`),
-        ]);
-
-        const reports: Report[] = reportsRes.ok ? await reportsRes.json() : [];
-        const announcements: Announcement[] = announcementsRes.ok
-          ? await announcementsRes.json()
-          : [];
-
-        setPendingReports(reports.filter((report) => report.status === "PENDING").length);
-        setTotalReports(reports.length);
-        setActiveAnnouncements(announcements.length);
+        setSummary(await getAdminAnalyticsSummary());
       } catch (err) {
         console.error("Failed to load admin analytics:", err);
       } finally {
@@ -59,16 +43,16 @@ export function AnalyticsCards() {
   const stats: StatCard[] = [
     {
       title: "Pending Reports",
-      value: isLoading ? "..." : String(pendingReports),
+      value: isLoading ? "..." : String(summary.pendingReports),
       icon: FileWarning,
       trend: "Live",
-      trendUp: pendingReports === 0,
+      trendUp: summary.pendingReports === 0,
       color: "text-amber-600",
       bg: "bg-amber-100",
     },
     {
       title: "Total Reports",
-      value: isLoading ? "..." : String(totalReports),
+      value: isLoading ? "..." : String(summary.totalReports),
       icon: Users,
       trend: "All",
       trendUp: true,
@@ -77,7 +61,7 @@ export function AnalyticsCards() {
     },
     {
       title: "Active Announcements",
-      value: isLoading ? "..." : String(activeAnnouncements),
+      value: isLoading ? "..." : String(summary.activeAnnouncements),
       icon: Megaphone,
       trend: "Live",
       trendUp: true,

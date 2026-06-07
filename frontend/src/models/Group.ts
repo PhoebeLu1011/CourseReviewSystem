@@ -1,3 +1,5 @@
+import type { Application } from "./Application";
+
 export type GroupStatus = "open" | "closed";
 
 export interface Group {
@@ -17,4 +19,15 @@ export interface Group {
 
 export interface RecommendedGroupDTO extends Group {
     recommendation_score: number;
+}
+
+export interface LedGroupManagement {
+    group: Group;
+    pending_applications: Application[];
+}
+
+export interface GroupManagementDashboard {
+    led_groups: LedGroupManagement[];
+    member_groups: Group[];
+    applications: Application[];
 }

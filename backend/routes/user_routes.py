@@ -1,9 +1,16 @@
-from flask import Blueprint, request, jsonify
-from services.user_service import UserService
+import io
+
+from flask import Blueprint, request, jsonify, send_file
+from services.profile.user_service import UserService
 from departments import DEPARTMENTS_DATA
 
-def create_user_routes(user_service: UserService):
+def create_user_routes(user_service: UserService, authorization_service):
     user_bp = Blueprint('user', __name__)
+
+    @user_bp.errorhandler(ValueError)
+    def handle_value_error(error):
+        status = 404 if "not found" in str(error).lower() else 400
+        return jsonify({"success": False, "message": str(error)}), status
 
     @user_bp.route('/departments', methods=['GET'])
     def get_departments():
@@ -14,58 +21,51 @@ def create_user_routes(user_service: UserService):
 
     # 取得個人檔案
     @user_bp.route('/profile', methods=['GET'])
+    @authorization_service.require_student
     def get_profile():
-        auth_header = request.headers.get("Authorization")
-        if not auth_header:
-            return jsonify({"success": False, "message": "Authorization header is required."}), 401
-
-        result = user_service.get_profile(auth_header)
-        if not result["success"]:
-            return jsonify(result), 401
-            
-        return jsonify(result)
+        student = user_service.get_profile(authorization_service.current_student_id())
+        return jsonify({
+            "success": True,
+            "message": "Profile retrieved successfully.",
+            "student": student,
+        }), 200
     # 上傳頭像 API
     @user_bp.route('/avatar', methods=['POST'])
+    @authorization_service.require_student
     def upload_avatar():
-        auth_header = request.headers.get("Authorization")
-        if not auth_header:
-            return jsonify({"success": False, "message": "Authorization header is required."}), 401
-
         if 'avatar' not in request.files:
             return jsonify({"success": False, "message": "Missing avatar file."}), 400
 
         file = request.files['avatar']
-        result = user_service.upload_avatar(auth_header, file)
-        
-        if not result["success"]:
-            return jsonify(result), 400
-        return jsonify(result), 200
+        avatar_id = user_service.upload_avatar(
+            authorization_service.current_student_id(),
+            file,
+        )
+        return jsonify({
+            "success": True,
+            "message": "Avatar uploaded successfully.",
+            "avatar_id": avatar_id,
+        }), 200
     
     # 讀取頭像 API
     @user_bp.route('/avatar/<file_id>', methods=['GET'])
     def get_avatar(file_id):
-        stream = user_service.get_avatar_stream(file_id)
-        if not stream:
-            return jsonify({"success": False, "message": "Avatar not found."}), 404
-        return stream
+        avatar = user_service.get_avatar(file_id)
+        return send_file(io.BytesIO(avatar.content), mimetype=avatar.content_type)
 
     # 2. 修改個人檔案 
-    @user_bp.route('/<student_id>', methods=['PUT', 'OPTIONS'])
+    @user_bp.route('/<student_id>', methods=['PUT'])
+    @authorization_service.require_student
     def update_profile(student_id):
-        if request.method == 'OPTIONS':
-            return '', 200
-            
-        auth_header = request.headers.get("Authorization")
-        if not auth_header:
-            return jsonify({"success": False, "message": "Authorization header is required."}), 401
+        if student_id != authorization_service.current_student_id():
+            return jsonify({"success": False, "message": "Permission denied."}), 403
 
-        data = request.json
-        # 呼叫 Service 處理更新，依序傳入 Token, 學號, 前端修改的資料
-        result = user_service.update_profile(auth_header, student_id, data)
-        
-        if not result.get("success"):
-            return jsonify(result), 400
-            
-        return jsonify(result), 200
+        data = request.json or {}
+        student = user_service.update_profile(student_id, data)
+        return jsonify({
+            "success": True,
+            "message": "Profile updated successfully.",
+            "student": student,
+        }), 200
 
     return user_bp

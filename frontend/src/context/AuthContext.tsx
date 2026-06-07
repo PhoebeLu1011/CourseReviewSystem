@@ -1,46 +1,47 @@
 import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
-
-interface User {
-  id: string;
-  name: string;
-  role: "Student" | "Admin";
-  account?: string;
-  email?: string;
-  department?: string;
-  avatar?: string;
-  bio?: string; 
-  birthday?: string; 
-  interests?: string[];
-}
+import type { AuthUser } from "../api/userApi";
 
 interface AuthContextType {
-  user: User | null;
-  login: (userData: User, token: string) => void;
+  user: AuthUser | null;
+  login: (userData: AuthUser, token: string) => void;
   logout: () => void;
+  updateUser: (patch: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-function loadStoredUser(): User | null {
+function loadStoredUser(): AuthUser | null {
   const savedUser = localStorage.getItem("user");
+  const token = localStorage.getItem("token");
 
-  if (!savedUser) {
+  if (!savedUser || !token) {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
     return null;
   }
 
   try {
-    return JSON.parse(savedUser) as User;
+    const user = JSON.parse(savedUser) as Partial<AuthUser>;
+    if (
+      !user.id ||
+      !user.name ||
+      (user.role !== "Student" && user.role !== "Admin")
+    ) {
+      throw new Error("Stored user is invalid.");
+    }
+    return user as AuthUser;
   } catch {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     return null;
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(loadStoredUser);
+  const [user, setUser] = useState<AuthUser | null>(loadStoredUser);
 
-  const login = (userData: User, token: string) => {
+  const login = (userData: AuthUser, token: string) => {
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("token", token);
     setUser(userData);
@@ -52,8 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const updateUser = (patch: Partial<AuthUser>) => {
+    setUser((current) => {
+      if (!current) return current;
+      const next = { ...current, ...patch };
+      localStorage.setItem("user", JSON.stringify(next));
+      return next;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

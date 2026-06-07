@@ -1,29 +1,45 @@
-import { createBrowserRouter } from "react-router";
+import { lazy, Suspense, type ReactNode } from "react";
+import { createBrowserRouter, Navigate } from "react-router";
 import Layout from "./components/Layout";
-import Home from "./pages/Home";
-import CourseCatalog from "./pages/CourseCatalog";
-import CourseDetail from "./pages/CourseDetail";
-import DiscussionDetail from "./pages/DiscussionDetail";
-import GroupmatesIntegrated from "./pages/GroupmatesIntegrated";
-import UserProfile from "./pages/UserProfile";
-import AdminLayout from "./pages/admin/AdminLayout"; 
-import Schedule from "./pages/Schedule";
-import Reviews from "./pages/Reviews";
-import { AuditCenter } from "./pages/admin/AuditCenter";
-import { AnnouncementEditor } from "./pages/admin/AnnouncementEditor";
-import { Login } from "./pages/auth/Login"; 
-import { Register }from "./pages/auth/Register";
-import Discussions from "./pages/Discussions";
+import { RouteGuard } from "./components/auth/RouteGuard";
 
-function PlaceholderPage({ title }: { title: string }) {
+const Home = lazy(() => import("./pages/Home"));
+const CourseCatalog = lazy(() => import("./pages/CourseCatalog"));
+const CourseDetail = lazy(() => import("./pages/CourseDetail"));
+const DiscussionDetail = lazy(() => import("./pages/DiscussionDetail"));
+const GroupmatesIntegrated = lazy(() => import("./pages/GroupmatesIntegrated"));
+const UserProfile = lazy(() => import("./pages/UserProfile"));
+const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
+const Schedule = lazy(() => import("./pages/Schedule"));
+const Reviews = lazy(() => import("./pages/Reviews"));
+const Discussions = lazy(() => import("./pages/Discussions"));
+const AuditCenter = lazy(() =>
+  import("./pages/admin/AuditCenter").then((module) => ({
+    default: module.AuditCenter,
+  }))
+);
+const AnnouncementEditor = lazy(() =>
+  import("./pages/admin/AnnouncementEditor").then((module) => ({
+    default: module.AnnouncementEditor,
+  }))
+);
+const Login = lazy(() =>
+  import("./pages/auth/Login").then((module) => ({ default: module.Login }))
+);
+const Register = lazy(() =>
+  import("./pages/auth/Register").then((module) => ({ default: module.Register }))
+);
+
+function RouteFallback() {
   return (
-    <div className="rounded-lg border bg-card p-6 shadow-sm">
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      <p className="mt-2 text-muted-foreground">
-        This page will be implemented later.
-      </p>
+    <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground shadow-sm">
+      Loading page...
     </div>
   );
+}
+
+function lazyPage(children: ReactNode) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
 }
 
 export const router = createBrowserRouter([
@@ -33,62 +49,70 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Home />,
+        element: lazyPage(<Home />),
       },
       {
         path: "auth/login",
-        element: <Login />,
+        element: lazyPage(<Login />),
       },
       {
         path: "auth/register",
-        element: <Register />,
+        element: lazyPage(<Register />),
       },
       {
         path: "courses",
-        element: <CourseCatalog />,
+        element: lazyPage(<CourseCatalog />),
       },
       {
         path: "courses/:courseID",
-        element: <CourseDetail />,
+        element: lazyPage(<CourseDetail />),
       },
       {
         path: "courses/:courseID/discussions/:discussionID",
-        element: <DiscussionDetail />,
+        element: lazyPage(<DiscussionDetail />),
       },
       {
         path: "groups",
-        element: <GroupmatesIntegrated />,
+        element: lazyPage(<GroupmatesIntegrated />),
       },
       {
         path: "achievements",
-        element: <PlaceholderPage title="Achievements" />,
+        element: <Navigate to="/profile" replace />,
       },
       {
         path: "schedule",
-        element: <Schedule />,
+        element: lazyPage(<Schedule />),
       },
       {
         path: "reviews",
-        element: <Reviews />, 
+        element: lazyPage(<Reviews />),
       },
       {
         path: "discussions",
-        element: <Discussions/>,
+        element: lazyPage(<Discussions />),
       },
       {
         path: "profile",
-        element: <UserProfile />,
+        element: (
+          <RouteGuard allowedRoles={["Student"]}>
+            {lazyPage(<UserProfile />)}
+          </RouteGuard>
+        ),
       },
     ],
   },
   // 修正：Admin panel 是獨立的 layout（不套用一般 Layout）
   {
   path: "/admin",
-  element: <AdminLayout />,
+  element: (
+    <RouteGuard allowedRoles={["Admin"]}>
+      {lazyPage(<AdminLayout />)}
+    </RouteGuard>
+  ),
   children: [
-    { index: true, element: <AuditCenter /> },
-    { path: "audit", element: <AuditCenter /> },
-    { path: "announcements", element: <AnnouncementEditor /> },
+    { index: true, element: lazyPage(<AuditCenter />) },
+    { path: "audit", element: lazyPage(<AuditCenter />) },
+    { path: "announcements", element: lazyPage(<AnnouncementEditor />) },
   ],
   }
 ]);

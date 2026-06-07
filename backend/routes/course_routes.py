@@ -10,13 +10,16 @@ from flask import Blueprint, request, jsonify
 def create_course_routes(course_service):
     course_bp = Blueprint("courses", __name__)
 
-    # ── Static paths first ───────────────────────────────────────────────────
+    @course_bp.errorhandler(ValueError)
+    def handle_value_error(error):
+        status = 404 if "not found" in str(error).lower() else 400
+        return jsonify({"message": str(error)}), status
 
     @course_bp.route("/courses/search", methods=["GET"])
     def search_courses():
         search_query = request.args.get("q", "")
-        limit        = int(request.args.get("limit", 20))
-        skip         = int(request.args.get("skip", 0))
+        limit        = request.args.get("limit", 20)
+        skip         = request.args.get("skip", 0)
         department   = request.args.get("department")   or None
         level        = request.args.get("level")        or None
         semester     = request.args.get("semester")     or None
@@ -42,13 +45,8 @@ def create_course_routes(course_service):
     def get_years():
         return jsonify(course_service.get_academic_years()), 200
 
-    # ── Dynamic path last ────────────────────────────────────────────────────
-
     @course_bp.route("/courses/<course_id>", methods=["GET"])
     def get_course_details(course_id):
-        try:
-            return jsonify(course_service.get_course(course_id)), 200
-        except ValueError as e:
-            return jsonify({"message": str(e)}), 404
+        return jsonify(course_service.get_course(course_id)), 200
 
     return course_bp

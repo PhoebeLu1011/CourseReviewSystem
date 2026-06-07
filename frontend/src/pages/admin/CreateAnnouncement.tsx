@@ -39,7 +39,7 @@ const CreateAnnouncement: React.FC = () => {
     try {
       await createAnnouncement({
       ...formData,
-      created_by: user?.id ?? null,
+      created_by: user?.id,
       scheduled_at: formData.scheduled_at || undefined,
       });
       alert('公告發布成功！');

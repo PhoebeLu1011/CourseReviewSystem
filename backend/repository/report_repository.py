@@ -1,4 +1,3 @@
-from datetime import datetime
 from models.report import Report
 
 
@@ -12,8 +11,7 @@ class ReportRepository:
         reports = []
 
         for data in cursor:
-            data.pop("_id", None)
-            reports.append(Report(**data))
+            reports.append(self._to_report(data))
 
         return reports
 
@@ -23,10 +21,15 @@ class ReportRepository:
         reports = []
 
         for data in cursor:
-            data.pop("_id", None)
-            reports.append(Report(**data))
+            reports.append(self._to_report(data))
 
         return reports
+
+    def count_all_reports(self):
+        return self.collection.count_documents({})
+
+    def count_by_status(self, status: str):
+        return self.collection.count_documents({"status": status})
 
     def find_by_id(self, report_id: str):
         """取得單一檢舉案件"""
@@ -35,8 +38,7 @@ class ReportRepository:
         if not data:
             return None
 
-        data.pop("_id", None)
-        return Report(**data)
+        return self._to_report(data)
 
     def find_by_reporter(self, reporter_id: str):
         """取得某學生提交的所有檢舉"""
@@ -44,23 +46,9 @@ class ReportRepository:
         reports = []
 
         for data in cursor:
-            data.pop("_id", None)
-            reports.append(Report(**data))
+            reports.append(self._to_report(data))
 
         return reports
-
-    def find_by_reporter_and_target(
-        self,
-        reporter_id: str,
-        reported_type: str,
-        reported_id: str,
-    ):
-        """檢查同一個學生是否已經檢舉過同一個內容"""
-        return self.collection.find_one({
-            "reporterID": reporter_id,
-            "reported_type": reported_type,
-            "reported_id": reported_id,
-        })
 
     def save(self, report: Report):
         """新增或更新檢舉案件"""
@@ -70,39 +58,22 @@ class ReportRepository:
             upsert=True,
         )
 
-    def update_status(
-        self,
-        report_id: str,
-        status: str,
-        handler_id: str = None,
-        resolution: str = None,
-    ):
-        """管理員處理檢舉案件"""
-        update_data = {
-            "status": status,
-            "timestamp": datetime.now().isoformat(),
-        }
-
-        if handler_id:
-            update_data["handler_id"] = handler_id
-
-        if resolution:
-            update_data["resolution"] = resolution
-
-        self.collection.update_one(
-            {"reportID": report_id},
-            {"$set": update_data},
-        )
-
-    def withdraw_report(self, report_id: str, reporter_id: str):
-        """學生撤回檢舉，只有 PENDING 狀態才可撤回"""
+    def insert_if_absent(self, report: Report):
         result = self.collection.update_one(
             {
-                "reportID": report_id,
-                "reporterID": reporter_id,
-                "status": "PENDING",
+                "reporterID": report.reporterID,
+                "reported_type": report.reported_type,
+                "reported_id": report.reported_id,
             },
-            {"$set": {"status": "WITHDRAWN"}},
+            {"$setOnInsert": report.to_dict()},
+            upsert=True,
         )
+        return result.upserted_id is not None
 
-        return result.modified_count > 0
+    @staticmethod
+    def _to_report(data):
+        if not data:
+            return None
+        data = dict(data)
+        data.pop("_id", None)
+        return Report(**data)

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../config/api";
+import { apiRequest } from "./apiClient";
 
 export type Role = "Student" | "Admin";
 
@@ -6,6 +6,7 @@ export interface AuthUser {
   id: string;
   name: string;
   role: Role;
+  account?: string;
   email?: string;
   department?: string;
   avatar?: string;
@@ -31,6 +32,7 @@ interface RegisterRequest {
 interface BackendUser {
   studentID?: string;
   id?: string;
+  account?: string;
   name?: string;
   email?: string;
   department?: string;
@@ -39,6 +41,9 @@ interface BackendUser {
   bio?: string;
   birthday?: string;
   interests?: string[];
+  reviewCount?: number;
+  replyCount?: number;
+  applyCount?: number;
 }
 
 interface AuthResponse {
@@ -77,30 +82,6 @@ export interface UploadAvatarResponse {
   error?: string;
 }
 
-async function parseResponse<T extends { success?: boolean; message?: string; error?: string }>(
-  response: Response
-): Promise<T> {
-  let data: T | null = null;
-
-  try {
-    data = (await response.json()) as T;
-  } catch {
-    data = null;
-  }
-
-  if (!response.ok || data?.success === false) {
-    throw new Error(
-      data?.message || data?.error || `Request failed with status ${response.status}`
-    );
-  }
-
-  if (!data) {
-    throw new Error("後端沒有回傳有效的 JSON 資料。");
-  }
-
-  return data;
-}
-
 function normalizeRole(role: BackendUser["role"], fallbackRole: Role): Role {
   if (role === "Admin" || role === "admin") return "Admin";
   if (role === "Student" || role === "student") return "Student";
@@ -118,6 +99,7 @@ function normalizeAuthUser(data: AuthResponse | ProfileResponse, fallbackRole: R
     id: rawUser.studentID || rawUser.id || "",
     name: rawUser.name || "Student",
     role: normalizeRole(rawUser.role, fallbackRole),
+    account: rawUser.account,
     email: rawUser.email || "",
     department: rawUser.department || "",
     avatar: rawUser.avatar || "",
@@ -131,19 +113,14 @@ export async function loginUser(payload: LoginRequest): Promise<{
   user: AuthUser;
   token: string;
 }> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+  const data = await apiRequest<AuthResponse>("/api/auth/login", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify({
       email: payload.email,
       password: payload.password,
       role: payload.role.toLowerCase(),
     }),
   });
-
-  const data = await parseResponse<AuthResponse>(response);
 
   if (!data.token) {
     throw new Error("登入成功，但後端沒有回傳 token。");
@@ -159,15 +136,10 @@ export async function registerUser(payload: RegisterRequest): Promise<{
   user: AuthUser;
   token: string;
 }> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+  const data = await apiRequest<AuthResponse>("/api/auth/register", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(payload),
   });
-
-  const data = await parseResponse<AuthResponse>(response);
 
   if (!data.token) {
     throw new Error("註冊成功，但後端沒有回傳 token。");
@@ -179,29 +151,19 @@ export async function registerUser(payload: RegisterRequest): Promise<{
   };
 }
 
-export async function getProfile(token: string): Promise<ProfileResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
+export async function getProfile(): Promise<ProfileResponse> {
+  return apiRequest<ProfileResponse>("/api/user/profile", {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    auth: true,
   });
-
-  return parseResponse<ProfileResponse>(response);
 }
 
 export async function getColleges(): Promise<CollegeData[]> {
   try {
-    // 如果你的後端路由是 /api/departments，就把這行改成：
-    // const response = await fetch(`${API_BASE_URL}/api/departments`);
-    const response = await fetch(`${API_BASE_URL}/api/user/departments`, {
+    const data = await apiRequest<CollegeResponse>("/api/user/departments", {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
     });
 
-    const data = await parseResponse<CollegeResponse>(response);
     return data.data || [];
   } catch (error) {
     console.error("Failed to fetch departments from backend:", error);
@@ -209,20 +171,30 @@ export async function getColleges(): Promise<CollegeData[]> {
   }
 }
 
-export async function uploadAvatar(
-  token: string,
-  file: File
-): Promise<UploadAvatarResponse> {
+export async function uploadAvatar(file: File): Promise<UploadAvatarResponse & { avatar_id: string }> {
   const formData = new FormData();
   formData.append("avatar", file);
 
-  const response = await fetch(`${API_BASE_URL}/api/user/avatar`, {
+  const data = await apiRequest<UploadAvatarResponse>("/api/user/avatar", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    auth: true,
+    includeContentType: false,
     body: formData,
   });
 
-  return parseResponse<UploadAvatarResponse>(response);
+  if (!data.avatar_id) {
+    throw new Error("大頭貼上傳成功，但後端沒有回傳 avatar_id。");
+  }
+  return { ...data, avatar_id: data.avatar_id };
+}
+
+export async function updateProfile(
+  studentId: string,
+  profile: Pick<AuthUser, "name" | "bio" | "birthday" | "interests">
+): Promise<ProfileResponse> {
+  return apiRequest<ProfileResponse>(`/api/user/${encodeURIComponent(studentId)}`, {
+    method: "PUT",
+    auth: true,
+    body: JSON.stringify(profile),
+  });
 }
