@@ -120,9 +120,9 @@ export function NotificationPopover({ studentId }: NotificationPopoverProps) {
         <div className="absolute right-0 top-12 z-50 w-[360px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div>
-              <h2 className="text-sm font-bold text-slate-900">Notifications</h2>
+              <h2 className="text-sm font-bold text-slate-900">通知</h2>
               <p className="text-xs text-muted-foreground">
-                {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
+                {unreadCount > 0 ? `${unreadCount} unread` : "最新"}
               </p>
             </div>
 
@@ -133,7 +133,7 @@ export function NotificationPopover({ studentId }: NotificationPopoverProps) {
               className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:text-muted-foreground disabled:hover:bg-transparent"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Mark all read
+              將全部標為已讀
             </button>
           </div>
 
@@ -141,7 +141,7 @@ export function NotificationPopover({ studentId }: NotificationPopoverProps) {
             {isLoading ? (
               <div className="flex items-center justify-center gap-2 px-4 py-8 text-sm text-muted-foreground">
                 <LoaderCircle className="h-4 w-4 animate-spin" />
-                Loading notifications
+                載入中...
               </div>
             ) : errorMsg ? (
               <div className="px-4 py-8 text-center text-sm text-rose-600">
@@ -149,7 +149,7 @@ export function NotificationPopover({ studentId }: NotificationPopoverProps) {
               </div>
             ) : notifications.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No notifications yet.
+                尚未有通知
               </div>
             ) : (
               notifications.map((notification) => (
