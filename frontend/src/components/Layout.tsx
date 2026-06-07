@@ -134,7 +134,7 @@ export default function Layout() {
                 className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-base font-bold text-primary-foreground shadow-sm transition-all hover:opacity-90"
               >
                 <LogIn className="h-5 w-5" />
-                Sign In
+                登入
               </Link>
             )}
           </div>
