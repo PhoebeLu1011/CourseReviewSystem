@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from "../../context/AuthContext";
 import type { Announcement, CreateAnnouncementRequest } from '../../models/Announcement';
 import { createAnnouncement, getAllAnnouncements, deleteAnnouncement } from '../../api/announcementApi';
 
 const TAGS = ['System', 'Emergency', 'General', 'Event'];
 
 const CreateAnnouncement: React.FC = () => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState<CreateAnnouncementRequest>({
     title: '',
     content: '',
@@ -35,9 +37,13 @@ const CreateAnnouncement: React.FC = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await createAnnouncement(formData);
+      await createAnnouncement({
+      ...formData,
+      created_by: user?.id ?? null,
+      scheduled_at: formData.scheduled_at || undefined,
+      });
       alert('公告發布成功！');
-      setFormData({ title: '', content: '', tags: [], target: 'all', is_pinned: false, scheduled_at: '' });
+      setFormData({ title: '', content: '', tags: [], target: 'all', is_pinned: false, scheduled_at: undefined });
       fetchAnnouncements();
       setView('list');
     } catch (error) {

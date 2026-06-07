@@ -3,6 +3,7 @@ export type ReportStatus = "PENDING" | "RESOLVED" | "DISMISSED" | "WITHDRAWN";
 export type ReportReason =
   | "SPAM"
   | "HARASSMENT"
+  | "HATE_SPEECH" 
   | "OFFENSIVE_CONTENT"
   | "FALSE_INFORMATION"
   | "INAPPROPRIATE_LANGUAGE"

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { API_BASE_URL } from "../../config/api";
+import { useAuth } from "../../context/AuthContext";
 
 type Category = "System" | "Emergency" | "General";
 type Audience = "All Students" | "Undergraduates" | "Graduates" | "Faculty";
@@ -32,6 +33,7 @@ function formatPreviewDate(date: string) {
 }
 
 export function AnnouncementEditor() {
+  const {user} = useAuth();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState<Category>("General");
@@ -82,7 +84,7 @@ export function AnnouncementEditor() {
           target: audience === "All Students" ? "all" : audience.toLowerCase(),
           is_pinned: isPinned,
           scheduled_at: scheduledAt,
-          created_by: "admin_001",
+          created_by: user?.id ?? null,
         }),
       });
 

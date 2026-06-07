@@ -9,6 +9,7 @@ import {
 import { ReportSidePanel } from "./ReportSidePanel";
 import { clsx } from "clsx";
 import { API_BASE_URL } from "../../config/api";
+import { useAuth } from "../../context/AuthContext";
 
 export type ReportedType = "review" | "comment" | "teammate_post";
 export type ReportTypeLabel = "Review" | "Comment" | "Group";
@@ -63,7 +64,7 @@ function getContentText(reportedType: ReportedType, content: any): string {
   }
 
   if (reportedType === "comment") {
-    return content.content || "（此回覆沒有文字內容）";
+    return content.content || "（此評論沒有文字內容）";
   }
 
   if (reportedType === "teammate_post") {
@@ -92,7 +93,7 @@ function mapApiReport(r: any): Report {
 
     rawTimestamp: r.timestamp,
     timestamp: r.timestamp ? new Date(r.timestamp).toLocaleString("zh-TW") : "未知時間",
-
+    
     content: r.description || "（無詳細說明）",
     originalContent: undefined,
     description: r.description,
@@ -146,6 +147,7 @@ function getActionLabel(report: Report, action: string): string {
 }
 
 export function AuditCenter() {
+  const {user} = useAuth();
   const [reports, setReports] = useState<Report[]>([]);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [activeTab, setActiveTab] = useState<TabStatus>("PENDING");
@@ -156,7 +158,10 @@ export function AuditCenter() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/reports/all`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/admin/reports/all`, {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
 
       if (!res.ok) {
         throw new Error("Failed to fetch reports");
@@ -173,7 +178,10 @@ export function AuditCenter() {
 
   const fetchReportContent = async (report: Report) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/reports/${report.reportID}/content`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/admin/reports/${report.reportID}/content`, {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
 
       if (!res.ok) {
         setSelectedReport({
@@ -222,12 +230,16 @@ export function AuditCenter() {
     setProcessingId(id);
 
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(`${API_BASE_URL}/admin/reports/${id}/resolve`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token ?? ""}`,
+        },
         body: JSON.stringify({
           decision: mapActionToDecision(targetReport, action),
-          handler_id: "admin_001",
+          handler_id: user?.account ?? null,
         }),
       });
 
