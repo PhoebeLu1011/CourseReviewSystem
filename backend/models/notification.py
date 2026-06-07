@@ -58,21 +58,20 @@ class Notification:
         }
 
 
-class NotificationFactory:
-    """Factory Method for turning domain events into consistent notifications."""
+def create_notification_from_event(
+    event_type: str,
+    notification_id: str,
+    receiver_id: str,
+    related_id: str | None = None,
+):
+    content = NOTIFICATION_TEMPLATES.get(event_type)
+    if not content:
+        raise ValueError(f"Unsupported notification event: {event_type}")
 
-    def __init__(self, id_factory):
-        self.id_factory = id_factory
-
-    def create(self, event_type: str, receiver_id: str, related_id: str | None = None):
-        content = NOTIFICATION_TEMPLATES.get(event_type)
-        if not content:
-            raise ValueError(f"Unsupported notification event: {event_type}")
-
-        return Notification(
-            notification_id=self.id_factory(),
-            receiver_id=receiver_id,
-            content=content,
-            type=event_type,
-            related_id=related_id,
-        )
+    return Notification(
+        notification_id=notification_id,
+        receiver_id=receiver_id,
+        content=content,
+        type=event_type,
+        related_id=related_id,
+    )

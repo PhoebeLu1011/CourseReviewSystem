@@ -134,11 +134,8 @@ updated student.badges
 
 3. Retrieve all badge rules from BadgeRepository.
 
-4. Check each badge one by one:
-   a. Check whether reviewCount satisfies badge.minReviewCount.
-   b. Check whether replyCount satisfies badge.minReplyCount.
-   c. Check whether applyCount satisfies badge.minApplyCount.
-   d. Check whether achievement_score satisfies badge.minAchievementScore.
+4. Ask each Badge whether it is earned:
+   - `badge.is_earned_by(student, achievement_score)`
 
 5. If the student does not satisfy the badge requirements:
    - Skip that badge.

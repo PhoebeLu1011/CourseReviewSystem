@@ -40,7 +40,7 @@ from repository.schedule_repository import ScheduleRepository
 from services.group.application_service import ApplicationService
 from services.communication.notification_service import NotificationService, BestEffortNotificationPublisher
 from services.group.group_service import GroupService
-from services.group.group_management_facade import GroupManagementFacade
+from services.group.group_dashboard_service import GroupDashboardService
 from services.group.group_recommendation_service import GroupRecommendationService
 from services.engagement.achievement_service import AchievementService
 from services.course.course_service import CourseService
@@ -150,7 +150,7 @@ def create_app():
         course_repo,
         application_repo,
     )
-    group_management_facade = GroupManagementFacade(group_repo, application_repo)
+    group_dashboard_service = GroupDashboardService(group_repo, application_repo)
     group_recommendation_service = GroupRecommendationService(
         group_repo,
         application_repo,
@@ -183,7 +183,7 @@ def create_app():
         create_group_routes(
             group_recommendation_service,
             group_service,
-            group_management_facade,
+            group_dashboard_service,
             authorization_service,
         )
     )

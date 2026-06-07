@@ -1,13 +1,11 @@
 import uuid
-from models.notification import Notification, NotificationFactory
+from models.notification import Notification, create_notification_from_event
 
 
 class NotificationService:
-    def __init__(self, notification_repo, notification_factory=None):
+    def __init__(self, notification_repo, id_factory=None):
         self.notification_repo = notification_repo
-        self.notification_factory = notification_factory or NotificationFactory(
-            lambda: str(uuid.uuid4())
-        )
+        self.id_factory = id_factory or (lambda: str(uuid.uuid4()))
 
     def publish(
         self,
@@ -15,8 +13,9 @@ class NotificationService:
         receiver_id: str,
         related_id: str | None = None,
     ) -> Notification:
-        notification = self.notification_factory.create(
+        notification = create_notification_from_event(
             event_type=event_type,
+            notification_id=self.id_factory(),
             receiver_id=receiver_id,
             related_id=related_id,
         )
@@ -44,7 +43,7 @@ class NotificationService:
 
 
 class BestEffortNotificationPublisher:
-    """Decorator that keeps secondary notification failures out of core use cases."""
+    """Keeps secondary notification failures out of core use cases."""
 
     def __init__(self, notification_service, logger=print):
         self.notification_service = notification_service

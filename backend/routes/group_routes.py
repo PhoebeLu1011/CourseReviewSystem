@@ -4,7 +4,7 @@ import traceback
 def create_group_routes(
     group_recommendation_service,
     group_service,
-    group_management_facade,
+    group_dashboard_service,
     authorization_service,
 ):
     group_bp = Blueprint("groups", __name__)
@@ -38,7 +38,7 @@ def create_group_routes(
     @group_bp.route("/groups/me/dashboard", methods=["GET"])
     @authorization_service.require_student
     def get_my_group_dashboard():
-        dashboard = group_management_facade.get_dashboard(
+        dashboard = group_dashboard_service.get_dashboard(
             authorization_service.current_student_id()
         )
         return jsonify(dashboard), 200

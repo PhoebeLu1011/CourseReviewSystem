@@ -55,3 +55,11 @@ class Badge:
             "minApplyCount": self.minApplyCount,
             "minAchievementScore": self.minAchievementScore,
         }
+
+    def is_earned_by(self, student, achievement_score: int) -> bool:
+        return (
+            student.reviewCount >= self.minReviewCount
+            and student.replyCount >= self.minReplyCount
+            and student.applyCount >= self.minApplyCount
+            and achievement_score >= self.minAchievementScore
+        )

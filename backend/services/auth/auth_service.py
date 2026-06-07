@@ -30,7 +30,7 @@ class AuthenticationResult:
 
 
 class StudentRegistrationFactory:
-    """Factory Method that validates registration input and builds a Student."""
+    """Validates registration input and builds a Student."""
 
     EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 

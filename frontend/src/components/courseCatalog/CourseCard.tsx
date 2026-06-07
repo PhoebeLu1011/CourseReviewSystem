@@ -12,6 +12,7 @@ import {
 
 import { parseNTNUSchedule, type Course } from "../../api/courseApi";
 import type { ScheduledCourse } from "../../context/ScheduleContext";
+import { formatCourseDisplayCode } from "../../utils/courseDisplay";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -38,6 +39,7 @@ export function CourseCard({
   const titleParts = course.title.split(/<\/?br\s*\/?>/i);
   const mainTitle = titleParts[0];
   const subTitle = titleParts[1] ? titleParts[1].trim() : "";
+  const displayCode = course.serialNumber || formatCourseDisplayCode(course.courseID);
 
   return (
     <Link to={`/courses/${course.courseID}`} className="block group">
@@ -47,7 +49,7 @@ export function CourseCard({
             <div>
               <div>
                 <span className="text-base font-bold text-slate-700">
-                  {course.serialNumber || course.courseID}
+                  {displayCode}
                 </span>
                 <CourseStats
                   sweetness={course.averageSweetness}
@@ -131,7 +133,7 @@ export function CourseCard({
               event.stopPropagation();
               onAddToSchedule({
                 courseID: course.courseID,
-                serialNumber: course.serialNumber || course.courseID,
+                serialNumber: displayCode,
                 title: course.title,
                 department: course.department,
                 credits: course.credits,

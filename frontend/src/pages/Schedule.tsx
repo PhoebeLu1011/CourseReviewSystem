@@ -8,6 +8,7 @@ import { Link } from "react-router";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent } from "../components/ui/card";
 import { useSchedule } from "../context/ScheduleContext";
+import { formatCourseDisplayCode } from "../utils/courseDisplay";
 
 const WEEK_DAYS = [
   { key: "Mon", label: "週一" },
@@ -66,11 +67,14 @@ export default function Schedule() {
             選擇你想要的課程。
           </div>
         ) : (
-          scheduled.map((course) => (
-            <Card
-              key={course.courseID}
-              className="border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
-            >
+          scheduled.map((course) => {
+            const displayCode =
+              course.serialNumber || formatCourseDisplayCode(course.courseID);
+            return (
+              <Card
+                key={course.courseID}
+                className="border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+              >
               <CardContent className="p-5 space-y-4">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-3">
@@ -79,7 +83,7 @@ export default function Schedule() {
                     className="flex-1 min-w-0"
                   >
                     <h3 className="text-base font-bold text-slate-900 hover:text-primary transition-colors">
-                      {course.serialNumber} - {course.title}
+                      {displayCode} - {course.title}
                     </h3>
 
                     <div className="mt-2 flex items-center gap-2 flex-wrap">
@@ -120,7 +124,8 @@ export default function Schedule() {
                 </div>
               </CardContent>
             </Card>
-          ))
+            );
+          })
         )}
       </div>
 

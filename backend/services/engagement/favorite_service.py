@@ -1,4 +1,6 @@
-from models.bookmark import BookmarkFactory
+import uuid
+
+from models.bookmark import Bookmark
 from repository.bookmark_repository import BookmarkRepository
 
 
@@ -8,17 +10,17 @@ class FavoriteService:
         bookmark_repo: BookmarkRepository,
         student_repo,
         course_repo,
-        bookmark_factory=None,
+        id_factory=None,
     ):
         self.bookmark_repo = bookmark_repo
         self.student_repo = student_repo
         self.course_repo = course_repo
-        self.bookmark_factory = bookmark_factory or BookmarkFactory()
+        self.id_factory = id_factory or (lambda: str(uuid.uuid4()))
 
     def add_bookmark(self, user_id, course_id):
         self._require_student(user_id)
         self._require_course(course_id)
-        bookmark = self.bookmark_factory.create(user_id, course_id)
+        bookmark = Bookmark(self.id_factory(), user_id, course_id)
         if not self.bookmark_repo.insert_if_absent(bookmark):
             raise ValueError("Course is already bookmarked.")
         return bookmark

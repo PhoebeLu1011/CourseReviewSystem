@@ -24,6 +24,7 @@ import { SyllabusTab } from "../components/courseDetail/SyllabusTab";
 import type { CourseView } from "../components/courseDetail/courseDetailTypes";
 import { useAuth } from "../context/AuthContext";
 import { useSchedule } from "../context/ScheduleContext";
+import { formatCourseDisplayCode } from "../utils/courseDisplay";
 
 export default function CourseDetail() {
   const { courseID } = useParams<{ courseID: string }>();
@@ -109,6 +110,7 @@ export default function CourseDetail() {
   const titleParts = (course.title || "").split(/<\/?br\s*\/?>/i);
   const mainTitle = titleParts[0];
   const subTitle = titleParts[1] ? titleParts[1].trim() : "";
+  const displayCode = course.serialNumber || formatCourseDisplayCode(course.courseID);
 
   return (
     <div className="space-y-6 pb-12">
@@ -122,7 +124,7 @@ export default function CourseDetail() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900">
-            {course.serialNumber || course.courseID}{" "}
+            {displayCode}{" "}
             {mainTitle ? `— ${mainTitle}` : ""}
           </h1>
 
@@ -159,7 +161,7 @@ export default function CourseDetail() {
             onClick={() => {
               addToSchedule({
                 courseID: course.courseID,
-                serialNumber: course.serialNumber || course.courseID,
+                serialNumber: displayCode,
                 title: course.title,
                 department: course.department,
                 credits: course.credits,
