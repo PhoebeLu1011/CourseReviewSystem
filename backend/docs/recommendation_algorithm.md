@@ -2,11 +2,11 @@
 
 ## Purpose
 
-組別推薦用於 Find Teammates 頁面。它不是機器學習模型，而是可解釋、可替換的規則式排名。
+組別推薦用於 Find Teammates 頁面。它不是機器學習模型，而是可解釋的規則式排名。
 
 推薦流程只處理「目前可以申請，而且學生尚未加入或申請同課程組別」的候選群組，再依學生相似度、剩餘容量比例與招募期限排序。
 
-## Responsibility And Design Patterns
+## Responsibility
 
 ```mermaid
 classDiagram
@@ -14,39 +14,30 @@ classDiagram
         +recommend_group_results(student_id, course_id)
         +calculate_match_score(student_id, group)
     }
-    class GroupScoringStrategy {
-        <<Protocol>>
-        +score(student_id, group)
+    class group_recommendation_scoring {
+        +calculate_group_match_score(student_id, group)
+        +calculate_student_similarity(a, b)
     }
-    class StudentSimilarityScoringStrategy
-    class CapacityScoringStrategy
-    class DeadlineUrgencyScoringStrategy
     class StudentIdParser
     class GroupRepository
     class ApplicationRepository
 
     GroupRecommendationService --> GroupRepository : joinable and joined groups
     GroupRecommendationService --> ApplicationRepository : pending applications
-    GroupRecommendationService o--> GroupScoringStrategy : sum strategies
-    GroupScoringStrategy <|.. StudentSimilarityScoringStrategy
-    GroupScoringStrategy <|.. CapacityScoringStrategy
-    GroupScoringStrategy <|.. DeadlineUrgencyScoringStrategy
-    StudentSimilarityScoringStrategy --> StudentIdParser
+    GroupRecommendationService --> group_recommendation_scoring : score groups
+    group_recommendation_scoring --> StudentIdParser
 ```
 
-| Component | Responsibility | Pattern |
-| --- | --- | --- |
-| `GroupRepository` | 先在 MongoDB 排除 closed、full、hidden/deleted groups，再由 domain model 檢查 deadline | Repository-side filtering |
-| `ApplicationRepository` | 找出學生 pending applications 的課程 | Repository |
-| `GroupRecommendationService` | 候選排除、計分組合、排序、回傳 result object | Application Service |
-| `GroupRecommendation` | 同時攜帶 group 與已計算 score，避免 route 重算 | Result Object |
-| `GroupScoringStrategy` | 統一 scoring extension point | Strategy |
-| `StudentSimilarityScoringStrategy` | 比較學生證號資訊 | Strategy |
-| `CapacityScoringStrategy` | 依剩餘容量比例給分 | Strategy |
-| `DeadlineUrgencyScoringStrategy` | 依截止期限給分 | Strategy |
-| `StudentIdParser` | 只解析學生證號，不知道推薦權重 | Single Responsibility |
+| Component | Responsibility |
+| --- | --- |
+| `GroupRepository` | 先在 MongoDB 排除 closed、full、hidden/deleted groups，再由 domain model 檢查 deadline |
+| `ApplicationRepository` | 找出學生 pending applications 的課程 |
+| `GroupRecommendationService` | 候選排除、排序、回傳 result object |
+| `GroupRecommendation` | 同時攜帶 group 與已計算 score，避免 route 重算 |
+| `group_recommendation_scoring.py` | 集中維護學生相似度、容量、deadline 三個分數 |
+| `StudentIdParser` | 只解析學生證號，不知道推薦權重 |
 
-新增規則時應實作新的 `score(student_id, group)` strategy，再由 composition root 或 service constructor 注入，不要擴大 `GroupRecommendationService` 的條件分支。
+新增規則時先加在 `calculate_group_match_score()` 附近，等規則真的變多、需要 A/B testing 或不同情境替換時，再抽成策略物件。
 
 ## Candidate Filtering
 
@@ -104,11 +95,11 @@ flowchart TD
 
 無法解析的學生證號相似度為 `0`，不會讓整個推薦請求失敗。
 
-`StudentSimilarityScoringStrategy._try_parse_student_id()` 使用上限 `4096` 的 LRU cache。學生證號內容不會頻繁變動，因此可避免同一學生在多個 group 中被重複解析，同時限制記憶體成長。
+`_try_parse_student_id()` 使用上限 `4096` 的 LRU cache。學生證號內容不會頻繁變動，因此可避免同一學生在多個 group 中被重複解析，同時限制記憶體成長。
 
-## Scoring Strategies
+## Scoring Formula
 
-最終分數是所有 strategy 的加總：
+最終分數是三個明確 function 的加總：
 
 ```text
 final_score =

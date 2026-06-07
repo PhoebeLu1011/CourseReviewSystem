@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { Edit2, Save, Trash2 } from "lucide-react";
 
 import type { Review } from "../../api/reviewApi";
+import { cleanCourseTitle, formatCourseDisplayCode } from "../../utils/courseDisplay";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -47,13 +48,15 @@ export function ReviewsPanel({
     const date = review.timestamp
       ? new Date(review.timestamp).toLocaleDateString()
       : "尚無日期";
+    const courseTitle = cleanCourseTitle(review.courseName);
+    const courseCode = formatCourseDisplayCode(review.courseID);
     return (
       <Card key={review.reviewID} className="border-slate-100 shadow-sm">
         <CardContent className="space-y-4 p-5">
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-lg font-bold text-slate-900">
-                {review.courseName?.split("<")[0] || `Course ID: ${review.courseID}`}
+                {courseTitle || `Course ID: ${courseCode}`}
               </h3>
               <p className="mt-1 text-xs font-medium text-slate-500">{date}</p>
             </div>

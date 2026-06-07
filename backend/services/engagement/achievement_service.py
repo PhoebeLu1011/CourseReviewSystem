@@ -1,35 +1,9 @@
 from repository.badge_repository import BadgeRepository
 
 
-class WeightedAchievementScoreStrategy:
-    """Strategy for converting student activity into an achievement score."""
-
-    def __init__(self, review_weight=2, reply_weight=1, apply_weight=1):
-        self.review_weight = review_weight
-        self.reply_weight = reply_weight
-        self.apply_weight = apply_weight
-
-    def calculate(self, student):
-        return (
-            student.reviewCount * self.review_weight
-            + student.replyCount * self.reply_weight
-            + student.applyCount * self.apply_weight
-        )
-
-
-class BadgeEligibilitySpecification:
-    """Specification that answers whether one student qualifies for one badge."""
-
-    def __init__(self, score_strategy):
-        self.score_strategy = score_strategy
-
-    def is_satisfied_by(self, student, badge):
-        return (
-            student.reviewCount >= badge.minReviewCount
-            and student.replyCount >= badge.minReplyCount
-            and student.applyCount >= badge.minApplyCount
-            and self.score_strategy.calculate(student) >= badge.minAchievementScore
-        )
+REVIEW_SCORE_WEIGHT = 2
+REPLY_SCORE_WEIGHT = 1
+APPLICATION_SCORE_WEIGHT = 1
 
 
 class AchievementService:
@@ -37,30 +11,28 @@ class AchievementService:
         self,
         badge_repo: BadgeRepository,
         student_repo=None,
-        score_strategy=None,
-        eligibility_specification=None,
     ):
         self.badge_repo = badge_repo
         self.student_repo = student_repo
-        self.score_strategy = score_strategy or WeightedAchievementScoreStrategy()
-        self.eligibility_specification = (
-            eligibility_specification
-            or BadgeEligibilitySpecification(self.score_strategy)
-        )
 
     def calculate_achievement_score(self, student):
-        return self.score_strategy.calculate(student)
+        return (
+            student.reviewCount * REVIEW_SCORE_WEIGHT
+            + student.replyCount * REPLY_SCORE_WEIGHT
+            + student.applyCount * APPLICATION_SCORE_WEIGHT
+        )
 
     def check_badge_eligibility(self, student, badge):
-        return self.eligibility_specification.is_satisfied_by(student, badge)
+        return badge.is_earned_by(student, self.calculate_achievement_score(student))
 
     def update_student_badges(self, student):
         all_badges = self.badge_repo.find_all()
         badge_by_id = {badge.badgeID: badge for badge in all_badges}
         best_eligible = {}
+        achievement_score = self.calculate_achievement_score(student)
 
         for badge in all_badges:
-            if not self.check_badge_eligibility(student, badge):
+            if not badge.is_earned_by(student, achievement_score):
                 continue
             current = best_eligible.get(badge.category)
             if current is None or badge.level > current.level:

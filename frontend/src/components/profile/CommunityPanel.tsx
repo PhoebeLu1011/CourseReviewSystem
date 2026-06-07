@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { Edit2, MessageSquare, Save, Trash2 } from "lucide-react";
 
 import type { Discussion, Reply } from "../../api/discussionApi";
+import { formatCourseDisplayCode } from "../../utils/courseDisplay";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
@@ -72,7 +73,7 @@ export function CommunityPanel({
                         <h3 className="text-lg font-bold text-slate-900">{discussion.title}</h3>
                       )}
                       <p className="mt-1 text-xs font-medium text-slate-500">
-                        Course: {discussion.courseID} · {formatDate(discussion.timestamp)}
+                        Course: {formatCourseDisplayCode(discussion.courseID)} · {formatDate(discussion.timestamp)}
                       </p>
                     </div>
                     {!isEditing && (

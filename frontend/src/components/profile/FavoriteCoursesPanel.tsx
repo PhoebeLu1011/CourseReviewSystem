@@ -1,6 +1,7 @@
 import { Calendar, MapPin } from "lucide-react";
 import { Link } from "react-router";
 
+import { formatCourseDisplayCode } from "../../utils/courseDisplay";
 import { Card, CardContent } from "../ui/card";
 import type { FavoriteCourse } from "./profileTypes";
 
@@ -37,13 +38,15 @@ export function FavoriteCoursesPanel({
     <div className="grid gap-4 sm:grid-cols-2">
       {courses.map((course) => {
         const parsed = parseNTNUSchedule(course.timeAndLocation);
+        const displayCode =
+          course.courseCode || formatCourseDisplayCode(course.courseID);
         return (
           <Link key={course.courseID} to={`/courses/${course.courseID}`}>
             <Card className="border-slate-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
               <CardContent className="space-y-2 p-5">
                 <div>
                   <p className="text-xs font-medium text-muted-foreground">
-                    {course.courseCode || course.courseID}
+                    {displayCode}
                   </p>
                   <h3 className="mt-0.5 text-base font-bold leading-snug text-slate-900">
                     {course.title}

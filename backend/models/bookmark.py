@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime, timezone
 
 
@@ -37,17 +36,3 @@ class Bookmark:
             "courseId": self.courseId,
             "createdAt": self.createdAt.isoformat(),
         }
-
-
-class BookmarkFactory:
-    """Factory Method that keeps bookmark identity creation out of the use case."""
-
-    def __init__(self, id_factory=None):
-        self.id_factory = id_factory or (lambda: str(uuid.uuid4()))
-
-    def create(self, user_id, course_id):
-        return Bookmark(
-            bookmarkId=self.id_factory(),
-            userId=user_id,
-            courseId=course_id,
-        )
