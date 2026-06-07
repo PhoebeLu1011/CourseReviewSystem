@@ -1,321 +1,288 @@
 # Group Recommendation Algorithm
 
-## 1. Purpose
+## Purpose
 
-The group recommendation algorithm is used in the **Find Teammates** feature.
+組別推薦用於 Find Teammates 頁面。它不是機器學習模型，而是可解釋、可替換的規則式排名。
 
-After a student selects a course, the system retrieves all joinable groups for that course and ranks them based on a rule-based recommendation score.
+推薦流程只處理「目前可以申請，而且學生尚未加入或申請同課程組別」的候選群組，再依學生相似度、剩餘容量比例與招募期限排序。
 
-A group is considered joinable only if:
+## Responsibility And Design Patterns
 
-1. the group status is open,
-2. the group is not full,
-3. the recruitment deadline has not passed.
+```mermaid
+classDiagram
+    class GroupRecommendationService {
+        +recommend_group_results(student_id, course_id)
+        +calculate_match_score(student_id, group)
+    }
+    class GroupScoringStrategy {
+        <<Protocol>>
+        +score(student_id, group)
+    }
+    class StudentSimilarityScoringStrategy
+    class CapacityScoringStrategy
+    class DeadlineUrgencyScoringStrategy
+    class StudentIdParser
+    class GroupRepository
+    class ApplicationRepository
 
-The goal of this algorithm is not to train a machine learning model. Instead, it provides a simple, transparent, and explainable ranking method for recommending suitable groups to students.
+    GroupRecommendationService --> GroupRepository : joinable and joined groups
+    GroupRecommendationService --> ApplicationRepository : pending applications
+    GroupRecommendationService o--> GroupScoringStrategy : sum strategies
+    GroupScoringStrategy <|.. StudentSimilarityScoringStrategy
+    GroupScoringStrategy <|.. CapacityScoringStrategy
+    GroupScoringStrategy <|.. DeadlineUrgencyScoringStrategy
+    StudentSimilarityScoringStrategy --> StudentIdParser
+```
 
----
+| Component | Responsibility | Pattern |
+| --- | --- | --- |
+| `GroupRepository` | 先在 MongoDB 排除 closed、full、hidden/deleted groups，再由 domain model 檢查 deadline | Repository-side filtering |
+| `ApplicationRepository` | 找出學生 pending applications 的課程 | Repository |
+| `GroupRecommendationService` | 候選排除、計分組合、排序、回傳 result object | Application Service |
+| `GroupRecommendation` | 同時攜帶 group 與已計算 score，避免 route 重算 | Result Object |
+| `GroupScoringStrategy` | 統一 scoring extension point | Strategy |
+| `StudentSimilarityScoringStrategy` | 比較學生證號資訊 | Strategy |
+| `CapacityScoringStrategy` | 依剩餘容量比例給分 | Strategy |
+| `DeadlineUrgencyScoringStrategy` | 依截止期限給分 | Strategy |
+| `StudentIdParser` | 只解析學生證號，不知道推薦權重 | Single Responsibility |
 
-## 2. Design Overview
+新增規則時應實作新的 `score(student_id, group)` strategy，再由 composition root 或 service constructor 注入，不要擴大 `GroupRecommendationService` 的條件分支。
 
-The recommendation process is divided into two responsibilities:
+## Candidate Filtering
 
-### StudentIdParser
+候選 group 必須同時符合：
 
-`StudentIdParser` is responsible only for parsing student IDs.
+1. `visibilityState` 是 `VISIBLE` 或舊資料尚未具有此欄位。
+2. `status == "open"`。
+3. `len(members) < max_members`。
+4. 沒有超過 `recruitment_deadline`。
+5. 學生尚未加入同一課程的其他 group。
+6. 學生沒有同一課程的 pending application。
 
-It converts a student ID into structured information, such as program level, admission year, department code, class code, seat number, and college code.
+```mermaid
+flowchart TD
+    A[Find DB-level joinable groups] --> B[Load courses already joined]
+    B --> C[Load courses with pending applications]
+    C --> D[Exclude unavailable course IDs]
+    D --> E[Score each remaining group once]
+    E --> F[Sort and return results]
+```
 
-It does not calculate recommendation scores.
+這些條件不只是 UI disable 規則。真正的資料一致性仍由 submit/approve use case、atomic repository operation 與 membership unique index 保護。
 
-### GroupRecommendationService
+## Student ID Parsing
 
-`GroupRecommendationService` is responsible for calculating recommendation scores and sorting groups.
-
-It uses the parsed student ID information to compare the applying student with the group leader and current group members.
-
-This separation keeps the design reusable. Other features can also use `StudentIdParser` without being forced to follow the same scoring rules.
-
----
-
-## 3. Student ID Format
-
-The system assumes that each student ID follows this format:
+系統預期學生證號格式為八位數字加一個英文字母，例如：
 
 ```text
 41271122H
 ```
-The student ID is parsed as follows:
 
-| Position           | Example | Meaning         |
-| ------------------ | ------- | --------------- |
-| 1st character      | `4`     | Program level   |
-| 2nd-3rd characters | `12`    | Admission year  |
-| 4th-5th characters | `71`    | Department code |
-| 6th character      | `1`     | Class code      |
-| 7th-8th characters | `22`    | Seat number     |
-| 9th character      | `H`     | College code    |
+| Position | Example | Meaning |
+| --- | --- | --- |
+| 1 | `4` | Program level: bachelor/master/phd |
+| 2-3 | `12` | Admission year |
+| 4-5 | `71` | Department code |
+| 6 | `1` | Class code |
+| 7-8 | `22` | Seat number |
+| 9 | `H` | College code |
 
-Program level examples:
-
-| Code | Meaning  |
-| ---- | -------- |
-| `4`  | Bachelor |
-| `6`  | Master   |
-| `8`  | PhD      |
-
-Example:
-```text
-41271122H
-```
-
-This student ID means:
-
-```text
-Program level: Bachelor
-Admission year: 112 academic year
-Department code: 71
-Class code: 1
-Seat number: 22
-College code: H
-```
-
-## 4. StudentIdParser Responsibility
-
-`StudentIdParser` only parses the student ID.
-
-Example output:
+解析結果：
 
 ```python
 {
+    "student_id": "41271122H",
     "program_level": "bachelor",
     "program_level_code": "4",
     "admission_year": 12,
     "department": "71",
     "class_code": "1",
     "seat_number": "22",
-    "college": "H"
+    "college": "H",
 }
 ```
 
-The parser does not decide how many points should be given for same department, same class, or same admission year.
+無法解析的學生證號相似度為 `0`，不會讓整個推薦請求失敗。
 
-Those scoring rules are defined in `GroupRecommendationService`.
+`StudentSimilarityScoringStrategy._try_parse_student_id()` 使用上限 `4096` 的 LRU cache。學生證號內容不會頻繁變動，因此可避免同一學生在多個 group 中被重複解析，同時限制記憶體成長。
 
-This design follows the single responsibility principle:
-```text
-StudentIdParser: understands the structure of student IDs
-GroupRecommendationService: decides how student ID information affects ranking
-```
-## 5. Similarity Score
-GroupRecommendationService calculates similarity scores between two students based on their parsed student ID information.
+## Scoring Strategies
 
-The current scoring rules are:
+最終分數是所有 strategy 的加總：
 
-| Condition                   | Score |
-| --------------------------- | ----: |
-| Same department             |   +20 |
-| Same admission year         |   +10 |
-| Admission year differs by 1 |    +5 |
-| Same program level          |    +5 |
-| Same class                  |    +5 |
-| Same college                |    +3 |
-
-The department has the highest weight because students from the same department are more likely to have similar academic backgrounds, course expectations, and project needs.
-
-## 6. Leader and Member Similarity
-For each group, the system compares the applying student with:
-1. the group leader,
-2. the existing non-leader members.
-
-The leader is given a slightly higher weight because the leader usually creates the group, manages the group information, and reviews applications.
-
-The group similarity score is calculated as:
-```text
-group_similarity_score =
-(1.2 × leader_similarity_score + average_member_similarity_score) / 2.2
-```
-The value 1.2 is used as a moderate leader weight. It makes the leader slightly more influential than other members, but it does not make the recommendation depend only on the leader.
-
-The value 2.2 is the sum of the weights:
-```text
-1.2 + 1.0 = 2.2
-```
-Therefore, the formula is a weighted average.
-
-## 7. Average Member Similarity
-The average member similarity is calculated using only non-leader members.
-The leader is excluded because the leader similarity is already calculated separately.
-```text
-average_member_similarity_score =
-sum(similarity between applicant and each non-leader member)
-/ number of non-leader members
-```
-If the group only has a leader and no other members, then:
-```text
-average_member_similarity_score = leader_similarity_score
-```
-This avoids unfairly lowering the score of newly created groups.
-
-## 8. Available Slot Score
-The system also considers how many seats are still available in the group.
-```text
-available_slots = max_members - len(members)
-```
-The available slot score is:
-```text
-available_slot_score = 2 × available_slots
-```
-This gives a small bonus to groups with more available seats.
-
-However, this score is intentionally smaller than the student similarity score because having more available seats does not necessarily mean the group is a better match.
-
-## 9. Deadline Bonus
-The system gives a small bonus to groups that are close to their recruitment deadline.
-
-| Deadline condition                   | Bonus |
-| ------------------------------------ | ----: |
-| Deadline is within 1 day             |    +5 |
-| Deadline is within 3 days            |    +3 |
-| No deadline or more than 3 days left |    +0 |
-
-## 10. Final Score Formula
-The final recommendation score is:
 ```text
 final_score =
-(1.2 × leader_similarity_score + average_member_similarity_score) / 2.2
-+ 2 × available_slots
-+ deadline_bonus
+student_similarity_score
++ capacity_score
++ deadline_urgency_score
 ```
-Groups with higher scores are displayed earlier.
 
-## 11. Example
-Applying student:
+### Student Similarity
+
+兩位學生的相似度：
+
+| Condition | Score |
+| --- | ---: |
+| Same department | +20 |
+| Same admission year | +10 |
+| Admission year differs by 1 | +5 |
+| Same program level | +5 |
+| Same class | +5 |
+| Same college | +3 |
+
+單一 pair 的最高分是 `43`。
+
+群組相似度會讓 leader 稍微更重要：
+
+```text
+leader_similarity = similarity(applicant, leader)
+
+average_member_similarity =
+    average(similarity(applicant, each non-leader member))
+
+student_similarity_score =
+    (1.2 * leader_similarity + average_member_similarity) / 2.2
+```
+
+若 group 只有 leader，`average_member_similarity` 使用 `leader_similarity`，避免新 group 被不合理扣分。
+
+### Capacity
+
+```text
+available_slots = max(max_members - member_count, 0)
+capacity_score = 10 * available_slots / max_members
+```
+
+容量分數介於 `0` 與小於等於 `10` 之間。使用比例而不是固定 `2 * available_slots`，可避免大型 group 單純因上限較大而支配排名。
+
+### Deadline Urgency
+
+| Remaining time | Score |
+| --- | ---: |
+| Expired | 0 and group should already be filtered out |
+| Within 24 hours | +5 |
+| Within 72 hours | +3 |
+| No deadline or more than 72 hours | +0 |
+
+Naive datetime 會被視為 UTC；正式資料應由 persistence layer 優先儲存 timezone-aware datetime。
+
+## Sorting And Tie Breaking
+
+每個 group 只計算一次，結果包裝成 `GroupRecommendation` 後排序：
+
+```text
+1. recommendation score, descending
+2. lower occupancy ratio first
+3. group ID, descending as deterministic final key
+```
+
+實作 key：
+
+```python
+(
+    recommendation.score,
+    -len(group.members) / group.max_members,
+    group.group_id,
+)
+```
+
+排序使用 `reverse=True`。第二個值為負 occupancy ratio，因此成員比例較低的 group 會排前面。
+
+## Complexity
+
+定義：
+
+- `G`: repository 回傳的 joinable groups 數量
+- `M`: 每個候選 group 的平均成員數
+- `J`: 學生已加入的 group 數量
+- `P`: 學生 pending applications 數量
+
+Application 層的時間複雜度：
+
+```text
+candidate filtering: O(G + J + P)
+scoring:             O(G * M)
+sorting:             O(G log G)
+
+total: O(G * M + G log G + J + P)
+```
+
+額外空間複雜度：
+
+```text
+unavailable course set and results: O(G + J + P)
+student ID LRU cache:               O(1) bounded by 4096 entries
+```
+
+Repository 在 MongoDB 先排除 closed/full groups，可減少進入 Python 的 `G`。推薦 service 也只計分一次，避免排序或 response serialization 再次計算。
+
+若資料量明顯增加，下一步不是在 Python 內做更多 micro-optimization，而是：
+
+1. 確認 `groups.course_id`、`groups.status`、`groups.members`、applications pending query 有適合的 indexes。
+2. 使用 course filter 縮小候選集合。
+3. 將常用解析欄位正規化到 student profile，避免依賴學生證號格式。
+4. 需要個人偏好時，再加入可注入的新 strategy，例如 meeting mode、study style 或時間衝突。
+5. 若排序需跨大量 groups，考慮離線 projection 或 precomputed features。
+
+## Example
+
+Applicant:
+
 ```text
 41271122H
 ```
+
 Group:
+
 ```text
 leader_id = 41271105H
-members = ["41271105H", "41271218H", "61271103H"]
+members = [41271105H, 41271218H, 61271103H]
 max_members = 4
-```
-Leader Similarity
-
-Applicant: `41271122H`
-
-Leader: `41271105H`
-
-They have:
-```text
-Same program level: +5
-Same admission year: +10
-Same department: +20
-Same class: +5
-Same college: +3
-```
-Therefore,
-```text
-leader_similarity_score = 43
-```
-### Member Similarity
-Non-leader members:
-```text
-41271218H
-61271103H
-```
-Assume their similarity scores are:
-```text
-38 and 38
-```
-Then:
-```text
-average_member_similarity_score = (38 + 38) / 2 = 38
-```
-### Available Slot Score
-```text
-available_slots = 4 - 3 = 1
-available_slot_score = 2 × 1 = 2
-```
-### Deadline Bonus
-Assume the deadline bonus is:
-```text
-deadline_bonus = 3
-```
-### Final Score
-```text
-final_score =
-(1.2 × 43 + 38) / 2.2
-+ 2
-+ 3
+deadline = within 72 hours
 ```
 
-```text
-final_score =
-(51.6 + 38) / 2.2
-+ 5
-```
+假設：
 
 ```text
-final_score =
-40.73 + 5
-= 45.73
+leader_similarity = 43
+non_leader_scores = [38, 38]
+average_member_similarity = 38
+
+student_similarity = (1.2 * 43 + 38) / 2.2 = 40.73
+capacity_score = 10 * (4 - 3) / 4 = 2.5
+deadline_score = 3
+
+final_score = 46.23
 ```
 
-## 12. Algorithm Steps
-```text
-1. Student selects a course.
-2. The system retrieves all joinable groups for the selected course.
-3. For each group:
-   a. Parse the applicant's student ID.
-   b. Parse the group leader's student ID.
-   c. Calculate leader similarity score.
-   d. Parse each non-leader member's student ID.
-   e. Calculate average member similarity score.
-   f. Calculate available slot score.
-   g. Calculate deadline bonus.
-   h. Calculate final score.
-4. Sort groups by final score in descending order.
-5. Return the sorted group list.
-```
+## Correctness Boundaries
 
-## 13. Time Complexity
-Let:
-```text
-n = number of joinable groups
-m = average number of members in each group
-```
-For each group, the system compares the applicant with the group leader and current members.
+推薦結果只是排序與顯示，不是核准保證。使用者送出申請到隊長核准之間，group 可能關閉、額滿、期限到期，或學生已加入其他同課程 group。
 
-The score calculation takes:
-```text
-O(n × m)
-```
-Sorting all groups takes:
-```text
-O(n log n)
-```
-Hence, the total time complexity is:
-```text
-O(n × m + n log n)
-```
-Since project groups usually contain only a small number of members, the algorithm is efficient enough for this use case.
+因此 `ApplicationService.approve_application()` 必須重新檢查條件，並透過：
 
-## 14. Space Complexity
-The system stores the list of joinable groups and sorts them.
+- pending application atomic transition
+- `group_memberships` unique claim
+- `GroupRepository.add_member_if_joinable()`
+- 失敗時的 compensating action
 
-Therefore, the space complexity is:
-```text
-O(n)
+保護最終一致性。正式環境執行 group migration 與建立 unique index 後，才能完整抵抗跨 process concurrency。
+
+## Tests
+
+推薦相關 regression tests 位於：
+
+- `backend/tests/test_group_application_use_case.py`
+  - 排除已加入課程的 group
+  - 限制 capacity weight
+  - 每個 group 只計分一次
+- `backend/tests/test_group_api_integration.py`
+  - group/application/dashboard 整合流程
+
+執行：
+
+```bash
+cd backend
+python -m unittest discover -s tests -p "test_group_application_use_case.py" -v
+python -m unittest discover -s tests -p "test_group_api_integration.py" -v
 ```
-## 15. Design Rationale
-This algorithm is rule-based.
-
-The responsibility of each component:
-
-| Component               | Responsibility                                                         |
-| ----------------------- | ---------------------------------------------------------------------- |
-| `StudentIdParser`       | Parses student IDs into structured information                         |
-| `GroupRecommendationService` | Calculates recommendation scores and sorts groups                      |
-| `GroupRepository`       | Retrieves joinable groups from the database                            |
-| `Group`                 | Encapsulates group rules such as whether the group is full or joinable |

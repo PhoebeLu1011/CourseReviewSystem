@@ -1,38 +1,16 @@
 from flask import Blueprint, request, jsonify
 import traceback
 
-def create_group_routes(group_recommendation_service, group_service):
+def create_group_routes(
+    group_recommendation_service,
+    group_service,
+    group_management_facade,
+    authorization_service,
+):
     group_bp = Blueprint("groups", __name__)
 
-    def group_to_response(group, recommendation_score=None):
-        group_data = group.to_dict()
-        group_data["recommendation_score"] = recommendation_score
-        return group_data
-
-    def groups_to_response(groups, student_id=None):
-        result = []
-
-        for group in groups:
-            recommendation_score = None
-
-            if student_id:
-                recommendation_score = (
-                    group_recommendation_service.calculate_match_score(
-                        student_id=student_id,
-                        group=group,
-                    )
-                )
-
-            result.append(
-                group_to_response(
-                    group=group,
-                    recommendation_score=recommendation_score,
-                )
-            )
-
-        return result
-
     @group_bp.route("/groups", methods=["POST"])
+    @authorization_service.require_student
     def create_group():
         try:
             data = request.get_json() or {}
@@ -40,8 +18,7 @@ def create_group_routes(group_recommendation_service, group_service):
             group = group_service.create_group(
                 group_name=data.get("group_name"),
                 course_id=data.get("course_id"),
-                leader_id=data.get("leader_id"),
-                max_members=data.get("max_members"),
+                leader_id=authorization_service.current_student_id(),
                 needed_members=data.get("needed_members"),
                 recruitment_deadline=data.get("recruitment_deadline"),
                 description=data.get("description"),
@@ -54,25 +31,38 @@ def create_group_routes(group_recommendation_service, group_service):
             return jsonify({"message": str(e)}), 400
 
         except Exception as e:
-            print("Recommend all groups error:", e)
+            print("Create group error:", e)
             traceback.print_exc()
-            return jsonify({"message": str(e)}), 500
+            return jsonify({"message": "Internal server error."}), 500
+
+    @group_bp.route("/groups/me/dashboard", methods=["GET"])
+    @authorization_service.require_student
+    def get_my_group_dashboard():
+        dashboard = group_management_facade.get_dashboard(
+            authorization_service.current_student_id()
+        )
+        return jsonify(dashboard), 200
+
     @group_bp.route("/groups/recommended", methods=["GET"])
     def recommend_all_groups():
         try:
             student_id = request.args.get("student_id")
 
             if student_id:
-                groups = group_recommendation_service.recommend_groups(
+                recommendations = group_recommendation_service.recommend_group_results(
                     student_id=student_id,
                     course_id=None,
                 )
+                return jsonify([
+                    recommendation.to_dict()
+                    for recommendation in recommendations
+                ]), 200
             else:
                 groups = group_recommendation_service.list_joinable_groups(
                     course_id=None,
                 )
 
-            return jsonify(groups_to_response(groups, student_id)), 200
+            return jsonify([group.to_dict() for group in groups]), 200
 
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
@@ -87,16 +77,20 @@ def create_group_routes(group_recommendation_service, group_service):
             student_id = request.args.get("student_id")
 
             if student_id:
-                groups = group_recommendation_service.recommend_groups(
+                recommendations = group_recommendation_service.recommend_group_results(
                     student_id=student_id,
                     course_id=course_id,
                 )
+                return jsonify([
+                    recommendation.to_dict()
+                    for recommendation in recommendations
+                ]), 200
             else:
                 groups = group_recommendation_service.list_joinable_groups(
                     course_id=course_id,
                 )
 
-            return jsonify(groups_to_response(groups, student_id)), 200
+            return jsonify([group.to_dict() for group in groups]), 200
 
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
@@ -106,59 +100,138 @@ def create_group_routes(group_recommendation_service, group_service):
             return jsonify({"message": "Internal server error."}), 500
 
     @group_bp.route("/groups/<group_id>/close", methods=["POST"])
+    @authorization_service.require_student
     def close_group(group_id):
         try:
-            data = request.get_json() or {}
-            leader_id = data.get("leader_id")
+            leader_id = authorization_service.current_student_id()
 
-            if not leader_id:
-                return jsonify({"message": "leader_id is required."}), 400
-
-            group = group_service.get_group(group_id)
-
-            if group.leader_id != leader_id:
-                return jsonify({
-                    "message": "Only the group leader can close recruitment."
-                }), 403
-
-            group_service.close_recruitment(group_id)
-            updated_group = group_service.get_group(group_id)
-
-            return jsonify(updated_group.to_dict()), 200
+            group = group_service.close_recruitment(group_id, leader_id)
+            return jsonify(group.to_dict()), 200
 
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
+        except PermissionError as e:
+            return jsonify({"message": str(e)}), 403
 
         except Exception as e:
             print("Close group error:", e)
             return jsonify({"message": "Internal server error."}), 500
 
     @group_bp.route("/groups/<group_id>/reopen", methods=["POST"])
+    @authorization_service.require_student
     def reopen_group(group_id):
         try:
-            data = request.get_json() or {}
-            leader_id = data.get("leader_id")
+            leader_id = authorization_service.current_student_id()
 
-            if not leader_id:
-                return jsonify({"message": "leader_id is required."}), 400
-
-            group = group_service.get_group(group_id)
-
-            if group.leader_id != leader_id:
-                return jsonify({
-                    "message": "Only the group leader can reopen recruitment."
-                }), 403
-
-            group_service.reopen_recruitment(group_id)
-            updated_group = group_service.get_group(group_id)
-
-            return jsonify(updated_group.to_dict()), 200
+            group = group_service.reopen_recruitment(group_id, leader_id)
+            return jsonify(group.to_dict()), 200
 
         except ValueError as e:
             return jsonify({"message": str(e)}), 400
+        except PermissionError as e:
+            return jsonify({"message": str(e)}), 403
 
         except Exception as e:
             print("Reopen group error:", e)
+            return jsonify({"message": "Internal server error."}), 500
+
+    @group_bp.route("/groups/<group_id>/members/<student_id>", methods=["DELETE"])
+    @authorization_service.require_student
+    def remove_group_member(group_id, student_id):
+        try:
+            group = group_service.remove_member(
+                group_id=group_id,
+                student_id=student_id,
+                leader_id=authorization_service.current_student_id(),
+            )
+            return jsonify(group.to_dict()), 200
+        except ValueError as e:
+            return jsonify({"message": str(e)}), 400
+        except PermissionError as e:
+            return jsonify({"message": str(e)}), 403
+        except Exception as e:
+            print("Remove group member error:", e)
+            return jsonify({"message": "Internal server error."}), 500
+
+    @group_bp.route("/groups/<group_id>/members/me", methods=["DELETE"])
+    @authorization_service.require_student
+    def leave_group(group_id):
+        try:
+            group = group_service.leave_group(
+                group_id=group_id,
+                student_id=authorization_service.current_student_id(),
+            )
+            return jsonify(group.to_dict()), 200
+        except ValueError as e:
+            return jsonify({"message": str(e)}), 400
+        except Exception as e:
+            print("Leave group error:", e)
+            return jsonify({"message": "Internal server error."}), 500
+
+    @group_bp.route("/groups/<group_id>", methods=["PATCH"])
+    @authorization_service.require_student
+    def edit_group(group_id):
+        try:
+            data = request.get_json() or {}
+            editable_fields = {
+                key: data[key]
+                for key in (
+                    "group_name",
+                    "needed_members",
+                    "recruitment_deadline",
+                    "description",
+                    "tags",
+                )
+                if key in data
+            }
+            group = group_service.edit_group(
+                group_id=group_id,
+                leader_id=authorization_service.current_student_id(),
+                **editable_fields,
+            )
+            return jsonify(group.to_dict()), 200
+        except ValueError as e:
+            return jsonify({"message": str(e)}), 400
+        except PermissionError as e:
+            return jsonify({"message": str(e)}), 403
+        except Exception as e:
+            print("Edit group error:", e)
+            return jsonify({"message": "Internal server error."}), 500
+
+    @group_bp.route("/groups/<group_id>/transfer-leadership", methods=["POST"])
+    @authorization_service.require_student
+    def transfer_group_leadership(group_id):
+        try:
+            data = request.get_json() or {}
+            group = group_service.transfer_leadership(
+                group_id=group_id,
+                leader_id=authorization_service.current_student_id(),
+                new_leader_id=data.get("new_leader_id"),
+            )
+            return jsonify(group.to_dict()), 200
+        except ValueError as e:
+            return jsonify({"message": str(e)}), 400
+        except PermissionError as e:
+            return jsonify({"message": str(e)}), 403
+        except Exception as e:
+            print("Transfer group leadership error:", e)
+            return jsonify({"message": "Internal server error."}), 500
+
+    @group_bp.route("/groups/<group_id>", methods=["DELETE"])
+    @authorization_service.require_student
+    def dissolve_group(group_id):
+        try:
+            group = group_service.dissolve_group(
+                group_id=group_id,
+                leader_id=authorization_service.current_student_id(),
+            )
+            return jsonify(group.to_dict()), 200
+        except ValueError as e:
+            return jsonify({"message": str(e)}), 400
+        except PermissionError as e:
+            return jsonify({"message": str(e)}), 403
+        except Exception as e:
+            print("Dissolve group error:", e)
             return jsonify({"message": "Internal server error."}), 500
 
     return group_bp

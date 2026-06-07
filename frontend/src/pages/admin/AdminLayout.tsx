@@ -2,23 +2,7 @@ import { Outlet, useNavigate } from "react-router";
 import { AdminSidebar } from "./AdminSidebar";
 import { AnalyticsCards } from "./AnalyticsCards";
 import { Bell, Search } from "lucide-react";
-
-type StoredUser = {
-  id?: string | number | null;
-  name?: string;
-  email?: string;
-  role?: string;
-  avatar?: string | null;
-};
-
-function getStoredUser(): StoredUser | null {
-  try {
-    const raw = localStorage.getItem("user");
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
+import { useAuth } from "../../context/AuthContext";
 
 function getInitials(name?: string) {
   if (!name) return "AD";
@@ -32,7 +16,7 @@ function getInitials(name?: string) {
 
 export function AdminLayout() {
   const navigate = useNavigate();
-  const user = getStoredUser();
+  const { user } = useAuth();
 
   const displayName = user?.name || "Admin";
   const roleLabel = user?.role?.toLowerCase() === "admin" ? "管理員" : "Admin Panel";

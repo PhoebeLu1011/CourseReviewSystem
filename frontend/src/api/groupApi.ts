@@ -1,44 +1,29 @@
-import { API_BASE_URL } from "../config/api";
-import type { Group } from "../models/Group";
+import type { Group, GroupManagementDashboard } from "../models/Group";
+import { apiRequest } from "./apiClient";
 
 export type CreateGroupPayload = {
   group_name: string;
   course_id: string;
-  leader_id: string;
-  max_members: number;
   needed_members: number;
   recruitment_deadline?: string | null;
   description?: string | null;
   tags?: string[];
 };
 
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    throw new Error(data?.message || `API request failed: ${path}`);
-  }
-
-  return data as T;
-}
+export type EditGroupPayload = {
+  group_name?: string;
+  needed_members?: number;
+  recruitment_deadline?: string | null;
+  description?: string | null;
+  tags?: string[];
+};
 
 export async function getRecommendedGroups(studentId?: string) {
   const query = studentId
     ? `?student_id=${encodeURIComponent(studentId)}`
     : "";
 
-  return request<Group[]>(`/groups/recommended${query}`);
+  return apiRequest<Group[]>(`/groups/recommended${query}`, { auth: true });
 }
 
 export async function getRecommendedGroupsByCourse(
@@ -49,32 +34,77 @@ export async function getRecommendedGroupsByCourse(
     ? `?student_id=${encodeURIComponent(studentId)}`
     : "";
 
-  return request<Group[]>(
-    `/courses/${encodeURIComponent(courseId)}/groups/recommended${query}`
+  return apiRequest<Group[]>(
+    `/courses/${encodeURIComponent(courseId)}/groups/recommended${query}`,
+    { auth: true }
   );
 }
 
 export async function createGroup(payload: CreateGroupPayload) {
-  return request<Group>("/groups", {
+  return apiRequest<Group>("/groups", {
     method: "POST",
+    auth: true,
     body: JSON.stringify(payload),
   });
 }
 
-export async function closeGroup(groupId: string, leaderId: string) {
-  return request<Group>(`/groups/${encodeURIComponent(groupId)}/close`, {
+export async function closeGroup(groupId: string) {
+  return apiRequest<Group>(`/groups/${encodeURIComponent(groupId)}/close`, {
     method: "POST",
-    body: JSON.stringify({
-      leader_id: leaderId,
-    }),
+    auth: true,
   });
 }
 
-export async function reopenGroup(groupId: string, leaderId: string) {
-  return request<Group>(`/groups/${encodeURIComponent(groupId)}/reopen`, {
+export async function reopenGroup(groupId: string) {
+  return apiRequest<Group>(`/groups/${encodeURIComponent(groupId)}/reopen`, {
     method: "POST",
-    body: JSON.stringify({
-      leader_id: leaderId,
-    }),
+    auth: true,
+  });
+}
+
+export async function getMyGroupDashboard() {
+  return apiRequest<GroupManagementDashboard>("/groups/me/dashboard", { auth: true });
+}
+
+export async function removeGroupMember(groupId: string, studentId: string) {
+  return apiRequest<Group>(
+    `/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(studentId)}`,
+    { method: "DELETE", auth: true }
+  );
+}
+
+export async function leaveGroup(groupId: string) {
+  return apiRequest<Group>(`/groups/${encodeURIComponent(groupId)}/members/me`, {
+    method: "DELETE",
+    auth: true,
+  });
+}
+
+export async function editGroup(groupId: string, payload: EditGroupPayload) {
+  return apiRequest<Group>(`/groups/${encodeURIComponent(groupId)}`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function transferGroupLeadership(
+  groupId: string,
+  newLeaderId: string
+) {
+  return apiRequest<Group>(
+    `/groups/${encodeURIComponent(groupId)}/transfer-leadership`,
+    {
+      method: "POST",
+      auth: true,
+      body: JSON.stringify({ new_leader_id: newLeaderId }),
+    }
+  );
+}
+
+export async function dissolveGroup(groupId: string) {
+  return apiRequest<Group>(`/groups/${encodeURIComponent(groupId)}`, {
+    method: "DELETE",
+    auth: true,
   });
 }

@@ -1,35 +1,60 @@
-from models.announcement import Announcement
-from datetime import datetime
+from models.announcement import Announcement, AnnouncementQuery
+
 
 class AnnouncementRepository:
     def __init__(self, db):
         self.collection = db["announcements"]
 
-    def find_all(self):
-        """取得所有公告（最新優先）"""
-        cursor = self.collection.find().sort("created_at", -1)
-        announcements = []
-        for data in cursor:
-            data.pop("_id", None)  # 修正：清除 MongoDB _id，避免 Announcement() 崩潰
-            announcements.append(Announcement(**data))
-        return announcements
+    def find(self, query: AnnouncementQuery):
+        conditions = []
+        if not query.include_deleted:
+            conditions.append({
+                "$or": [
+                    {"visibilityState": "VISIBLE"},
+                    {"visibilityState": {"$exists": False}},
+                ]
+            })
+        if query.target:
+            conditions.append({"target": query.target})
+        if query.published_only:
+            now = query.now.isoformat()
+            conditions.append({
+                "$or": [
+                    {"scheduled_at": None},
+                    {"scheduled_at": {"$exists": False}},
+                    {"scheduled_at": {"$lte": now}},
+                ]
+            })
+
+        mongo_query = {"$and": conditions} if conditions else {}
+        cursor = self.collection.find(mongo_query).sort(
+            [("is_pinned", -1), ("created_at", -1)]
+        )
+        return [self._to_announcement(data) for data in cursor]
 
     def find_by_id(self, announcement_id: str):
-        """取得單一公告"""
         data = self.collection.find_one({"announcementID": announcement_id})
-        if not data:
-            return None
-        data.pop("_id", None)
-        return Announcement(**data)
+        return self._to_announcement(data)
+
+    def count_active(self):
+        return self.collection.count_documents({
+            "$or": [
+                {"visibilityState": "VISIBLE"},
+                {"visibilityState": {"$exists": False}},
+            ]
+        })
 
     def save(self, announcement: Announcement):
-        """新增或更新公告"""
         self.collection.update_one(
             {"announcementID": announcement.announcementID},
             {"$set": announcement.to_dict()},
-            upsert=True
+            upsert=True,
         )
 
-    def delete_by_id(self, announcement_id: str):
-        """刪除公告"""
-        self.collection.delete_one({"announcementID": announcement_id})
+    @staticmethod
+    def _to_announcement(data):
+        if not data:
+            return None
+        data = dict(data)
+        data.pop("_id", None)
+        return Announcement(**data)

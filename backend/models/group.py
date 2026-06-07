@@ -37,10 +37,9 @@ class Group:
         if members is None:
             return [leader_id]
         unique = list(dict.fromkeys(members))
-        # leader must always be the first member in the list
-        if leader_id not in unique:
-            unique.insert(0, leader_id)
-        return unique
+        if leader_id in unique:
+            unique.remove(leader_id)
+        return [leader_id, *unique]
 
     def _validate(self) -> None:
         if self.status not in {"open", "closed"}:
@@ -95,6 +94,19 @@ class Group:
             raise ValueError("Student not in group.")
         self.members.remove(student_id)
 
+    def transfer_leadership(self, new_leader_id: str) -> None:
+        if new_leader_id == self.leader_id:
+            raise ValueError("Student is already the group leader.")
+        if new_leader_id not in self.members:
+            raise ValueError("New leader must already be a group member.")
+        self.leader_id = new_leader_id
+        self.members.remove(new_leader_id)
+        self.members.insert(0, new_leader_id)
+
+    def dissolve(self) -> None:
+        self.status = "closed"
+        self.visibilityState = "DELETED"
+
     def close_recruitment(self) -> None:
         self.status = "closed"
 
@@ -119,6 +131,8 @@ class Group:
             self.group_name = group_name.strip()
 
         if max_members is not None:
+            if max_members < 2:
+                raise ValueError("A group must allow at least two members.")
             if max_members < len(self.members):
                 raise ValueError("max_members cannot be smaller than current member count.")
             self.max_members = max_members
@@ -131,6 +145,15 @@ class Group:
 
         if tags is not None:
             self.tags = tags
+
+    def set_recruitment_deadline(self, deadline: datetime | None) -> None:
+        self.recruitment_deadline = deadline
+
+    def set_description(self, description: str | None) -> None:
+        self.description = description
+
+    def set_tags(self, tags: list[str]) -> None:
+        self.tags = tags
 
     def to_dict(self) -> dict:
         needed_members = max(self.max_members - len(self.members), 0)
@@ -152,3 +175,8 @@ class Group:
             "tags": self.tags,
             "visibilityState": self.visibilityState,
         }
+
+    def to_persistence_dict(self) -> dict:
+        data = self.to_dict()
+        data["recruitment_deadline"] = self.recruitment_deadline
+        return data

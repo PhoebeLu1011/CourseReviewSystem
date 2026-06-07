@@ -11,15 +11,37 @@ class Badge:
         minApplyCount: int = 0,
         minAchievementScore: int = 0,
     ):
-        self.badgeID = badgeID
-        self.badgeName = badgeName
-        self.category = category
-        self.description = description
-        self.level = level
-        self.minReviewCount = minReviewCount
-        self.minReplyCount = minReplyCount
-        self.minApplyCount = minApplyCount
-        self.minAchievementScore = minAchievementScore
+        self.badgeID = self._required_text(badgeID, "badgeID")
+        self.badgeName = self._required_text(badgeName, "badgeName")
+        self.category = self._required_text(category, "category")
+        self.description = self._required_text(description, "description")
+        self.level = self._positive_int(level, "level")
+        self.minReviewCount = self._non_negative_int(minReviewCount, "minReviewCount")
+        self.minReplyCount = self._non_negative_int(minReplyCount, "minReplyCount")
+        self.minApplyCount = self._non_negative_int(minApplyCount, "minApplyCount")
+        self.minAchievementScore = self._non_negative_int(
+            minAchievementScore,
+            "minAchievementScore",
+        )
+
+    @staticmethod
+    def _required_text(value, field_name):
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{field_name} is required.")
+        return value.strip()
+
+    @staticmethod
+    def _non_negative_int(value, field_name):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"{field_name} must be a non-negative integer.")
+        return value
+
+    @classmethod
+    def _positive_int(cls, value, field_name):
+        value = cls._non_negative_int(value, field_name)
+        if value == 0:
+            raise ValueError(f"{field_name} must be greater than 0.")
+        return value
 
     def to_dict(self):
         return {

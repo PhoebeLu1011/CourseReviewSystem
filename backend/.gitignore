@@ -19,3 +19,5 @@ frontend/dist/
 
 # Seed / local scripts
 scripts/seed_admin/
+tests/
+migrations/

@@ -1,6 +1,4 @@
-import { API_BASE_URL } from "../config/api";
-
-const BASE_URL = API_BASE_URL;
+import { apiRequest } from "./apiClient";
 
 export interface Course {
   courseID: string;        // composite: {serialNumber}_{year}_{semester}
@@ -50,27 +48,25 @@ export async function searchCourses(
   params.set("limit", String(limit));
   params.set("skip", String(skip));
 
-  const res = await fetch(`${BASE_URL}/courses/search?${params}`);
-  if (!res.ok) throw new Error("Failed to search courses");
-  return res.json();
+  return apiRequest<SearchResult>(`/courses/search?${params}`, {
+    includeContentType: false,
+  });
 }
 
 export async function getAcademicYears(): Promise<string[]> {
-  const res = await fetch(`${BASE_URL}/courses/years`);
-  if (!res.ok) throw new Error("Failed to fetch academic years");
-  return res.json();
+  return apiRequest<string[]>("/courses/years", { includeContentType: false });
 }
 
 export async function getCourse(courseID: string): Promise<Course> {
-  const res = await fetch(`${BASE_URL}/courses/${courseID}`);
-  if (!res.ok) throw new Error("Course not found");
-  return res.json();
+  return apiRequest<Course>(`/courses/${encodeURIComponent(courseID)}`, {
+    includeContentType: false,
+  });
 }
 
 export async function getDepartments(): Promise<string[]> {
-  const res = await fetch(`${BASE_URL}/courses/departments`);
-  if (!res.ok) throw new Error("Failed to fetch departments");
-  return res.json();
+  return apiRequest<string[]>("/courses/departments", {
+    includeContentType: false,
+  });
 }
 
 /** Parse NTNU timeAndLocation into English-style schedule and location strings.

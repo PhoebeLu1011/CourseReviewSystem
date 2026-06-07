@@ -7,6 +7,7 @@ class Application:
         application_id: str,
         student_id: str,
         group_id: str,
+        course_id: str | None = None,
         message: str = "",
         status: str = "pending",   # pending | approved | rejected | cancelled
         apply_time: datetime | None = None,
@@ -16,7 +17,8 @@ class Application:
         self.application_id = application_id
         self.student_id = student_id
         self.group_id = group_id
-        self.message = message
+        self.course_id = course_id
+        self.message = message.strip() if isinstance(message, str) else ""
         self.status = status
         self.apply_time = apply_time or datetime.now()
         self.reviewed_time = reviewed_time
@@ -69,6 +71,7 @@ class Application:
             "application_id": self.application_id,
             "student_id": self.student_id,
             "group_id": self.group_id,
+            "course_id": self.course_id,
             "message": self.message,
             "status": self.status,
             "apply_time": self.apply_time,

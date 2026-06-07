@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../config/api";
+import { apiRequest } from "./apiClient";
 
 export interface Discussion {
   discussionID: string;
@@ -23,105 +23,98 @@ export interface Reply {
 }
 
 export async function getCourseDiscussions(courseID: string): Promise<Discussion[]> {
-  const res = await fetch(`${API_BASE_URL}/courses/${courseID}/discussions`);
-  if (!res.ok) throw new Error("Failed to fetch discussions");
-  return res.json();
+  return apiRequest<Discussion[]>(`/courses/${courseID}/discussions`, {
+    includeContentType: false,
+  });
 }
 
-export async function createDiscussion(data: { authorID: string; courseID: string; title: string; content: string }): Promise<Discussion> {
-  const res = await fetch(`${API_BASE_URL}/discussions`, {
+export async function createDiscussion(data: { courseID: string; title: string; content: string }): Promise<Discussion> {
+  return apiRequest<Discussion>("/discussions", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    auth: true,
     body: JSON.stringify(data),
   });
-  return res.json();
 }
 
 export async function getDiscussionReplies(discussionID: string): Promise<Reply[]> {
-  const res = await fetch(`${API_BASE_URL}/discussions/${discussionID}/replies`);
-  return res.json();
+  return apiRequest<Reply[]>(`/discussions/${discussionID}/replies`, {
+    includeContentType: false,
+  });
 }
 
-export async function createReply(discussionID: string, data: { authorID: string; content: string }): Promise<Reply> {
-  const res = await fetch(`${API_BASE_URL}/discussions/${discussionID}/replies`, {
+export async function createReply(discussionID: string, data: { content: string }): Promise<Reply> {
+  return apiRequest<Reply>(`/discussions/${discussionID}/replies`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    auth: true,
     body: JSON.stringify(data),
   });
-  return res.json();
 }
 
-export async function toggleLikeDiscussion(discussionID: string, studentID: string): Promise<{ likeCount: number }> {
-  const res = await fetch(`${API_BASE_URL}/discussions/${discussionID}/like`, {
+export async function toggleLikeDiscussion(discussionID: string): Promise<{ likeCount: number }> {
+  return apiRequest<{ likeCount: number }>(`/discussions/${discussionID}/like`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ studentID }),
+    auth: true,
   });
-  return res.json();
 }
 
-export async function toggleLikeReply(replyID: string, studentID: string): Promise<{ likeCount: number }> {
-  const res = await fetch(`${API_BASE_URL}/replies/${replyID}/like`, {
+export async function toggleLikeReply(replyID: string): Promise<{ likeCount: number }> {
+  return apiRequest<{ likeCount: number }>(`/replies/${replyID}/like`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ studentID }),
+    auth: true,
   });
-  return res.json();
 }
 
 export async function getAllDiscussions(search = ""): Promise<Discussion[]> {
   const params = new URLSearchParams({ search });
-  const res = await fetch(`${API_BASE_URL}/discussions?${params}`);
-  if (!res.ok) throw new Error("Failed to fetch all discussions");
-  return res.json();
+  return apiRequest<Discussion[]>(`/discussions?${params}`, {
+    includeContentType: false,
+  });
 }
 
 export async function getDiscussionByID(discussionID: string): Promise<Discussion> {
-  const res = await fetch(`${API_BASE_URL}/discussions/${discussionID}`);
-  if (!res.ok) throw new Error("Failed to load thread details");
-  return res.json();
+  return apiRequest<Discussion>(`/discussions/${discussionID}`, {
+    includeContentType: false,
+  });
 }
 
 export async function getUserDiscussions(studentID: string): Promise<Discussion[]> {
-  const res = await fetch(`${API_BASE_URL}/users/${studentID}/discussions`);
-  return res.json();
-}
-
-export async function updateDiscussion(discussionID: string, studentID: string, title: string, content: string): Promise<Discussion> {
-  const res = await fetch(`${API_BASE_URL}/discussions/${discussionID}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ studentID, title, content }),
+  return apiRequest<Discussion[]>(`/users/${studentID}/discussions`, {
+    includeContentType: false,
   });
-  return res.json();
 }
 
-export async function deleteDiscussion(discussionID: string, studentID: string): Promise<void> {
-  await fetch(`${API_BASE_URL}/discussions/${discussionID}`, {
+export async function updateDiscussion(discussionID: string, title: string, content: string): Promise<Discussion> {
+  return apiRequest<Discussion>(`/discussions/${discussionID}`, {
+    method: "PUT",
+    auth: true,
+    body: JSON.stringify({ title, content }),
+  });
+}
+
+export async function deleteDiscussion(discussionID: string): Promise<void> {
+  await apiRequest<{ success: boolean }>(`/discussions/${discussionID}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ studentID }),
+    auth: true,
   });
 }
 
 export async function getUserReplies(studentID: string): Promise<Reply[]> {
-  const res = await fetch(`${API_BASE_URL}/users/${studentID}/replies`);
-  return res.json();
-}
-
-export async function updateReply(replyID: string, studentID: string, content: string): Promise<Reply> {
-  const res = await fetch(`${API_BASE_URL}/replies/${replyID}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ studentID, content }),
+  return apiRequest<Reply[]>(`/users/${studentID}/replies`, {
+    includeContentType: false,
   });
-  return res.json();
 }
 
-export async function deleteReply(replyID: string, studentID: string): Promise<void> {
-  await fetch(`${API_BASE_URL}/replies/${replyID}`, {
+export async function updateReply(replyID: string, content: string): Promise<Reply> {
+  return apiRequest<Reply>(`/replies/${replyID}`, {
+    method: "PUT",
+    auth: true,
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function deleteReply(replyID: string): Promise<void> {
+  await apiRequest<{ success: boolean }>(`/replies/${replyID}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ studentID }),
+    auth: true,
   });
 }

@@ -28,7 +28,6 @@ export interface Report {
 }
 
 export interface SubmitReportRequest {
-  reporterID: string;
   reported_type: ReportedType;
   reported_id: string;
   reason: ReportReason;

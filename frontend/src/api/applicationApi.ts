@@ -1,40 +1,41 @@
-import { API_BASE_URL } from "../config/api";
 import type { Application } from "../models/Application";
-
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    throw new Error(data?.message || `API request failed: ${path}`);
-  }
-
-  return data as T;
-}
+import { apiRequest } from "./apiClient";
 
 export async function getPendingApplications(studentId: string) {
-  return request<Application[]>(
-    `/students/${encodeURIComponent(studentId)}/applications/pending`
+  return apiRequest<Application[]>(
+    `/students/${encodeURIComponent(studentId)}/applications/pending`,
+    { auth: true }
   );
 }
 
 export async function createApplication(payload: {
-  student_id: string;
   group_id: string;
   message: string;
 }) {
-  return request<Application>("/applications", {
+  return apiRequest<Application>("/applications", {
     method: "POST",
+    auth: true,
     body: JSON.stringify(payload),
   });
+}
+
+export async function approveApplication(applicationId: string) {
+  return apiRequest<Application>(
+    `/applications/${encodeURIComponent(applicationId)}/approve`,
+    { method: "POST", auth: true }
+  );
+}
+
+export async function rejectApplication(applicationId: string) {
+  return apiRequest<Application>(
+    `/applications/${encodeURIComponent(applicationId)}/reject`,
+    { method: "POST", auth: true }
+  );
+}
+
+export async function cancelApplication(applicationId: string) {
+  return apiRequest<Application>(
+    `/applications/${encodeURIComponent(applicationId)}/cancel`,
+    { method: "POST", auth: true }
+  );
 }

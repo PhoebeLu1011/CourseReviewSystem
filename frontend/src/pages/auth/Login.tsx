@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { ArrowRight, User, ShieldAlert, Lock, Mail } from "lucide-react";
 import { clsx } from "clsx";
 import { useAuth } from "../../context/AuthContext";
 import { loginUser } from "../../api/userApi";
+import { getErrorMessage } from "../../utils/errors";
 
 type Role = "Student" | "Admin";
 
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [role, setRole] = useState<Role>("Student");
   const [email, setEmail] = useState("");
@@ -38,14 +40,20 @@ export function Login() {
 
       login(result.user, result.token);
 
-      if (result.user?.role === "Admin") {
+      const requestedPath = (
+        location.state as { from?: { pathname?: string } } | null
+      )?.from?.pathname;
+
+      if (requestedPath) {
+        navigate(requestedPath, { replace: true });
+      } else if (result.user?.role === "Admin") {
         navigate("/admin");
       } else {
         navigate("/");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Login Error:", err);
-      setErrorMsg(err.message || "登入失敗，請確認帳號或密碼是否正確。");
+      setErrorMsg(getErrorMessage(err, "登入失敗，請確認帳號或密碼是否正確。"));
     } finally {
       setIsLoading(false);
     }
