@@ -6,15 +6,36 @@ class CourseRepository:
         self.collection = db["courses"]
 
     def find_by_id(self, course_id):
-        data = self.collection.find_one({
-            "$or": [
-                {"courseID": course_id},
-                {"serialNumber": course_id},
-                {"開課序號": course_id},
-            ]
-        })
+        # 1. Direct match
+        data = self.collection.find_one({"courseID": course_id})
+        
+        # 2. Composite ID split
+        if not data and "_" in course_id:
+            parts = course_id.split("_")
+            if len(parts) == 3:
+                serial, year, term = parts
+                query = {
+                    "$and": [
+                        {"$or": [{"academicYear": year}, {"學年": year}]},
+                        {"$or": [{"semester": term}, {"學期": term}]},
+                        {"$or": [{"serialNumber": serial}, {"開課序號": serial}]}
+                    ]
+                }
+                data = self.collection.find_one(query)
+                
+        # 3. Fallback (search by serial number)
+        if not data:
+            data = self.collection.find_one({
+                "$or": [
+                    {"courseID": course_id},
+                    {"serialNumber": course_id},
+                    {"開課序號": course_id},
+                ]
+            })
+
         if not data:
             return None
+            
         return self._to_course(data)
 
     def save(self, course):
@@ -32,7 +53,7 @@ class CourseRepository:
             conditions.append({
                 "$or": [
                     {field: {"$regex": pattern, "$options": "i"}}
-                    for field in (
+                        for field in (
                         "title", "課程名稱", "professors", "老師", "courseCode",
                         "課程資訊", "serialNumber", "開課序號", "department", "開課系所",
                     )
@@ -91,21 +112,18 @@ class CourseRepository:
         return [self._to_course(data) for data in cursor]
 
     def get_departments(self):
-        # Scan both fields in the database
         raw_depts = self.collection.distinct("department")
         zh_depts = self.collection.distinct("開課系所")
         
         clean_depts = set()
         for dept in (raw_depts + zh_depts):
             if dept:
-                # Strip out the (學)/(碩)/(博) tags
                 clean = re.sub(r'[（\(][碩博學][）\)]', '', str(dept)).strip()
                 clean_depts.add(clean)
                 
         return sorted(list(clean_depts))
 
     def get_academic_years(self):
-        # Scan both fields in the database
         raw_years = self.collection.distinct("academicYear")
         zh_years = self.collection.distinct("學年")
         
