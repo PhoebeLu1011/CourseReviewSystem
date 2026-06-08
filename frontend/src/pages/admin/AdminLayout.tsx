@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from "react-router";
+import { Outlet } from "react-router";
 import { AdminSidebar } from "./AdminSidebar";
 import { AnalyticsCards } from "./AnalyticsCards";
 import { useAuth } from "../../context/AuthContext";
@@ -14,16 +14,11 @@ function getInitials(name?: string) {
 }
 
 export function AdminLayout() {
-  const navigate = useNavigate();
   const { user } = useAuth();
 
-  const displayName = user?.name || "管理員";
+  const displayName = user?.name || "Admin";
   const roleLabel = user?.role?.toLowerCase() === "admin" ? "管理員" : "管理後台";
   const initials = getInitials(displayName);
-
-  const handleGoHome = () => {
-    navigate("/");
-  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50 font-sans text-slate-800">
@@ -36,17 +31,14 @@ export function AdminLayout() {
               管理員儀表板
             </h1>
             <p className="mt-0.5 text-sm font-medium text-slate-500">
-              師大選課工具箱
+              NTNU 選課工具箱
             </p>
           </div>
 
           <div className="flex items-center gap-6">
-            <button
-              type="button"
-              onClick={handleGoHome}
-              className="flex items-center gap-3 transition-opacity hover:opacity-80"
-              title="返回主站"
-            >
+            <div className="mx-1 h-8 w-px bg-slate-200" />
+
+            <div className="flex items-center gap-3">
               <div className="hidden text-right sm:block">
                 <p className="mb-1 text-sm font-bold leading-none text-slate-800">
                   {displayName}
@@ -59,7 +51,7 @@ export function AdminLayout() {
               <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-indigo-600 text-sm font-bold text-white shadow-md">
                 {initials}
               </div>
-            </button>
+            </div>
           </div>
         </header>
 
@@ -76,4 +68,5 @@ export function AdminLayout() {
     </div>
   );
 }
+
 export default AdminLayout;
