@@ -114,34 +114,6 @@ Important architecture notes:
 - `AdminAnalyticsService` builds admin dashboard read models.
 - `BestEffortNotificationPublisher` prevents notification failures from breaking core flows.
 
-## Architecture Audit Score
-
-Latest review: model dependency, file responsibility, OOP boundaries, and over-engineering check.
-
-| Area | Score | Result |
-| --- | ---: | --- |
-| Domain model independence | 9.5/10 | `backend/models/` has no service/repository/route/Flask/Mongo dependency |
-| Backend responsibility split | 8.6/10 | Routes adapt HTTP, services orchestrate use cases, repositories own persistence |
-| Frontend responsibility split | 8.2/10 | API clients own HTTP; pages/hooks/components are mostly separated |
-| OOP fit | 8.7/10 | Domain objects own lifecycle rules; services own workflows |
-| Design pattern restraint | 8.4/10 | Removed unused factory/specification/strategy/facade layers; remaining patterns have real variation |
-| Overall maintainability | 8.5/10 | Solid first pass; a few large files remain |
-
-Current checks:
-
-- Models do not import services, repositories, routes, Flask, MongoDB, or frontend code.
-- `Badge.is_earned_by()` owns badge eligibility; `AchievementService` selects highest eligible badges.
-- Course/review/discussion display uses clean course codes while keeping composite `courseID` for data links.
-- Recommendation scoring is plain functions, not strategy classes.
-- Bookmark and notification creation no longer use unnecessary factory classes.
-
-Remaining cleanup candidates:
-
-- `frontend/src/components/courseDetail/ReviewsTab.tsx` is still large.
-- `frontend/src/components/profile/GroupManagementPanel.tsx` and `frontend/src/hooks/useUserProfile.ts` can be split further.
-- `backend/services/group/application_service.py` is the largest backend use case service; it is cohesive, but can be sectioned if it grows again.
-- `AuthorizationService` intentionally contains Flask route guard behavior; split only if we need a framework-neutral auth core.
-
 ## Main Use Cases
 
 | Use Case | Main Files | Responsibility Notes |
