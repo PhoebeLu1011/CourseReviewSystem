@@ -1,10 +1,8 @@
 import re
 from dataclasses import dataclass
 
-
 COURSE_LEVELS = {"學士班", "碩士班", "博士班", "其他"}
 COURSE_SEMESTERS = {"1", "2"}
-
 
 def derive_level(department: str) -> str:
     """Derive course level from NTNU department name."""
@@ -15,7 +13,6 @@ def derive_level(department: str) -> str:
     if re.search(r"[（(]學[）)]", department) or department.endswith("學程"):
         return "學士班"
     return "其他"
-
 
 @dataclass(frozen=True)
 class CourseSearchCriteria:
@@ -59,17 +56,24 @@ class CourseSearchCriteria:
         except (TypeError, ValueError) as error:
             raise ValueError(f"{field_name} must be an integer.") from error
 
-
 class Course:
     def __init__(self, **kwargs):
-        self.courseID = self._required_text(
-            kwargs.get("courseID") or kwargs.get("開課序號"),
-            "courseID",
-        )
+        # 1. Extract components for composite ID first
+        self.serialNumber = self._text(kwargs.get("serialNumber") or kwargs.get("開課序號"))
+        self.academicYear = self._text(kwargs.get("academicYear") or kwargs.get("學年"))
+        self.semester = self._text(kwargs.get("semester") or kwargs.get("學期"))
+
+        # 2. Generate composite courseID
+        provided_id = kwargs.get("courseID")
+        if provided_id:
+            self.courseID = self._required_text(provided_id, "courseID")
+        elif self.serialNumber and self.academicYear and self.semester:
+            self.courseID = f"{self.serialNumber}_{self.academicYear}_{self.semester}"
+        else:
+            self.courseID = self._required_text(self.serialNumber, "courseID")
+
+        # 3. Extract the rest
         self.courseCode = self._text(kwargs.get("courseCode") or kwargs.get("課程資訊"))
-        self.serialNumber = self._text(
-            kwargs.get("serialNumber") or kwargs.get("開課序號")
-        )
         self.title = self._required_text(
             kwargs.get("title") or kwargs.get("課程名稱"),
             "title",
@@ -81,8 +85,6 @@ class Course:
         self.timeAndLocation = self._text(
             kwargs.get("timeAndLocation") or kwargs.get("上課時間與地點")
         )
-        self.academicYear = self._text(kwargs.get("academicYear") or kwargs.get("學年"))
-        self.semester = self._text(kwargs.get("semester") or kwargs.get("學期"))
         self.syllabusURL = self._text(
             kwargs.get("syllabusURL") or kwargs.get("課程大綱連結")
         )
