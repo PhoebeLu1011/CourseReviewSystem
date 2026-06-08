@@ -5,10 +5,10 @@ import type { TabStatus } from "./auditReportUtils";
 const TABS: TabStatus[] = ["PENDING", "RESOLVED", "DISMISSED", "WITHDRAWN"];
 
 const TAB_LABEL: Record<TabStatus, string> = {
-  PENDING: "Pending",
-  RESOLVED: "Resolved",
-  DISMISSED: "Dismissed",
-  WITHDRAWN: "Withdrawn",
+  PENDING: "待處理",
+  RESOLVED: "已處理",
+  DISMISSED: "已駁回",
+  WITHDRAWN: "已撤回",
 };
 
 interface AuditCenterHeaderProps {
@@ -25,9 +25,9 @@ export function AuditCenterHeader({
   return (
     <div className="flex items-center justify-between border-b border-slate-100 p-6">
       <div>
-        <h2 className="text-xl font-bold text-slate-800">Audit Center</h2>
+        <h2 className="text-xl font-bold text-slate-800">審核中心</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Manage content reports and user violations
+          管理內容檢舉與使用者違規案件
         </p>
       </div>
 

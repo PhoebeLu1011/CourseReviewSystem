@@ -31,7 +31,7 @@ export function AnalyticsCards() {
       try {
         setSummary(await getAdminAnalyticsSummary());
       } catch (err) {
-        console.error("Failed to load admin analytics:", err);
+        console.error("載入管理員分析資料失敗：", err);
       } finally {
         setIsLoading(false);
       }
@@ -42,28 +42,28 @@ export function AnalyticsCards() {
 
   const stats: StatCard[] = [
     {
-      title: "Pending Reports",
+      title: "待處理檢舉",
       value: isLoading ? "..." : String(summary.pendingReports),
       icon: FileWarning,
-      trend: "Live",
+      trend: "即時",
       trendUp: summary.pendingReports === 0,
       color: "text-amber-600",
       bg: "bg-amber-100",
     },
     {
-      title: "Total Reports",
+      title: "檢舉總數",
       value: isLoading ? "..." : String(summary.totalReports),
       icon: Users,
-      trend: "All",
+      trend: "全部",
       trendUp: true,
       color: "text-indigo-600",
       bg: "bg-indigo-100",
     },
     {
-      title: "Active Announcements",
+      title: "啟用中公告",
       value: isLoading ? "..." : String(summary.activeAnnouncements),
       icon: Megaphone,
-      trend: "Live",
+      trend: "即時",
       trendUp: true,
       color: "text-emerald-600",
       bg: "bg-emerald-100",

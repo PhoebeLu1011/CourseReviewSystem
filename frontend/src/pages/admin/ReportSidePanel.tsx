@@ -8,17 +8,17 @@ interface ReportSidePanelProps {
 }
 
 function getDeleteLabel(report: Report) {
-  if (report.reported_type === "review") return "Delete Review";
-  if (report.reported_type === "comment") return "Delete Comment";
-  if (report.reported_type === "teammate_post") return "Delete Post";
-  return "Delete Content";
+  if (report.reported_type === "review") return "刪除評論";
+  if (report.reported_type === "comment") return "刪除留言";
+  if (report.reported_type === "teammate_post") return "刪除貼文";
+  return "刪除內容";
 }
 
 function getHideLabel(report: Report) {
-  if (report.reported_type === "review") return "Hide Review";
-  if (report.reported_type === "comment") return "Hide Comment";
-  if (report.reported_type === "teammate_post") return "Hide Post";
-  return "Hide Content";
+  if (report.reported_type === "review") return "隱藏評論";
+  if (report.reported_type === "comment") return "隱藏留言";
+  if (report.reported_type === "teammate_post") return "隱藏貼文";
+  return "隱藏內容";
 }
 
 export function ReportSidePanel({ report, onClose, onAction }: ReportSidePanelProps) {
@@ -38,12 +38,12 @@ export function ReportSidePanel({ report, onClose, onAction }: ReportSidePanelPr
 
             <div>
               <h3 className="text-xl font-bold leading-tight text-slate-800">
-                Case Details: {report.id.slice(0, 8)}…
+                案件詳情： {report.id.slice(0, 8)}…
               </h3>
 
               <div className="mt-1 flex items-center gap-2">
                 <span className="inline-flex items-center rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
-                  Priority: {report.priority}
+                  優先順序： {report.priority}
                 </span>
 
                 <span className="text-sm font-medium text-slate-500">
@@ -71,7 +71,7 @@ export function ReportSidePanel({ report, onClose, onAction }: ReportSidePanelPr
             <div className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-200 bg-slate-100 px-4 py-3">
                 <h4 className="text-sm font-bold uppercase tracking-wider text-slate-700">
-                  Original Content
+                  原始內容
                 </h4>
               </div>
 
@@ -86,7 +86,7 @@ export function ReportSidePanel({ report, onClose, onAction }: ReportSidePanelPr
                       {report.type}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Target ID: {report.reported_id}
+                      目標 ID： {report.reported_id}
                     </p>
                   </div>
                 </div>
@@ -101,7 +101,7 @@ export function ReportSidePanel({ report, onClose, onAction }: ReportSidePanelPr
               <div className="flex items-center gap-2 border-b border-rose-100 bg-rose-50 px-4 py-3">
                 <AlertTriangle size={16} className="text-rose-500" />
                 <h4 className="text-sm font-bold uppercase tracking-wider text-rose-800">
-                  Reporter's Claim
+                  檢舉人主張
                 </h4>
               </div>
 
@@ -116,23 +116,23 @@ export function ReportSidePanel({ report, onClose, onAction }: ReportSidePanelPr
                       {report.reporter}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Reported on {report.timestamp}
+                      檢舉時間：{report.timestamp}
                     </p>
                   </div>
                 </div>
 
                 <div className="mb-4">
                   <p className="mb-1 text-xs font-bold uppercase text-slate-400">
-                    Report Reason
+                    檢舉原因
                   </p>
                   <p className="font-semibold text-rose-700">{report.reason}</p>
                 </div>
 
                 <div className="flex-1 rounded-lg border border-rose-100/50 bg-rose-50/50 p-4 text-sm leading-relaxed text-slate-700">
                   <p className="mb-2 text-xs font-bold uppercase text-slate-400">
-                    Additional Details
+                    補充說明
                   </p>
-                  {report.description || "No additional details provided by the reporter."}
+                  {report.description || "檢舉人未提供補充說明。"}
                 </div>
               </div>
             </div>
@@ -147,7 +147,7 @@ export function ReportSidePanel({ report, onClose, onAction }: ReportSidePanelPr
               type="button"
             >
               <Check size={18} />
-              Dismiss
+              駁回檢舉
             </button>
 
             <button

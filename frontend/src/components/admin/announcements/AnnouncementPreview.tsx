@@ -13,6 +13,19 @@ interface AnnouncementPreviewProps {
   scheduleDate: string;
 }
 
+const CATEGORY_LABEL: Record<Category, string> = {
+  System: "系統",
+  Emergency: "緊急",
+  General: "一般",
+};
+
+const AUDIENCE_LABEL: Record<Audience, string> = {
+  "All Students": "所有學生",
+  Undergraduates: "大學生",
+  Graduates: "研究生",
+  Faculty: "教職員",
+};
+
 export function AnnouncementPreview({
   title,
   content,
@@ -25,7 +38,7 @@ export function AnnouncementPreview({
     <div className="flex w-full flex-col items-center justify-center border-l border-slate-200 bg-slate-100 p-6 lg:w-[400px] lg:p-8">
       <div className="mb-6 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-slate-500">
         <Smartphone size={16} />
-        Live Mobile Preview
+        手機即時預覽
       </div>
 
       <div className="relative flex h-[640px] w-[320px] flex-col overflow-hidden rounded-[40px] border-[8px] border-slate-800 bg-white shadow-2xl">
@@ -34,7 +47,7 @@ export function AnnouncementPreview({
         </div>
         <div className="absolute left-1/2 top-2 z-20 h-6 w-24 -translate-x-1/2 rounded-full bg-slate-800" />
         <div className="mt-3 shrink-0 bg-indigo-600 px-5 pb-4 pt-6 text-white shadow-sm">
-          <h1 className="text-lg font-bold">NTNU Announcements</h1>
+          <h1 className="text-lg font-bold">NTNU 公告</h1>
         </div>
 
         <div className="flex-1 overflow-y-auto bg-slate-50 p-4">
@@ -55,14 +68,14 @@ export function AnnouncementPreview({
             </div>
 
             <h3 className="mb-2 text-sm font-bold leading-tight text-slate-800">
-              {title || "Untitled Announcement"}
+              {title || "未命名公告"}
             </h3>
             <p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed text-slate-600">
-              {content || "Preview your message content here as you type..."}
+              {content || "輸入內容後，這裡會即時顯示公告預覽..."}
             </p>
 
             <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-[10px] font-medium text-slate-400">
-              <span>{audience}</span>
+              <span>{AUDIENCE_LABEL[audience]}</span>
               <span>{formatPreviewDate(scheduleDate)}</span>
             </div>
           </div>
@@ -87,7 +100,7 @@ function CategoryBadge({ category }: { category: Category }) {
       {category === "System" && <Info size={10} />}
       {category === "Emergency" && <AlertCircle size={10} />}
       {category === "General" && <CheckCircle2 size={10} />}
-      {category}
+      {CATEGORY_LABEL[category]}
     </span>
   );
 }

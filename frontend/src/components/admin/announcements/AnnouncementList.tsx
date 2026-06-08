@@ -8,6 +8,13 @@ interface AnnouncementListProps {
   onDelete: (id: string) => void;
 }
 
+const TAG_LABEL: Record<string, string> = {
+  System: "系統",
+  Emergency: "緊急",
+  General: "一般",
+  Event: "活動",
+};
+
 export function AnnouncementList({
   announcements,
   onDelete,
@@ -59,7 +66,7 @@ function AnnouncementListItem({
                       : "bg-emerald-100 text-emerald-700",
                 )}
               >
-                {tag}
+                {TAG_LABEL[tag] ?? tag}
               </span>
             ))}
           </div>
