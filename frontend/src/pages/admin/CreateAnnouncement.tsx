@@ -3,7 +3,12 @@ import { useAuth } from "../../context/AuthContext";
 import type { Announcement, CreateAnnouncementRequest } from '../../models/Announcement';
 import { createAnnouncement, getAllAnnouncements, deleteAnnouncement } from '../../api/announcementApi';
 
-const TAGS = ['System', 'Emergency', 'General', 'Event'];
+const TAG_OPTIONS = [
+  { value: 'System', label: '系統' },
+  { value: 'Emergency', label: '緊急' },
+  { value: 'General', label: '一般' },
+  { value: 'Event', label: '活動' },
+];
 
 const CreateAnnouncement: React.FC = () => {
   const { user } = useAuth();
@@ -70,10 +75,14 @@ const CreateAnnouncement: React.FC = () => {
     setFormData({ ...formData, tags: updated });
   };
 
+  const getTagLabel = (tag: string) => {
+    return TAG_OPTIONS.find((option) => option.value === tag)?.label || tag;
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Announcement Management</h1>
+        <h1 className="text-3xl font-bold">公告管理</h1>
         <div className="flex gap-2">
           <button
             onClick={() => setView('form')}
@@ -100,7 +109,7 @@ const CreateAnnouncement: React.FC = () => {
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500"
-              placeholder="e.g., 系統維護公告"
+              placeholder="例如：系統維護公告"
               required
             />
           </div>
@@ -109,16 +118,16 @@ const CreateAnnouncement: React.FC = () => {
           <div>
             <label className="block text-sm font-medium mb-2">分類標籤</label>
             <div className="flex gap-2 flex-wrap">
-              {TAGS.map((tag) => (
+              {TAG_OPTIONS.map((tag) => (
                 <button
-                  key={tag}
+                  key={tag.value}
                   type="button"
-                  onClick={() => toggleTag(tag)}
+                  onClick={() => toggleTag(tag.value)}
                   className={`px-4 py-2 rounded-2xl text-sm font-medium transition-colors ${
-                    formData.tags?.includes(tag) ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
+                    formData.tags?.includes(tag.value) ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
                   }`}
                 >
-                  {tag}
+                  {tag.label}
                 </button>
               ))}
             </div>
@@ -154,7 +163,7 @@ const CreateAnnouncement: React.FC = () => {
             disabled={isSubmitting}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-4 rounded-3xl text-lg transition-colors"
           >
-            {isSubmitting ? '發布中...' : '🚀 Publish Announcement'}
+            {isSubmitting ? '發布中...' : '🚀 發布公告'}
           </button>
         </form>
       ) : (
@@ -169,7 +178,7 @@ const CreateAnnouncement: React.FC = () => {
                     <div className="flex items-center gap-2 mb-1">
                       {a.is_pinned && <span className="text-xs font-medium bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">📌 置頂</span>}
                       {(a.tags || []).map(tag => (
-                        <span key={tag} className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{tag}</span>
+                        <span key={tag} className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{getTagLabel(tag)}</span>
                       ))}
                     </div>
                     <h3 className="text-lg font-semibold">{a.title}</h3>

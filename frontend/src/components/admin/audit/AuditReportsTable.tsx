@@ -11,6 +11,19 @@ interface AuditReportsTableProps {
   onAction: (id: string, action: string) => void;
 }
 
+const STATUS_LABEL: Record<TabStatus, string> = {
+  PENDING: "待處理",
+  RESOLVED: "已處理",
+  DISMISSED: "已駁回",
+  WITHDRAWN: "已撤回",
+};
+
+const REPORT_TYPE_LABEL: Record<string, string> = {
+  Review: "課程評論",
+  Group: "揪團貼文",
+  Comment: "留言",
+};
+
 export function AuditReportsTable({
   reports,
   activeTab,
@@ -24,16 +37,16 @@ export function AuditReportsTable({
         <thead>
           <tr className="bg-slate-50/50 text-xs uppercase tracking-wider text-slate-500">
             <th className="w-12 px-6 py-4 font-semibold" />
-            <th className="px-6 py-4 font-semibold">Case ID</th>
-            <th className="px-6 py-4 font-semibold">Type</th>
-            <th className="px-6 py-4 font-semibold">Target ID</th>
-            <th className="px-6 py-4 font-semibold">Reason</th>
-            <th className="px-6 py-4 font-semibold">Reporter</th>
-            <th className="px-6 py-4 font-semibold">Timestamp</th>
+            <th className="px-6 py-4 font-semibold">案件編號</th>
+            <th className="px-6 py-4 font-semibold">類型</th>
+            <th className="px-6 py-4 font-semibold">目標 ID</th>
+            <th className="px-6 py-4 font-semibold">原因</th>
+            <th className="px-6 py-4 font-semibold">檢舉者</th>
+            <th className="px-6 py-4 font-semibold">時間</th>
             {activeTab === "PENDING" ? (
-              <th className="px-6 py-4 text-right font-semibold">Actions</th>
+              <th className="px-6 py-4 text-right font-semibold">操作</th>
             ) : (
-              <th className="px-6 py-4 font-semibold">Resolution</th>
+              <th className="px-6 py-4 font-semibold">處理結果</th>
             )}
           </tr>
         </thead>
@@ -74,17 +87,17 @@ function AuditReportRow({
     <tr className="group transition-colors hover:bg-slate-50/80">
       <td className="px-6 py-4">
         {report.priority === "High" ? (
-          <span title="High Priority">
+          <span title="高優先度">
             <AlertTriangle
               size={16}
               className="text-rose-500"
-              aria-label="High Priority"
+              aria-label="高優先度"
             />
           </span>
         ) : (
           <span
             className="inline-block h-2 w-2 rounded-full bg-slate-300"
-            title="Normal Priority"
+            title="一般優先度"
           />
         )}
       </td>
@@ -115,28 +128,28 @@ function AuditReportRow({
       {activeTab === "PENDING" ? (
         <td className="flex justify-end space-x-1 px-6 py-4 text-right opacity-0 transition-opacity group-hover:opacity-100">
           <ActionButton
-            title="View Details"
+            title="查看詳情"
             className="text-indigo-600 hover:bg-indigo-50"
             disabled={isProcessing}
             onClick={() => onViewReport(report)}
             icon={<Eye size={18} />}
           />
           <ActionButton
-            title="Dismiss"
+            title="駁回檢舉"
             className="text-slate-500 hover:bg-slate-100"
             disabled={isProcessing}
             onClick={() => onAction(report.id, "dismiss")}
             icon={<CheckCircle2 size={18} />}
           />
           <ActionButton
-            title="Hide Content"
+            title="隱藏內容"
             className="text-amber-600 hover:bg-amber-50"
             disabled={isProcessing}
             onClick={() => onAction(report.id, "hide")}
             icon={<EyeOff size={18} />}
           />
           <ActionButton
-            title="Delete Content"
+            title="刪除內容"
             className="text-rose-600 hover:bg-rose-50"
             disabled={isProcessing}
             onClick={() => onAction(report.id, "delete")}
@@ -164,7 +177,7 @@ function ReportTypeBadge({ report }: { report: Report }) {
             : "border-orange-200 bg-orange-50 text-orange-700",
       )}
     >
-      {report.type}
+      {REPORT_TYPE_LABEL[report.type] ?? report.type}
     </span>
   );
 }
@@ -202,9 +215,9 @@ function EmptyReportsRow({ activeTab }: { activeTab: TabStatus }) {
         <div className="flex flex-col items-center justify-center">
           <CheckCircle2 size={48} className="mb-3 text-slate-200" />
           <p className="text-lg font-medium">
-            No {activeTab.toLowerCase()} reports
+            目前沒有{STATUS_LABEL[activeTab]}的檢舉
           </p>
-          <p className="mt-1 text-sm">Great job keeping the community clean!</p>
+          <p className="mt-1 text-sm">目前社群狀態良好，沒有需要處理的案件。</p>
         </div>
       </td>
     </tr>

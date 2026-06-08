@@ -13,27 +13,31 @@ const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
 const Schedule = lazy(() => import("./pages/Schedule"));
 const Reviews = lazy(() => import("./pages/Reviews"));
 const Discussions = lazy(() => import("./pages/Discussions"));
+
 const AuditCenter = lazy(() =>
   import("./pages/admin/AuditCenter").then((module) => ({
     default: module.AuditCenter,
-  }))
+  })),
 );
+
 const AnnouncementEditor = lazy(() =>
   import("./pages/admin/AnnouncementEditor").then((module) => ({
     default: module.AnnouncementEditor,
-  }))
+  })),
 );
+
 const Login = lazy(() =>
-  import("./pages/auth/Login").then((module) => ({ default: module.Login }))
+  import("./pages/auth/Login").then((module) => ({ default: module.Login })),
 );
+
 const Register = lazy(() =>
-  import("./pages/auth/Register").then((module) => ({ default: module.Register }))
+  import("./pages/auth/Register").then((module) => ({ default: module.Register })),
 );
 
 function RouteFallback() {
   return (
     <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground shadow-sm">
-      Loading page...
+      頁面載入中...
     </div>
   );
 }
@@ -101,18 +105,26 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  // 修正：Admin panel 是獨立的 layout（不套用一般 Layout）
   {
-  path: "/admin",
-  element: (
-    <RouteGuard allowedRoles={["Admin"]}>
-      {lazyPage(<AdminLayout />)}
-    </RouteGuard>
-  ),
-  children: [
-    { index: true, element: lazyPage(<AuditCenter />) },
-    { path: "audit", element: lazyPage(<AuditCenter />) },
-    { path: "announcements", element: lazyPage(<AnnouncementEditor />) },
-  ],
-  }
+    path: "/admin",
+    element: (
+      <RouteGuard allowedRoles={["Admin"]}>
+        {lazyPage(<AdminLayout />)}
+      </RouteGuard>
+    ),
+    children: [
+      {
+        index: true,
+        element: lazyPage(<AuditCenter />),
+      },
+      {
+        path: "audit",
+        element: lazyPage(<AuditCenter />),
+      },
+      {
+        path: "announcements",
+        element: lazyPage(<AnnouncementEditor />),
+      },
+    ],
+  },
 ]);

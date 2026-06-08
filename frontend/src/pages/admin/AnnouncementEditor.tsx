@@ -36,7 +36,7 @@ export function AnnouncementEditor() {
     try {
       setAnnouncements(await getAllAnnouncements());
     } catch (err) {
-      console.error("Error fetching announcements:", err);
+      console.error("取得公告資料失敗：", err);
     }
   };
 
