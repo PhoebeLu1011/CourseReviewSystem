@@ -1,10 +1,9 @@
-import { NavLink, Link, useNavigate } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 import {
   ShieldAlert,
   Megaphone,
   LogOut,
   Menu,
-  Home,
 } from "lucide-react";
 import { useState } from "react";
 import { clsx } from "clsx";
@@ -87,18 +86,6 @@ export function AdminSidebar() {
       </nav>
 
       <div className="flex flex-col gap-2 border-t border-slate-800 p-4">
-        <Link
-          to="/"
-          className={clsx(
-            "flex w-full items-center gap-4 rounded-lg px-3 py-3 text-left text-indigo-400 transition-colors hover:bg-indigo-500/10 hover:text-indigo-300",
-            !isExpanded && "justify-center",
-          )}
-          title={!isExpanded ? "返回主站" : undefined}
-        >
-          <Home size={22} className="shrink-0" />
-          {isExpanded && <span className="font-medium">返回主站</span>}
-        </Link>
-
         <button
           type="button"
           onClick={handleLogout}
