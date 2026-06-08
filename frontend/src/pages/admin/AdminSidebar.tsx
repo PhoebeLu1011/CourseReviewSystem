@@ -2,8 +2,6 @@ import { NavLink, Link, useNavigate } from "react-router";
 import {
   ShieldAlert,
   Megaphone,
-  Users,
-  Settings,
   LogOut,
   Menu,
   Home,
@@ -13,10 +11,8 @@ import { clsx } from "clsx";
 import { useAuth } from "../../context/AuthContext";
 
 const navItems = [
-  { path: "/admin/audit", label: "Audit Center", icon: ShieldAlert },
-  { path: "/admin/announcements", label: "Announcement Manager", icon: Megaphone },
-  { path: "/admin/users", label: "User Control", icon: Users },
-  { path: "/admin/settings", label: "System Settings", icon: Settings },
+  { path: "/admin/audit", label: "審核中心", icon: ShieldAlert },
+  { path: "/admin/announcements", label: "公告管理", icon: Megaphone },
 ];
 
 export function AdminSidebar() {
@@ -44,7 +40,7 @@ export function AdminSidebar() {
             </div>
 
             <span className="max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap font-bold tracking-wide text-white">
-              Admin Panel
+              管理後台
             </span>
           </div>
         )}
@@ -52,7 +48,7 @@ export function AdminSidebar() {
         <button
           onClick={() => setIsExpanded((prev) => !prev)}
           className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
-          title="Toggle Sidebar"
+          title="收合側邊欄"
           type="button"
         >
           <Menu size={20} />
@@ -97,10 +93,10 @@ export function AdminSidebar() {
             "flex w-full items-center gap-4 rounded-lg px-3 py-3 text-left text-indigo-400 transition-colors hover:bg-indigo-500/10 hover:text-indigo-300",
             !isExpanded && "justify-center",
           )}
-          title={!isExpanded ? "Back to Site" : undefined}
+          title={!isExpanded ? "返回主站" : undefined}
         >
           <Home size={22} className="shrink-0" />
-          {isExpanded && <span className="font-medium">Back to Site</span>}
+          {isExpanded && <span className="font-medium">返回主站</span>}
         </Link>
 
         <button
@@ -110,10 +106,10 @@ export function AdminSidebar() {
             "flex w-full items-center gap-4 rounded-lg px-3 py-3 text-left text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300",
             !isExpanded && "justify-center",
           )}
-          title={!isExpanded ? "Logout" : undefined}
+          title={!isExpanded ? "登出" : undefined}
         >
           <LogOut size={22} className="shrink-0" />
-          {isExpanded && <span className="font-medium">Logout</span>}
+          {isExpanded && <span className="font-medium">登出</span>}
         </button>
       </div>
     </aside>

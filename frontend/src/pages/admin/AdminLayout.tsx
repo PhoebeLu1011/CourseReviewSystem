@@ -1,7 +1,6 @@
 import { Outlet, useNavigate } from "react-router";
 import { AdminSidebar } from "./AdminSidebar";
 import { AnalyticsCards } from "./AnalyticsCards";
-import { Bell, Search } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 function getInitials(name?: string) {
@@ -18,8 +17,8 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const displayName = user?.name || "Admin";
-  const roleLabel = user?.role?.toLowerCase() === "admin" ? "管理員" : "Admin Panel";
+  const displayName = user?.name || "管理員";
+  const roleLabel = user?.role?.toLowerCase() === "admin" ? "管理員" : "管理後台";
   const initials = getInitials(displayName);
 
   const handleGoHome = () => {
@@ -34,42 +33,19 @@ export function AdminLayout() {
         <header className="z-10 flex h-[89px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm sm:px-10">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
-              Admin Dashboard
+              管理員儀表板
             </h1>
             <p className="mt-0.5 text-sm font-medium text-slate-500">
-              NTNU Course Selection Toolbox
+              師大選課工具箱
             </p>
           </div>
 
           <div className="flex items-center gap-6">
-            <div className="relative hidden md:block">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                size={18}
-              />
-              <input
-                type="text"
-                placeholder="Search..."
-                className="w-64 rounded-full border-none bg-slate-100 py-2 pl-10 pr-4 text-sm outline-none transition-all focus:bg-white focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <button
-              className="relative rounded-full p-2 text-slate-600 transition-colors hover:bg-slate-100"
-              title="Notifications"
-              type="button"
-            >
-              <Bell size={20} />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-white bg-rose-500" />
-            </button>
-
-            <div className="mx-1 h-8 w-px bg-slate-200" />
-
             <button
               type="button"
               onClick={handleGoHome}
               className="flex items-center gap-3 transition-opacity hover:opacity-80"
-              title="Back to main site"
+              title="返回主站"
             >
               <div className="hidden text-right sm:block">
                 <p className="mb-1 text-sm font-bold leading-none text-slate-800">

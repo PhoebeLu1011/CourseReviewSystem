@@ -17,10 +17,10 @@ export function AnnouncementEditorHeader({
     <div className="flex items-center justify-between border-b border-slate-100 px-8 pb-0 pt-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-slate-800">
-          Create Announcement
+          建立公告
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Compose and schedule messages to the student body
+          撰寫公告內容，並發布或排程給學生查看
         </p>
       </div>
 

@@ -35,7 +35,7 @@ export function AuditCenter() {
       const data = await getAllReports();
       setReports(data.map(mapApiReport));
     } catch (err) {
-      console.error("Error fetching reports:", err);
+      console.error("取得檢舉資料失敗：", err);
     } finally {
       setLoading(false);
     }
@@ -50,7 +50,7 @@ export function AuditCenter() {
         originalContent: getContentText(report.reported_type, data.content),
       });
     } catch (err) {
-      console.error("Error fetching report content:", err);
+      console.error("取得檢舉內容失敗：", err);
       setSelectedReport({
         ...report,
         originalContent: "（內容載入失敗）",
