@@ -125,6 +125,18 @@ export const router = createBrowserRouter([
         path: "announcements",
         element: lazyPage(<AnnouncementEditor />),
       },
+      { 
+        path: "reports", 
+        element: <AuditCenter /> 
+      },
+      { 
+        path: "users", 
+        element: <PlaceholderPage title="User Control" /> 
+      },
+      { 
+        path: "settings", 
+        element: <PlaceholderPage title="System Settings" /> 
+      },
     ],
   },
 ]);
