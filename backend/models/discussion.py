@@ -13,6 +13,7 @@ class Discussion:
         likeCount=0,
         replyCount=0,
         timestamp=None,
+        lastReplyAt=None,
         visibilityState="VISIBLE",
     ):
         self.discussionID = discussionID if discussionID else str(uuid.uuid4())
@@ -24,6 +25,7 @@ class Discussion:
         self.likeCount = len(self.likedBy)
         self.replyCount = replyCount
         self.timestamp = timestamp if timestamp else datetime.now()
+        self.lastReplyAt = lastReplyAt if lastReplyAt else self.timestamp
         self.visibilityState = visibilityState
         self._validate()
 
@@ -65,11 +67,22 @@ class Discussion:
             "likeCount": self.likeCount,
             "replyCount": self.replyCount,
             "timestamp": self.timestamp,
+            "lastReplyAt": self.lastReplyAt,
             "visibilityState": self.visibilityState,
         }
 
 class Reply:
-    def __init__(self, discussionID, authorID, content, replyID=None, likedBy=None, likeCount=0, timestamp=None, visibilityState="VISIBLE",):
+    def __init__(
+        self, 
+        discussionID, 
+        authorID, 
+        content, 
+        replyID=None, 
+        likedBy=None, 
+        likeCount=0, 
+        timestamp=None, 
+        visibilityState="VISIBLE"
+    ):
         self.replyID = replyID if replyID else str(uuid.uuid4())
         self.discussionID = discussionID
         self.authorID = authorID

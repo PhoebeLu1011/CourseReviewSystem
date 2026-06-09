@@ -22,8 +22,13 @@ export interface Reply {
   timestamp: string;
 }
 
-export async function getCourseDiscussions(courseID: string): Promise<Discussion[]> {
-  return apiRequest<Discussion[]>(`/courses/${courseID}/discussions`, {
+// 1. UPDATED: Added sortBy parameter
+export async function getCourseDiscussions(
+  courseID: string, 
+  sortBy = "newest"
+): Promise<Discussion[]> {
+  const params = new URLSearchParams({ sort_by: sortBy });
+  return apiRequest<Discussion[]>(`/courses/${courseID}/discussions?${params}`, {
     includeContentType: false,
   });
 }
@@ -64,8 +69,16 @@ export async function toggleLikeReply(replyID: string): Promise<{ likeCount: num
   });
 }
 
-export async function getAllDiscussions(search = ""): Promise<Discussion[]> {
-  const params = new URLSearchParams({ search });
+// 2. UPDATED: Added sortBy parameter and included it in the URL parameters
+export async function getAllDiscussions(
+  search = "", 
+  sortBy = "newest"
+): Promise<Discussion[]> {
+  const params = new URLSearchParams({ 
+    search, 
+    sort_by: sortBy 
+  });
+  
   return apiRequest<Discussion[]>(`/discussions?${params}`, {
     includeContentType: false,
   });
