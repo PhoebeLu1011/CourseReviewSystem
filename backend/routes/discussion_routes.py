@@ -14,13 +14,15 @@ def create_discussion_routes(discussion_service, authorization_service):
 
     @disc_bp.route("/courses/<course_id>/discussions", methods=["GET"])
     def get_course_discussions(course_id):
-        data = discussion_service.get_course_discussions(course_id)
+        sort_by = request.args.get("sort_by", "newest")
+        data = discussion_service.get_course_discussions(course_id, sort_by)
         return jsonify(data), 200
     
     @disc_bp.route("/discussions", methods=["GET"])
     def list_all_discussions():
         search_query = request.args.get("search", "")
-        data = discussion_service.get_all_discussions(search_query)
+        sort_by = request.args.get("sort_by", "newest")
+        data = discussion_service.get_all_discussions(search_query, sort_by)
         return jsonify(data), 200
 
     @disc_bp.route("/discussions", methods=["POST"])
@@ -34,6 +36,7 @@ def create_discussion_routes(discussion_service, authorization_service):
             content=data.get("content")
         )
         return jsonify(result), 201
+
     @disc_bp.route("/discussions/<discussion_id>", methods=["GET"])
     def get_single_discussion(discussion_id):
         data = discussion_service.get_discussion_by_id(discussion_id)

@@ -15,12 +15,12 @@ class DiscussionService:
         self.discussion_repo.save_discussion(new_disc)
         return new_disc.to_dict()
 
-    def get_course_discussions(self, course_id):
-        discussions = self.discussion_repo.find_by_course_id(course_id)
+    def get_course_discussions(self, course_id, sort_by="newest"):
+        discussions = self.discussion_repo.find_by_course_id(course_id, sort_by)
         return [d.to_dict() for d in discussions]
 
-    def get_all_discussions(self, search_query=""):
-        discussions = self.discussion_repo.find_all_discussions(search_query)
+    def get_all_discussions(self, search_query="", sort_by="newest"):
+        discussions = self.discussion_repo.find_discussions(sort_by=sort_by, search_query=search_query)
         return [d.to_dict() for d in discussions]
 
     def add_reply(self, discussion_id, author_id, content):
@@ -36,6 +36,12 @@ class DiscussionService:
         try:
             if not self.discussion_repo.increment_reply_count(discussion_id, 1):
                 raise ValueError("Discussion thread not found.")
+            
+            # --- NEW: Update lastReplyAt for the 'active' sorting strategy ---
+            self.discussion_repo.collection.update_one(
+                {"discussionID": discussion_id},
+                {"$set": {"lastReplyAt": new_reply.timestamp}}
+            )
         except Exception:
             self.reply_repo.hard_delete_reply(new_reply.replyID)
             raise

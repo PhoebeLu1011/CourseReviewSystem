@@ -13,6 +13,9 @@ export default function Discussions() {
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState("");
+  
+  // 1. ADDED: State for sorting
+  const [sortBy, setSortBy] = useState("newest");
 
   // Form States
   const [isWriting, setIsWriting] = useState(false);
@@ -21,18 +24,19 @@ export default function Discussions() {
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 2. UPDATED: Pass sortBy to the API and add it to dependencies
   const fetchDiscussions = useCallback(async () => {
     setLoading(true);
     try {
       const query = selectedCourse;
-      const data = await getAllDiscussions(query);
+      const data = await getAllDiscussions(query, sortBy);
       setDiscussions(data);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [selectedCourse]);
+  }, [selectedCourse, sortBy]);
 
   useEffect(() => {
     fetchDiscussions();
@@ -91,6 +95,7 @@ export default function Discussions() {
           <Card className="border-slate-100 shadow-sm">
             <CardContent className="p-6 space-y-5">
               <h2 className="font-bold text-slate-800 text-lg">篩選</h2>
+              
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">課程 ID</label>
                 <Input
@@ -99,6 +104,21 @@ export default function Discussions() {
                   onChange={(e) => setSelectedCourse(e.target.value)}
                 />
               </div>
+
+              {/* 3. ADDED: Sorting Dropdown Menu */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">排序方式</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full rounded-md border border-slate-200 bg-white p-2 text-sm font-medium text-slate-700 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="newest">最新發布 (Newest)</option>
+                  <option value="popular">最多愛心 (Popular)</option>
+                  <option value="active">最近回覆 (Active)</option>
+                </select>
+              </div>
+
             </CardContent>
           </Card>
         </div>
