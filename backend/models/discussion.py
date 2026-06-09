@@ -66,8 +66,9 @@ class Discussion:
             "likedBy": self.likedBy,
             "likeCount": self.likeCount,
             "replyCount": self.replyCount,
-            "timestamp": self.timestamp,
-            "lastReplyAt": self.lastReplyAt,
+            # Safely convert datetimes to strings
+            "timestamp": self.timestamp.isoformat() if hasattr(self.timestamp, 'isoformat') else self.timestamp,
+            "lastReplyAt": self.lastReplyAt.isoformat() if hasattr(self.lastReplyAt, 'isoformat') else self.lastReplyAt,
             "visibilityState": self.visibilityState,
         }
 
@@ -116,6 +117,7 @@ class Reply:
             "content": self.content,
             "likedBy": self.likedBy,
             "likeCount": self.likeCount,
-            "timestamp": self.timestamp,
+            # Safely convert datetimes to strings
+            "timestamp": self.timestamp.isoformat() if hasattr(self.timestamp, 'isoformat') else self.timestamp,
             "visibilityState": self.visibilityState,
         }
