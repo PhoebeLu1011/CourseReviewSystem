@@ -1,195 +1,244 @@
-# Course Review System
+# 選課工具箱 — Course Toolbox
 
-師大課程評價、討論、找組員、課表與管理平台。
+An integrated course information web app for NTNU (National Taiwan Normal University) students, combining course search, peer reviews, discussions, groupmate finding, personal schedule, and admin management in one platform.
 
-Frontend: React + TypeScript + Vite  
-Backend: Flask + MongoDB
+---
 
-## Status
+## Tech Stack
 
-已完成第一輪責任拆分的核心 use cases：
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React + TypeScript (Vite) |
+| Backend | Python + Flask (REST API) |
+| Database | MongoDB Atlas (cloud, NoSQL) |
+| DB driver | pymongo |
+| Auth | JWT (PyJWT) |
+| Avatar storage | GridFS (via pymongo) |
+| Environment | `.env` file (connection string, secrets, ports) |
 
-- Auth、User Profile、Course Search
-- Review、Discussion、Reply
-- Group lifecycle、Application、Recommendation
-- Notification、Report、Admin Audit、Announcement
-- Bookmark、Achievement、Schedule
+---
 
+## Features
 
-近期已完成整理：
+- **Course Search** — filter by keyword, department, semester, and more
+- **Reviews** — write, edit, delete, and like course reviews; rating projection synced automatically
+- **Discussions** — course-level threaded discussions and replies
+- **Groupmates** — post and discover study groups, apply to join, recommendation scoring
+- **Schedule** — personal course schedule synced to account; localStorage fallback when logged out
+- **Notifications** — bell popover for application, review, report, and announcement events
+- **Announcements** — admin-published site-wide announcements
+- **Bookmarks** — save favorite courses
+- **Achievements** — score-based badges shown on user profile
+- **Admin Panel** — report audit queue, announcement management, analytics dashboard
 
-- Achievements 整合在 UserProfile，不做獨立大頁；`/achievements` 會導回 `/profile`。
-- Notification 是右上角 Bell popover，不做獨立頁面。
-- Frontend API 統一走 `frontend/src/api/apiClient.ts`。
-- Auth session storage 統一由 `AuthContext` 與 `apiClient` 管理。
-- Admin analytics 已改成後端 read model：`GET /admin/analytics/summary`。
-- Vite route lazy loading 已拆分 page chunks，首頁入口 bundle 低於 500 kB。
+---
 
-## Quick Start
+## Project Structure
 
-Backend:
+```
+CourseReviewSystem/
+├── frontend/                      # React + TypeScript (Vite)
+│   ├── index.html
+│   ├── vite.config.ts
+│   ├── package.json
+│   └── src/
+│       ├── main.tsx               # React entry
+│       ├── App.tsx                # Global providers and router
+│       ├── routes.tsx             # Lazy-loaded route map and guards
+│       ├── api/                   # Feature API clients (all go through apiClient.ts)
+│       │   ├── apiClient.ts
+│       │   ├── userApi.ts
+│       │   ├── courseApi.ts
+│       │   ├── reviewApi.ts
+│       │   ├── discussionApi.ts
+│       │   ├── groupApi.ts
+│       │   ├── applicationApi.ts
+│       │   ├── notificationApi.ts
+│       │   ├── reportApi.ts
+│       │   ├── announcementApi.ts
+│       │   ├── bookmarkApi.ts
+│       │   ├── scheduleApi.ts
+│       │   ├── achievementApi.ts
+│       │   └── adminAnalyticsApi.ts
+│       ├── components/            # Shared and feature UI components
+│       ├── context/               # AuthContext, ScheduleContext
+│       ├── hooks/                 # UI-facing feature hooks
+│       ├── models/                # Frontend DTO / type contracts
+│       ├── pages/                 # Route-level page components
+│       │   ├── Home.tsx
+│       │   ├── CourseCatalog.tsx
+│       │   ├── CourseDetail.tsx
+│       │   ├── Reviews.tsx
+│       │   ├── Discussions.tsx
+│       │   ├── DiscussionDetail.tsx
+│       │   ├── GroupmatesIntegrated.tsx
+│       │   ├── Schedule.tsx
+│       │   ├── UserProfile.tsx
+│       │   ├── auth/
+│       │   └── admin/
+│       ├── config/                # API base URL config
+│       ├── styles/                # Global styles
+│       └── utils/                 # Shared helpers
+│
+├── backend/                       # Python + Flask
+│   ├── app.py                     # Flask composition root
+│   ├── mongo.py                   # MongoDB and GridFS connection
+│   ├── departments.py             # Department data provider
+│   ├── requirements.txt
+│   ├── env.example                # Environment variable template
+│   ├── models/                    # Domain models and invariants
+│   │   ├── user.py
+│   │   ├── course.py
+│   │   ├── review.py
+│   │   ├── discussion.py
+│   │   ├── reply.py
+│   │   ├── group.py
+│   │   ├── application.py
+│   │   ├── schedule.py
+│   │   ├── notification.py
+│   │   ├── report.py
+│   │   ├── announcement.py
+│   │   ├── bookmark.py
+│   │   └── badge.py
+│   ├── repository/                # MongoDB queries and atomic writes
+│   │   ├── student_repository.py
+│   │   ├── course_repository.py
+│   │   ├── review_repository.py
+│   │   ├── discussion_repository.py
+│   │   ├── reply_repository.py
+│   │   ├── group_repository.py
+│   │   ├── application_repository.py
+│   │   ├── schedule_repository.py
+│   │   ├── notification_repository.py
+│   │   ├── report_repository.py
+│   │   ├── announcement_repository.py
+│   │   ├── bookmark_repository.py
+│   │   └── badge_repository.py
+│   ├── routes/                    # HTTP adapters (Flask blueprints)
+│   │   ├── auth_routes.py
+│   │   ├── user_routes.py
+│   │   ├── course_routes.py
+│   │   ├── review_routes.py
+│   │   ├── discussion_routes.py
+│   │   ├── group_routes.py
+│   │   ├── application_routes.py
+│   │   ├── notification_routes.py
+│   │   ├── report_routes.py
+│   │   ├── admin_routes.py
+│   │   ├── announcement_routes.py
+│   │   ├── bookmark_routes.py
+│   │   ├── schedule_routes.py
+│   │   └── achievement_routes.py
+│   ├── services/                  # Use case services grouped by feature
+│   │   ├── auth/                  # Login strategies, JWT, authorization
+│   │   ├── profile/               # User profile and avatar storage
+│   │   ├── course/                # Course search and query
+│   │   ├── review/                # Review lifecycle and rating sync
+│   │   ├── discussion/            # Discussions and replies
+│   │   ├── group/                 # Groups, applications, recommendation
+│   │   ├── admin/                 # Report audit and analytics read model
+│   │   ├── communication/         # Notification, announcement, report
+│   │   └── engagement/            # Bookmark, achievement, schedule
+│   ├── docs/                      # Algorithm and design documentation
+│   ├── migrations/                # Data migration scripts
+│   ├── scripts/                   # Seed and migration runners
+│   └── tests/                     # Backend use case and integration tests
+│
+└── README.md
+```
+
+---
+
+## Installation & Setup
+
+### Prerequisites
+
+- Node.js 18+ (frontend)
+- Python 3.10+ (backend)
+- A MongoDB Atlas account (or local MongoDB instance)
+
+### Backend
 
 ```bash
 cd backend
+
+# Create and activate a virtual environment
 python -m venv venv
-source venv/bin/activate
+source venv/bin/activate        # Windows: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Set up environment variables
 cp env.example .env
+# Edit .env and fill in MONGO_URI, DB_NAME, JWT_SECRET, etc.
+
+# Start the Flask server
 python app.py
 ```
 
-Frontend:
+Backend runs at: `http://127.0.0.1:5001`
+
+### Frontend
 
 ```bash
 cd frontend
 npm install
-cp env.example .env.local
 npm run dev
 ```
 
-Default URLs:
+Frontend runs at: `http://localhost:5173`
 
-- Backend: `http://127.0.0.1:5001`
-- Frontend: `http://localhost:5173`
+---
 
-Production must set a strong `JWT_SECRET`.
+## Environment Variables
 
-## Project Structure
+Copy `backend/env.example` to `backend/.env` and fill in the values:
 
-```text
-backend/
-  app.py                  Flask composition root
-  models/                 Domain models and invariants
-  repository/             MongoDB access and atomic writes
-  routes/                 HTTP adapters
-  services/               Use case services, grouped by feature
-  docs/                   Algorithm and migration notes
-  migrations/             Data migration code
-  scripts/                Seed and migration runners
-  tests/                  Backend use case tests
+```env
+# MongoDB Atlas connection string
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/
 
-frontend/
-  src/api/                Feature API clients
-  src/components/         Shared and feature components
-  src/context/            Auth and schedule contexts
-  src/hooks/              UI-facing use case hooks
-  src/models/             Shared frontend contracts
-  src/pages/              Route pages
-  src/routes.tsx          Route map and lazy loading
+# Database name
+DB_NAME=Course
+
+# Frontend URL (update to your Vercel URL in production)
+FRONTEND_URL=http://localhost:5173
+
+# Flask port (5001 recommended on macOS to avoid conflicts with system services)
+PORT=5001
+
+# Environment (development / production)
+FLASK_ENV=development
+
+# JWT signing secret — use a long random value in production
+JWT_SECRET=replace_with_a_long_random_secret
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_DAYS=1
 ```
 
-Backend services are grouped by responsibility:
+> **Note:** Never commit `.env` to version control. It is already listed in `.gitignore`.
 
-```text
-services/auth/            login, JWT, authorization, password
-services/profile/         user profile and avatar storage
-services/course/          course query
-services/review/          review and rating projection
-services/discussion/      discussions and replies
-services/group/           groups, applications, management, recommendation
-services/admin/           audit handling and analytics read model
-services/communication/   notification, announcement, report
-services/engagement/      bookmark, achievement, schedule
-```
+---
 
-## Architecture Rules
+## Seed Data & Migrations
 
-| Layer | Should Own | Should Not Own |
-| --- | --- | --- |
-| Frontend page/component | UI state, layout, user events | Backend business rules |
-| Frontend hook | UI orchestration for one feature | Raw HTTP details |
-| Frontend API client | Endpoint calls and response types | Rendering |
-| Route | Request parsing, auth guard, response code | Use case logic |
-| Service | Use case orchestration | Flask request or Mongo document details |
-| Domain model | State transitions and invariants | Database or HTTP |
-| Repository | Queries, mapping, atomic writes | UI or cross-use-case flow |
-
-Important architecture notes:
-
-- `backend/app.py` is the composition root.
-- Services receive repositories/collaborators by constructor injection.
-- `AuthorizationService` guards protected routes.
-- `CourseRatingSynchronizer` updates course rating projection after review changes.
-- `GroupDashboardService` builds profile group dashboard data.
-- `AdminAnalyticsService` builds admin dashboard read models.
-- `BestEffortNotificationPublisher` prevents notification failures from breaking core flows.
-
-## Main Use Cases
-
-| Use Case | Main Files | Responsibility Notes |
-| --- | --- | --- |
-| Auth | `services/auth/`, `routes/auth_routes.py` | Registration validation, role login, JWT |
-| User Profile | `services/profile/`, `routes/user_routes.py` | Profile update and avatar storage |
-| Course Search | `course_service.py`, `CourseSearchCriteria` | Search filters and repository query |
-| Review | `review_service.py`, `Review`, `CourseRatingSynchronizer` | Review state change and rating projection sync |
-| Discussion | `discussion_service.py`, `Discussion`, `Reply` | Discussion/reply lifecycle |
-| Group | `services/group/`, `Group` | Group lifecycle and dashboard data |
-| Application | `application_service.py`, `Application` | Submit/approve/reject/cancel group applications |
-| Recommendation | `group_recommendation_service.py`, `group_recommendation_scoring.py` | Candidate filtering and rule-based score |
-| Notification | `notification_service.py`, `create_notification_from_event()` | Event template mapping and delivery |
-| Report/Admin Audit | `report_service.py`, `admin_service.py` | Report lifecycle and admin target actions |
-| Announcement | `announcement_service.py`, `AnnouncementQuery` | Announcement query, publish, soft delete |
-| Bookmark | `favorite_service.py`, `Bookmark` | Course bookmark add/remove/query |
-| Achievement | `achievement_service.py`, `Badge` | Score calculation and badge eligibility |
-| Schedule | `schedule_service.py`, `ScheduleContext` | Account schedule sync and local fallback |
-
-More detail:
-
-- Group recommendation formula: [backend/docs/recommendation_algorithm.md](backend/docs/recommendation_algorithm.md)
-- Achievement score formula: [backend/docs/achievement_score_algorithm.md](backend/docs/achievement_score_algorithm.md)
-- Group migration: [backend/docs/group_data_migration.md](backend/docs/group_data_migration.md)
-
-## Behavior Notes
-
-Course IDs use this format:
-
-```text
-{serialNumber}_{academicYear}_{semester}
-```
-
-Example:
-
-```text
-0691_113_2
-```
-
-UI usually displays the friendlier `serialNumber`, but reviews, bookmarks, discussions, groups, schedule, and API routes use the full `courseID`.
-
-Groupmate “All” mode means all joinable/recommendable groups. It excludes:
-
-- closed, full, expired, or hidden groups
-- groups for courses the user already joined
-- groups for courses where the user already has a pending application
-
-Schedule is synced to the account when logged in. `localStorage` remains only as unauthenticated/offline fallback cache.
-
-## Frontend Notes
-
-Feature API clients live in `frontend/src/api/` and must call `apiClient.ts`.
-
-Pages/components should not call `fetch` directly. Auth `localStorage` should stay inside `AuthContext` and `apiClient`.
-
-Notification UI is `components/notifications/NotificationPopover.tsx`. It is intentionally a small popover beside the profile area, not a page.
-
-Groupmate study-style labels are Traditional Chinese in the UI, while stable internal tag values remain lowercase keys such as `pair`, `group`, `flexible`, `online`, `in-person`, and `hybrid`.
-
-## Migration And Seed
-
-Before enforcing group membership uniqueness in production:
+Run these once after setting up the database:
 
 ```bash
 cd backend
-python scripts/migrate_group_data.py --dry-run
-python scripts/migrate_group_data.py --apply
+python scripts/seed_courses.py   # import course data
+python scripts/seed_badges.py    # create default achievement badges
 ```
 
-Seed data:
+If migrating group data (enforces membership uniqueness):
 
 ```bash
-cd backend
-python scripts/seed_courses.py
-python scripts/seed_badges.py
+python scripts/migrate_group_data.py --dry-run   # preview changes
+python scripts/migrate_group_data.py --apply      # apply changes
 ```
+
+---
 
 ## Verification
 
@@ -209,24 +258,97 @@ npm run lint
 npm run build
 ```
 
-If local Python lacks dependencies such as `flask`, `pymongo`, or `pytest`, install `backend/requirements.txt` in the backend virtual environment first.
+---
+
+## Architecture Overview
+
+```mermaid
+flowchart LR
+    UI[React Pages and Components] --> Hook[Frontend Hooks]
+    Hook --> API[Feature API Clients]
+    API --> Route[Flask Routes]
+    Route --> Authz[AuthorizationService]
+    Route --> Service[Use Case Services]
+    Service --> Domain[Domain Models]
+    Service --> Repo[Repositories]
+    Repo --> Mongo[(MongoDB and GridFS)]
+    Service --> Collaborator[Policies, Read Models, Synchronizers]
+```
+
+### Layer Responsibilities
+
+| Layer | Owns | Does Not Own |
+|-------|------|-------------|
+| Frontend page/component | UI state, layout, user events | Backend business rules |
+| Frontend hook | UI orchestration for one feature | Raw HTTP details |
+| Frontend API client | Endpoint calls and response types | Rendering |
+| Route | Request parsing, auth guard, response code | Use case logic |
+| Service | Use case orchestration | Flask request or Mongo document details |
+| Domain model | State transitions and invariants | Database or HTTP |
+| Repository | Queries, mapping, atomic writes | UI or cross-use-case flow |
+
+### Design Patterns
+
+| Pattern | Where | Purpose |
+|---------|-------|---------|
+| Repository | `backend/repository/` | Hide MongoDB queries and document mapping |
+| Dependency Injection | `backend/app.py` | Wire services once; keep tests replaceable |
+| Strategy | Auth login, admin report handlers | Select behavior by role or reported target |
+| Factory Method | `StudentRegistrationFactory` | Validate and build `Student` consistently |
+| Adapter | `GridFSAvatarStorage`, `apiClient.ts` | Hide GridFS/HTTP details behind stable methods |
+| Query Object | `CourseSearchCriteria`, `AnnouncementQuery` | Keep query normalization out of routes |
+| Decorator | Route guards, `BestEffortNotificationPublisher` | Add auth/best-effort behavior around core use cases |
+| Read Model | `AdminAnalyticsService`, `GroupDashboardService` | Return UI-ready aggregate data |
+| Synchronizer | `CourseRatingSynchronizer` | Recalculate course rating after review changes |
+
+---
 
 ## Branch Strategy
 
-```text
+```
 main        stable production branch
 develop     integration branch
 usecase/*   feature branch per use case
 ```
 
-Create feature branches from `develop`, then merge back through PR after tests pass.
+Create feature branches from `develop`, then open a PR back to `develop` after tests pass.
+
+---
+
+## Key Behavior Notes
+
+**Course ID format:**
+
+```
+{serialNumber}_{academicYear}_{semester}
+```
+
+Example: `0691_113_2`. The UI displays the shorter `serialNumber`, but reviews, bookmarks, discussions, groups, schedule, and API routes all use the full `courseID`.
+
+**Groupmate "All" mode** excludes closed, full, expired, or hidden groups, and groups for courses where the user already has membership or a pending application.
+
+**Schedule** is synced to the user's account when logged in. `localStorage` is used only as an unauthenticated/offline fallback cache.
+
+**Notification UI** is a popover (`NotificationPopover.tsx`) beside the profile avatar — intentionally not a full page.
+
+**Achievements** are integrated into the User Profile page; `/achievements` redirects to `/profile`.
+
+---
+
+## Further Reading
+
+- [Group recommendation algorithm](backend/docs/recommendation_algorithm.md)
+- [Achievement score algorithm](backend/docs/achievement_score_algorithm.md)
+- [Discussion sorting strategy pattern](backend/docs/discussion_Sorting_Strategy_Pattern.md)
+
+---
 
 ## Appendix A: File Responsibility Map
 
 ### Backend
 
 | Area | Files | Responsibility |
-| --- | --- | --- |
+|------|-------|---------------|
 | App root | `backend/app.py` | Flask app factory, CORS, dependency composition, blueprint registration |
 | Database | `backend/mongo.py` | MongoDB and GridFS connection |
 | Domain models | `backend/models/` | Domain state, validation, invariants, lifecycle behavior |
@@ -248,7 +370,7 @@ Create feature branches from `develop`, then merge back through PR after tests p
 ### Frontend
 
 | Area | Files | Responsibility |
-| --- | --- | --- |
+|------|-------|---------------|
 | App root | `frontend/src/main.tsx`, `frontend/src/App.tsx` | React entry and global providers |
 | Routing | `frontend/src/routes.tsx` | Route map, lazy loading, route guards |
 | API layer | `frontend/src/api/` | Feature API clients; all HTTP goes through `apiClient.ts` |
@@ -259,38 +381,9 @@ Create feature branches from `develop`, then merge back through PR after tests p
 | Models | `frontend/src/models/` | Shared frontend DTO/type contracts |
 | Config/styles | `frontend/src/config/`, `frontend/src/styles/` | API config and global styles |
 
-## Appendix B: Design Patterns Used
+---
 
-| Pattern | Where | Purpose |
-| --- | --- | --- |
-| Repository | `backend/repository/` | Hide MongoDB queries and document mapping |
-| Dependency Injection | `backend/app.py` | Wire services once and keep tests replaceable |
-| Strategy | Auth login, admin report handlers | Select different behavior by role or reported target |
-| Factory Method | `StudentRegistrationFactory` | Validate registration input and build `Student` consistently |
-| Adapter | `GridFSAvatarStorage`, `apiClient.ts` | Hide GridFS/HTTP details behind stable methods |
-| Query Object | `CourseSearchCriteria`, `AnnouncementQuery` | Keep query normalization out of routes |
-| Decorator | Route guards, `BestEffortNotificationPublisher` | Add auth/best-effort behavior around core use cases |
-| Read Model | `AdminAnalyticsService`, `GroupDashboardService` | Return UI-ready aggregate data |
-| Synchronizer | `CourseRatingSynchronizer` | Recalculate course rating projection after review changes |
-| Compensating Action | Review/application/group/avatar flows | Undo partial writes when a later step fails |
-| Container + Presentational | Feature hooks/pages plus components | Keep UI orchestration separate from rendering |
-
-## Appendix C: Use Case Diagrams
-
-### Overall Architecture
-
-```mermaid
-flowchart LR
-    UI[React Pages and Components] --> Hook[Frontend Hooks]
-    Hook --> API[Feature API Clients]
-    API --> Route[Flask Routes]
-    Route --> Authz[AuthorizationService]
-    Route --> Service[Use Case Services]
-    Service --> Domain[Domain Models]
-    Service --> Repo[Repositories]
-    Repo --> Mongo[(MongoDB and GridFS)]
-    Service --> Collaborator[Policies, Read Models, Synchronizers]
-```
+## Appendix B: Use Case Diagrams
 
 ### Auth
 
@@ -463,25 +556,24 @@ sequenceDiagram
     Service->>Repo: persist account schedule
 ```
 
-## Appendix D: File Index
+---
+
+## Appendix C: File Index
 
 ### Backend Core
 
 | File | Purpose |
-| --- | --- |
+|------|---------|
 | `backend/app.py` | Flask composition root; creates repositories/services and registers routes |
 | `backend/mongo.py` | MongoDB and GridFS connection |
 | `backend/departments.py` | Department data provider for registration/profile UI |
-| `backend/models.py` | Legacy empty model file; domain models live in `backend/models/` |
-| `backend/utils/student_id_parser.py` | Student ID parsing helper |
 | `backend/requirements.txt` | Backend Python dependencies |
 | `backend/env.example` | Backend environment variable template |
-| `render.yaml` | Render deployment configuration |
 
 ### Backend Models
 
 | File | Purpose |
-| --- | --- |
+|------|---------|
 | `models/user.py` | User, Student, Admin profile data and counters |
 | `models/course.py` | Course entity and `CourseSearchCriteria` |
 | `models/review.py` | Review validation, edit, like, visibility behavior |
@@ -499,7 +591,7 @@ sequenceDiagram
 ### Backend Repositories
 
 | File | Purpose |
-| --- | --- |
+|------|---------|
 | `announcement_repository.py` | Announcement queries, active count, save |
 | `application_repository.py` | Application insert/update/query operations |
 | `badge_repository.py` | Badge lookup and persistence |
@@ -517,7 +609,7 @@ sequenceDiagram
 ### Backend Routes
 
 | File | Purpose |
-| --- | --- |
+|------|---------|
 | `auth_routes.py` | Login/register HTTP adapter |
 | `user_routes.py` | Profile, avatar, departments HTTP adapter |
 | `course_routes.py` | Course search/detail HTTP adapter |
@@ -536,7 +628,7 @@ sequenceDiagram
 ### Backend Services
 
 | File | Purpose |
-| --- | --- |
+|------|---------|
 | `services/auth/auth_service.py` | Registration factory and login strategies |
 | `services/auth/authorization_service.py` | JWT identity extraction and route guards |
 | `services/auth/password_service.py` | Password hashing and verification |
@@ -564,7 +656,7 @@ sequenceDiagram
 ### Backend Scripts, Migrations, Tests
 
 | File | Purpose |
-| --- | --- |
+|------|---------|
 | `migrations/group_data_migration.py` | Group/application data normalization and index setup |
 | `scripts/migrate_group_data.py` | CLI runner for group migration |
 | `scripts/seed_courses.py` | Course seed/import runner |
@@ -573,23 +665,10 @@ sequenceDiagram
 | `tests/test_group_api_integration.py` | Group API integration flow |
 | `tests/test_group_migration.py` | Migration dry-run/apply/conflict tests |
 
-### Frontend Root And Config
-
-| File | Purpose |
-| --- | --- |
-| `frontend/src/main.tsx` | React entry |
-| `frontend/src/App.tsx` | Global providers and router |
-| `frontend/src/routes.tsx` | Lazy-loaded route map and guards |
-| `frontend/src/config/api.ts` | API base URL |
-| `frontend/src/utils/errors.ts` | Shared error message helper |
-| `frontend/vite.config.ts` | Vite, React, Tailwind, alias config |
-| `frontend/tsconfig*.json` | TypeScript project config |
-| `frontend/eslint.config.js` | ESLint config |
-
 ### Frontend API
 
 | File | Purpose |
-| --- | --- |
+|------|---------|
 | `api/apiClient.ts` | Shared HTTP adapter, auth headers, response parsing |
 | `api/userApi.ts` | Auth/profile/departments/avatar API |
 | `api/courseApi.ts` | Course search/detail API and schedule parser |
@@ -605,20 +684,15 @@ sequenceDiagram
 | `api/achievementApi.ts` | Achievement score/badge API |
 | `api/adminAnalyticsApi.ts` | Admin analytics summary API |
 
-### Frontend Context And Hooks
+### Frontend Context, Hooks, and Pages
 
 | File | Purpose |
-| --- | --- |
+|------|---------|
 | `context/AuthContext.tsx` | Auth user/session state and auth localStorage ownership |
 | `context/ScheduleContext.tsx` | Schedule state, backend sync, local fallback cache |
 | `hooks/useUserProfile.ts` | Profile page data/controller hook |
 | `hooks/useGroupmateDiscovery.ts` | Groupmate discovery data/filter/action hook |
 | `hooks/useNotifications.ts` | Notification popover data/controller hook |
-
-### Frontend Pages
-
-| File | Purpose |
-| --- | --- |
 | `pages/Home.tsx` | Landing page |
 | `pages/CourseCatalog.tsx` | Course search/list page |
 | `pages/CourseDetail.tsx` | Course detail, reviews, discussions, add schedule |
@@ -630,52 +704,6 @@ sequenceDiagram
 | `pages/UserProfile.tsx` | Profile tabs composition page |
 | `pages/auth/Login.tsx` | Login page |
 | `pages/auth/Register.tsx` | Register page |
-| `pages/auth/AuthLayout.tsx` | Auth layout wrapper |
 | `pages/admin/AdminLayout.tsx` | Admin dashboard layout |
-| `pages/admin/AdminSidebar.tsx` | Admin navigation |
-| `pages/admin/AnalyticsCards.tsx` | Admin analytics cards |
 | `pages/admin/AuditCenter.tsx` | Admin report review queue |
-| `pages/admin/ReportSidePanel.tsx` | Report detail/action side panel |
 | `pages/admin/AnnouncementEditor.tsx` | Announcement management page |
-| `pages/admin/CreateAnnouncement.tsx` | Announcement create form component/page |
-
-### Frontend Feature Components
-
-| File | Purpose |
-| --- | --- |
-| `components/Layout.tsx` | Main site layout/navigation |
-| `components/auth/RouteGuard.tsx` | Frontend role guard |
-| `components/home/*` | Home hero, shortcuts, public announcement panel/dialog |
-| `components/courseCatalog/*` | Course catalog filters, cards, result summary, load-more UI |
-| `components/courseDetail/*` | Course detail overview, syllabus, reviews, discussions tabs |
-| `components/reviews/*` | Review filters, write form, report dialog, review feed |
-| `components/groupmates/CreateGroupDialog.tsx` | Create groupmate post dialog |
-| `components/groupmates/GroupCard.tsx` | Groupmate card and apply action |
-| `components/groupmates/GroupFilters.tsx` | Groupmate filter panel |
-| `components/groupmates/groupmateOptions.ts` | Groupmate constants, labels, formatting helpers |
-| `components/admin/audit/*` | Admin report mapper, audit tabs, report table |
-| `components/admin/announcements/*` | Announcement editor header, form, preview, list |
-| `components/notifications/NotificationPopover.tsx` | Bell notification popover |
-| `components/profile/ProfileHeader.tsx` | Profile header and edit form |
-| `components/profile/ProfileStats.tsx` | Profile statistics |
-| `components/profile/FavoriteCoursesPanel.tsx` | Favorite course list |
-| `components/profile/ReviewsPanel.tsx` | User review list/edit/delete |
-| `components/profile/CommunityPanel.tsx` | User discussions and replies |
-| `components/profile/AchievementsPanel.tsx` | User achievements |
-| `components/profile/ReportsPanel.tsx` | User report history |
-| `components/profile/GroupManagementPanel.tsx` | Leader/member group management |
-| `components/profile/profileTypes.ts` | Profile view types |
-| `components/ui/*.tsx` | Reusable UI primitives |
-
-### Frontend Models
-
-| File | Purpose |
-| --- | --- |
-| `models/Achievement.ts` | Achievement/badge DTOs |
-| `models/Announcement.ts` | Announcement DTOs |
-| `models/Application.ts` | Group application DTOs |
-| `models/Bookmark.ts` | Bookmark DTOs |
-| `models/Group.ts` | Group and group dashboard DTOs |
-| `models/Notification.ts` | Notification DTO |
-| `models/Report.ts` | Report DTOs |
-| `models/Auth.ts`, `Course.ts`, `Review.ts`, `User.ts`, `discussion.ts`, `reply.ts` | Legacy/unused contracts kept for now; active contracts mostly live in feature API files |
