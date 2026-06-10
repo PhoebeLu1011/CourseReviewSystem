@@ -21,9 +21,7 @@ const AuditCenter = lazy(() =>
 );
 
 const AnnouncementEditor = lazy(() =>
-  import("./pages/admin/AnnouncementEditor").then((module) => ({
-    default: module.AnnouncementEditor,
-  })),
+  import("./pages/admin/CreateAnnouncement")
 );
 
 const Login = lazy(() =>
@@ -124,6 +122,18 @@ export const router = createBrowserRouter([
       {
         path: "announcements",
         element: lazyPage(<AnnouncementEditor />),
+      },
+      { 
+        path: "reports", 
+        element: <AuditCenter /> 
+      },
+      {
+        path: "users",
+        element: <AuditCenter />
+      },
+      {
+        path: "settings",
+        element: <AuditCenter />
       },
     ],
   },

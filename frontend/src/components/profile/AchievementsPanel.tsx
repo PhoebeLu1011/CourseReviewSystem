@@ -18,7 +18,7 @@ export function AchievementsPanel({
   return (
     <>
       <div className="mb-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
-        <p className="text-sm font-bold text-slate-500">Achievement Score</p>
+        <p className="text-sm font-bold text-slate-500">成就分數</p>
         <p className="mt-2 text-3xl font-black text-slate-900">{score}</p>
         <p className="mt-1 text-xs text-slate-400">
           根據評論數、回覆數與找組員申請數計算。

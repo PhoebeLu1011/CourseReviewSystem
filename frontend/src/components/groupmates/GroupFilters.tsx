@@ -1,5 +1,5 @@
 import type { Course } from "../../api/courseApi";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent } from "../ui/card";
 import {
   Select,
   SelectContent,
@@ -47,17 +47,14 @@ export function GroupFilters({
 }: GroupFiltersProps) {
   return (
     <aside className="space-y-4 lg:col-span-1">
-      <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
-        <CardHeader className="px-6 pt-6">
-          <CardTitle className="text-2xl font-semibold text-slate-900">
-            篩選條件
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-8 px-6 pb-6">
-          <label className="block">
-            <span className="mb-5 block text-lg font-semibold text-slate-900">系所</span>
+      <Card className="border-slate-100 shadow-sm">
+        <CardContent className="p-6 space-y-5">
+          <h2 className="font-bold text-slate-800 text-lg">篩選條件</h2>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">系所</label>
             <Select value={selectedDepartment} onValueChange={onDepartmentChange}>
-              <SelectTrigger className="h-auto border-0 bg-transparent py-2 pl-7 pr-0 text-lg font-semibold text-slate-900 shadow-none focus:ring-0">
+              <SelectTrigger className="bg-slate-50/50 border-slate-200 text-sm">
                 <SelectValue placeholder="所有系所" />
               </SelectTrigger>
               <SelectContent>
@@ -69,16 +66,13 @@ export function GroupFilters({
                 ))}
               </SelectContent>
             </Select>
-            {isLoadingDepartments && <p className="mt-2 text-xs text-slate-400">載入系所中...</p>}
-          </label>
+            {isLoadingDepartments && <p className="text-xs text-slate-400">載入系所中...</p>}
+          </div>
 
-          <label className="block">
-            <span className="mb-5 block text-lg font-semibold text-slate-900">課程</span>
-            <Select
-              value={selectedCourseId}
-              onValueChange={onCourseChange}
-            >
-              <SelectTrigger className="h-auto border-0 bg-transparent py-2 pl-7 pr-0 text-lg font-semibold text-slate-900 shadow-none focus:ring-0">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">課程</label>
+            <Select value={selectedCourseId} onValueChange={onCourseChange}>
+              <SelectTrigger className="bg-slate-50/50 border-slate-200 text-sm">
                 <SelectValue placeholder="所有課程" />
               </SelectTrigger>
               <SelectContent>
@@ -90,13 +84,13 @@ export function GroupFilters({
                 ))}
               </SelectContent>
             </Select>
-            {isLoadingCourses && <p className="mt-2 text-xs text-slate-400">載入課程中...</p>}
-          </label>
+            {isLoadingCourses && <p className="text-xs text-slate-400">載入課程中...</p>}
+          </div>
 
-          <label className="block">
-            <span className="mb-5 block text-lg font-semibold text-slate-900">讀書風格</span>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">讀書風格</label>
             <Select value={selectedStudyStyle} onValueChange={onStudyStyleChange}>
-              <SelectTrigger className="h-auto border-0 bg-transparent py-2 pl-7 pr-0 text-lg font-semibold text-slate-900 shadow-none focus:ring-0">
+              <SelectTrigger className="bg-slate-50/50 border-slate-200 text-sm">
                 <SelectValue placeholder="所有風格" />
               </SelectTrigger>
               <SelectContent>
@@ -107,12 +101,12 @@ export function GroupFilters({
                 ))}
               </SelectContent>
             </Select>
-          </label>
+          </div>
 
-          <label className="block">
-            <span className="mb-5 block text-lg font-semibold text-slate-900">見面偏好</span>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">見面偏好</label>
             <Select value={selectedMeetingPreference} onValueChange={onMeetingPreferenceChange}>
-              <SelectTrigger className="h-auto border-0 bg-transparent py-2 pl-7 pr-0 text-lg font-semibold text-slate-900 shadow-none focus:ring-0">
+              <SelectTrigger className="bg-slate-50/50 border-slate-200 text-sm">
                 <SelectValue placeholder="所有偏好" />
               </SelectTrigger>
               <SelectContent>
@@ -123,7 +117,7 @@ export function GroupFilters({
                 ))}
               </SelectContent>
             </Select>
-          </label>
+          </div>
         </CardContent>
       </Card>
 
