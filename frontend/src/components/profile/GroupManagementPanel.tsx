@@ -383,10 +383,10 @@ export function GroupManagementPanel() {
                 <CardContent className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
                   <div>
                     <p className="font-bold text-slate-900">
-                      群組 {application.group_id}
+                      課程 {application.course_id || "未知"}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">
-                      課程 {application.course_id || "未知"} · {application.message || "未附申請訊息"}
+                      {application.message || "未附申請訊息"}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

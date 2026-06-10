@@ -2,11 +2,11 @@ from datetime import datetime
 
 
 NOTIFICATION_TEMPLATES = {
-    "application_submitted": "A new application has been submitted to your group.",
-    "application_approved": "Your application has been approved.",
-    "application_rejected": "Your application has been rejected.",
-    "group_full_auto_rejected": "Your application has been rejected because the group is full.",
-    "group_full_recruitment_closed": "Your group is full. Recruitment has been closed automatically.",
+    "application_submitted": "有新的加入申請送至你的揪人貼文。",
+    "application_approved": "你的申請已通過審核。",
+    "application_rejected": "你的申請已被拒絕。",
+    "group_full_auto_rejected": "由於揪人已滿員，你的申請已自動被拒絕。",
+    "group_full_recruitment_closed": "你的揪人已滿員，招募已自動關閉。",
 }
 
 

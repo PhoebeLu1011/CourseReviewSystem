@@ -41,13 +41,20 @@ function loadStoredUser(): AuthUser | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(loadStoredUser);
 
+  const clearUserStorage = () => {
+    localStorage.removeItem("mySchedule");
+    sessionStorage.removeItem("courseCatalogFilters");
+  };
+
   const login = (userData: AuthUser, token: string) => {
+    clearUserStorage(); // 清除前一個帳號的快取
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("token", token);
     setUser(userData);
   };
 
   const logout = () => {
+    clearUserStorage();
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     setUser(null);

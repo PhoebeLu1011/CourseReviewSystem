@@ -118,7 +118,7 @@ export default function DiscussionDetail() {
           to="/discussions"
           className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
         >
-          <ArrowLeft size={16} /> Back to All Discussions
+          <ArrowLeft size={16} /> 返回所有討論
         </Link>
         <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border">
           {courseDisplayCode}
@@ -135,7 +135,7 @@ export default function DiscussionDetail() {
             <div>
               <h1 className="text-xl font-bold text-slate-900">{discussion.title}</h1>
               <p className="text-xs text-slate-400 mt-1">
-                Posted by <span className="font-medium text-slate-600">{discussion.authorID}</span> • {new Date(discussion.timestamp).toLocaleDateString()}
+                {discussion.authorID} • {new Date(discussion.timestamp).toLocaleDateString("zh-TW")}
               </p>
             </div>
           </div>
@@ -152,10 +152,10 @@ export default function DiscussionDetail() {
               }`}
             >
               <ThumbsUp size={14} className={isPostLikedByMe ? "fill-rose-500" : ""} />
-              {discussion.likeCount} Likes
+              {discussion.likeCount} 有幫助
             </button>
             <span className="flex items-center gap-1.5 text-xs font-medium">
-              <MessageSquare size={14} /> {discussion.replyCount} Replies
+              <MessageSquare size={14} /> {discussion.replyCount} 則回覆
             </span>
           </div>
         </CardContent>
@@ -163,14 +163,14 @@ export default function DiscussionDetail() {
 
       {/* Comments Header Title */}
       <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mt-4">
-        <MessageSquare size={18} className="text-slate-400" /> Replies ({replies.length})
+        <MessageSquare size={18} className="text-slate-400" /> 回覆（{replies.length}）
       </h2>
 
       {/* Comment Responses Feed Stream */}
       <div className="space-y-3">
         {replies.length === 0 ? (
           <div className="text-center p-8 border border-dashed rounded-xl text-slate-400 bg-white text-sm">
-            No feedback left on this topic yet. Leave a constructive reply below!
+            還沒有回覆，來第一個分享你的想法吧！
           </div>
         ) : (
           replies.map(reply => {
@@ -184,7 +184,7 @@ export default function DiscussionDetail() {
                         {reply.authorID.charAt(0)}
                       </div>
                       <span className="text-xs font-bold text-slate-700">{reply.authorID}</span>
-                      <span className="text-[10px] text-slate-400">• {new Date(reply.timestamp).toLocaleDateString()}</span>
+                      <span className="text-[10px] text-slate-400">• {new Date(reply.timestamp).toLocaleDateString("zh-TW")}</span>
                     </div>
 
                     <button
@@ -209,10 +209,10 @@ export default function DiscussionDetail() {
       {user ? (
         <form onSubmit={handlePostReply} className="flex gap-3 bg-white p-4 border rounded-xl shadow-sm items-end">
           <div className="flex-1 space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Write your comment response</label>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">撰寫回覆</label>
             <textarea
               className="w-full min-h-[70px] max-h-[150px] p-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 bg-slate-50/50 resize-y"
-              placeholder="Provide a helpful response, insight, or solution..."
+              placeholder="分享你的想法、解答或建議..."
               value={replyText}
               onChange={e => setReplyText(e.target.value)}
               required

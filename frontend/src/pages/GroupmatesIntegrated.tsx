@@ -16,10 +16,10 @@ export default function GroupmatesIntegrated() {
   const selectedCourse = discovery.courseById.get(discovery.selectedCourseId);
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <div className="space-y-8 pb-12">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="mb-2 text-3xl font-bold text-slate-900">找組員</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900">找組員</h1>
           <p className="text-slate-600">與正在尋找讀書夥伴或專題合作者的同學互相交流</p>
         </div>
         <CreateGroupDialog

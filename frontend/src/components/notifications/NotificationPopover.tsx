@@ -22,8 +22,16 @@ function formatNotificationTime(value: string) {
   });
 }
 
+const NOTIFICATION_LABELS: Record<string, string> = {
+  application_submitted: "收到新申請",
+  application_approved: "申請已通過",
+  application_rejected: "申請已拒絕",
+  group_full_auto_rejected: "申請自動拒絕",
+  group_full_recruitment_closed: "揪人已滿員",
+};
+
 function getNotificationLabel(type: string) {
-  return type
+  return NOTIFICATION_LABELS[type] ?? type
     .split("_")
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -122,7 +130,7 @@ export function NotificationPopover({ studentId }: NotificationPopoverProps) {
             <div>
               <h2 className="text-sm font-bold text-slate-900">通知</h2>
               <p className="text-xs text-muted-foreground">
-                {unreadCount > 0 ? `${unreadCount} unread` : "最新"}
+                {unreadCount > 0 ? `${unreadCount} 則未讀` : "最新"}
               </p>
             </div>
 
