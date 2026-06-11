@@ -1,10 +1,10 @@
-# 選課工具箱 — Course Toolbox
+# 選課工具箱 — NTNU Toolbox
 
 An integrated course information web app for NTNU (National Taiwan Normal University) students, combining course search, peer reviews, discussions, groupmate finding, personal schedule, and admin management in one platform.
 
 ---
 
-## Tech Stack
+## 1. Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -18,7 +18,7 @@ An integrated course information web app for NTNU (National Taiwan Normal Univer
 
 ---
 
-## Features
+## 2. Features
 
 - **Course Search** — filter by keyword, department, semester, and more
 - **Reviews** — write, edit, delete, and like course reviews; rating projection synced automatically
@@ -33,7 +33,10 @@ An integrated course information web app for NTNU (National Taiwan Normal Univer
 
 ---
 
-## Project Structure
+## 3. Project Structure
+
+All source code is placed under one root folder: CourseReviewSystem/.
+The project is divided into frontend/ and backend/ according to the system architecture. The frontend handles user interface and API calls, while the backend handles REST routes, use case services, domain models, repositories, and database access.
 
 ```
 CourseReviewSystem/
@@ -149,6 +152,195 @@ CourseReviewSystem/
 
 ---
 
+## 4. Folder Responsibilities
+
+| Folder                     | Responsibility                                            |
+| -------------------------- | --------------------------------------------------------- |
+| `frontend/src/pages/`      | Route-level page components                               |
+| `frontend/src/components/` | Shared and feature UI components                          |
+| `frontend/src/api/`        | API clients for communicating with the backend            |
+| `frontend/src/context/`    | Global frontend state such as authentication and schedule |
+| `frontend/src/hooks/`      | UI-facing feature logic                                   |
+| `frontend/src/models/`     | Frontend TypeScript types and DTOs                        |
+| `backend/routes/`          | Flask blueprints and HTTP request handling                |
+| `backend/services/`        | Use case logic and feature orchestration                  |
+| `backend/models/`          | Domain models and business invariants                     |
+| `backend/repository/`      | MongoDB queries and database operations                   |
+| `backend/scripts/`         | Seed and migration runners                                |
+| `backend/tests/`           | Backend tests                                             |
+
+---
+
+## 5. Architecture Overview
+
+```mermaid
+flowchart LR
+    UI[React Pages and Components] --> Hook[Frontend Hooks]
+    Hook --> API[Frontend API Clients]
+    API --> Route[Flask Routes]
+    Route --> Authz[Authorization Service]
+    Route --> Service[Use Case Services]
+    Service --> Domain[Domain Models]
+    Service --> Repo[Repositories]
+    Repo --> Mongo[(MongoDB and GridFS)]
+```
+
+The code organization follows this architecture:
+
+* Frontend pages and components handle UI rendering and user interaction.
+* Frontend API clients send requests to the Flask backend.
+* Flask routes parse requests, check authentication, and return responses.
+* Services contain the main use case logic.
+* Domain models define data rules and state changes.
+* Repositories handle MongoDB access and atomic writes.
+
+---
+
+## 6. Installation and Setup
+
+### Prerequisites
+
+* Node.js 18 or above
+* Python 3.10 or above
+* MongoDB Atlas account or local MongoDB instance
+
+---
+
+### Backend Setup
+
+```bash
+cd backend
+
+python -m venv venv
+source venv/bin/activate
+```
+
+For Windows:
+
+```bash
+venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Create the environment file:
+
+```bash
+cp env.example .env
+```
+
+Edit `.env` and fill in the required values.
+
+Start the backend server:
+
+```bash
+python app.py
+```
+
+Backend default URL:
+
+```text
+http://127.0.0.1:5001
+```
+
+---
+
+### Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend default URL:
+
+```text
+http://localhost:5173
+```
+
+---
+
+## 7. Environment Variables
+
+Create `backend/.env` based on `backend/env.example`.
+
+```env
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/
+DB_NAME=Course
+FRONTEND_URL=http://localhost:5173
+PORT=5001
+FLASK_ENV=development
+
+JWT_SECRET=replace_with_a_long_random_secret
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_DAYS=1
+```
+---
+
+## 9. Verification
+
+Run backend checks:
+
+```bash
+cd backend
+python -m unittest discover -s tests -v
+python -m compileall .
+```
+
+Run frontend checks:
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+---
+
+## 10. Key Behavior Notes
+
+### Course ID Format
+
+The system uses the following course ID format:
+
+```text
+{serialNumber}_{academicYear}_{semester}
+```
+
+Example:
+
+```text
+0691_113_2
+```
+
+The UI may display the shorter serial number, but reviews, bookmarks, discussions, groups, schedules, and API routes use the full `courseID`.
+
+### Schedule
+
+The schedule is synced to the user's account after login. `localStorage` is used only as a fallback for unauthenticated or offline use.
+
+### Notifications
+
+Notifications are shown through a bell popover beside the profile avatar. They are not implemented as a separate full page.
+
+### Achievements
+
+Achievements are integrated into the user profile page. The `/achievements` route redirects to `/profile`.
+
+---
+
+## 11. Further Reading
+
+* `backend/docs/recommendation_algorithm.md`
+* `backend/docs/achievement_score_algorithm.md`
+* `backend/docs/discussion_Sorting_Strategy_Pattern.md`
+
+
 ## Installation & Setup
 
 ### Prerequisites
@@ -217,63 +409,6 @@ JWT_ALGORITHM=HS256
 JWT_EXPIRE_DAYS=1
 ```
 
-> **Note:** Never commit `.env` to version control. It is already listed in `.gitignore`.
-
----
-
-## Seed Data & Migrations
-
-Run these once after setting up the database:
-
-```bash
-cd backend
-python scripts/seed_courses.py   # import course data
-python scripts/seed_badges.py    # create default achievement badges
-```
-
-If migrating group data (enforces membership uniqueness):
-
-```bash
-python scripts/migrate_group_data.py --dry-run   # preview changes
-python scripts/migrate_group_data.py --apply      # apply changes
-```
-
----
-
-## Verification
-
-Backend:
-
-```bash
-cd backend
-python -m unittest discover -s tests -v
-python -m compileall .
-```
-
-Frontend:
-
-```bash
-cd frontend
-npm run lint
-npm run build
-```
-
----
-
-## Architecture Overview
-
-```mermaid
-flowchart LR
-    UI[React Pages and Components] --> Hook[Frontend Hooks]
-    Hook --> API[Feature API Clients]
-    API --> Route[Flask Routes]
-    Route --> Authz[AuthorizationService]
-    Route --> Service[Use Case Services]
-    Service --> Domain[Domain Models]
-    Service --> Repo[Repositories]
-    Repo --> Mongo[(MongoDB and GridFS)]
-    Service --> Collaborator[Policies, Read Models, Synchronizers]
-```
 
 ### Layer Responsibilities
 
@@ -287,53 +422,6 @@ flowchart LR
 | Domain model | State transitions and invariants | Database or HTTP |
 | Repository | Queries, mapping, atomic writes | UI or cross-use-case flow |
 
-### Design Patterns
-
-| Pattern | Where | Purpose |
-|---------|-------|---------|
-| Repository | `backend/repository/` | Hide MongoDB queries and document mapping |
-| Dependency Injection | `backend/app.py` | Wire services once; keep tests replaceable |
-| Strategy | Auth login, admin report handlers | Select behavior by role or reported target |
-| Factory Method | `StudentRegistrationFactory` | Validate and build `Student` consistently |
-| Adapter | `GridFSAvatarStorage`, `apiClient.ts` | Hide GridFS/HTTP details behind stable methods |
-| Query Object | `CourseSearchCriteria`, `AnnouncementQuery` | Keep query normalization out of routes |
-| Decorator | Route guards, `BestEffortNotificationPublisher` | Add auth/best-effort behavior around core use cases |
-| Read Model | `AdminAnalyticsService`, `GroupDashboardService` | Return UI-ready aggregate data |
-| Synchronizer | `CourseRatingSynchronizer` | Recalculate course rating after review changes |
-
----
-
-## Branch Strategy
-
-```
-main        stable production branch
-develop     integration branch
-usecase/*   feature branch per use case
-```
-
-Create feature branches from `develop`, then open a PR back to `develop` after tests pass.
-
----
-
-## Key Behavior Notes
-
-**Course ID format:**
-
-```
-{serialNumber}_{academicYear}_{semester}
-```
-
-Example: `0691_113_2`. The UI displays the shorter `serialNumber`, but reviews, bookmarks, discussions, groups, schedule, and API routes all use the full `courseID`.
-
-**Groupmate "All" mode** excludes closed, full, expired, or hidden groups, and groups for courses where the user already has membership or a pending application.
-
-**Schedule** is synced to the user's account when logged in. `localStorage` is used only as an unauthenticated/offline fallback cache.
-
-**Notification UI** is a popover (`NotificationPopover.tsx`) beside the profile avatar — intentionally not a full page.
-
-**Achievements** are integrated into the User Profile page; `/achievements` redirects to `/profile`.
-
----
 
 ## Further Reading
 
