@@ -316,11 +316,8 @@ Achievements are integrated into the user profile page. The `/achievements` rout
 
 ---
 
-## 9. Further Reading
+## Further Reading
 
-* `backend/docs/recommendation_algorithm.md`
-* `backend/docs/achievement_score_algorithm.md`
-* `backend/docs/discussion_Sorting_Strategy_Pattern.md`
-
-
-
+- [Group recommendation algorithm](backend/docs/recommendation_algorithm.md)
+- [Achievement score algorithm](backend/docs/achievement_score_algorithm.md)
+- [Discussion sorting strategy pattern](backend/docs/discussion_Sorting_Strategy_Pattern.md)
