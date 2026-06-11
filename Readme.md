@@ -167,7 +167,7 @@ CourseReviewSystem/
 | `backend/models/`          | Domain models and business invariants                     |
 | `backend/repository/`      | MongoDB queries and database operations                   |
 | `backend/scripts/`         | Seed and migration runners                                |
-| `backend/tests/`           | Backend tests                                             |
+
 
 ---
 
@@ -229,9 +229,9 @@ pip install -r requirements.txt
 
 Create the environment file:
 
-```bash
-cp env.example .env
-```
+Create frontend/.env based on frontend/env.example.
+
+Create `backend/.env` based on `backend/env.example`.
 
 Edit `.env` and fill in the required values.
 
@@ -262,27 +262,9 @@ Frontend default URL:
 ```text
 http://localhost:5173
 ```
-
 ---
 
-## 7. Environment Variables
-
-Create `backend/.env` based on `backend/env.example`.
-
-```env
-MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/
-DB_NAME=Course
-FRONTEND_URL=http://localhost:5173
-PORT=5001
-FLASK_ENV=development
-
-JWT_SECRET=replace_with_a_long_random_secret
-JWT_ALGORITHM=HS256
-JWT_EXPIRE_DAYS=1
-```
----
-
-## 9. Verification
+## 7. Verification
 
 Run backend checks:
 
@@ -302,7 +284,7 @@ npm run build
 
 ---
 
-## 10. Key Behavior Notes
+## 8. Key Behavior Notes
 
 ### Course ID Format
 
@@ -334,98 +316,11 @@ Achievements are integrated into the user profile page. The `/achievements` rout
 
 ---
 
-## 11. Further Reading
+## 9. Further Reading
 
 * `backend/docs/recommendation_algorithm.md`
 * `backend/docs/achievement_score_algorithm.md`
 * `backend/docs/discussion_Sorting_Strategy_Pattern.md`
 
 
-## Installation & Setup
-
-### Prerequisites
-
-- Node.js 18+ (frontend)
-- Python 3.10+ (backend)
-- A MongoDB Atlas account (or local MongoDB instance)
-
-### Backend
-
-```bash
-cd backend
-
-# Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up environment variables
-cp env.example .env
-# Edit .env and fill in MONGO_URI, DB_NAME, JWT_SECRET, etc.
-
-# Start the Flask server
-python app.py
-```
-
-Backend runs at: `http://127.0.0.1:5001`
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend runs at: `http://localhost:5173`
-
----
-
-## Environment Variables
-
-Copy `backend/env.example` to `backend/.env` and fill in the values:
-
-```env
-# MongoDB Atlas connection string
-MONGO_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/
-
-# Database name
-DB_NAME=Course
-
-# Frontend URL (update to your Vercel URL in production)
-FRONTEND_URL=http://localhost:5173
-
-# Flask port (5001 recommended on macOS to avoid conflicts with system services)
-PORT=5001
-
-# Environment (development / production)
-FLASK_ENV=development
-
-# JWT signing secret — use a long random value in production
-JWT_SECRET=replace_with_a_long_random_secret
-JWT_ALGORITHM=HS256
-JWT_EXPIRE_DAYS=1
-```
-
-
-### Layer Responsibilities
-
-| Layer | Owns | Does Not Own |
-|-------|------|-------------|
-| Frontend page/component | UI state, layout, user events | Backend business rules |
-| Frontend hook | UI orchestration for one feature | Raw HTTP details |
-| Frontend API client | Endpoint calls and response types | Rendering |
-| Route | Request parsing, auth guard, response code | Use case logic |
-| Service | Use case orchestration | Flask request or Mongo document details |
-| Domain model | State transitions and invariants | Database or HTTP |
-| Repository | Queries, mapping, atomic writes | UI or cross-use-case flow |
-
-
-## Further Reading
-
-- [Group recommendation algorithm](backend/docs/recommendation_algorithm.md)
-- [Achievement score algorithm](backend/docs/achievement_score_algorithm.md)
-- [Discussion sorting strategy pattern](backend/docs/discussion_Sorting_Strategy_Pattern.md)
 
