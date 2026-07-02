@@ -1,12 +1,39 @@
-# Group Recommendation Algorithm
+# OOAD Group Recommendation Algorithm Design
 
-## Purpose
+## Table of Contents
 
-組別推薦用於 Find Teammates 頁面。它不是機器學習模型，而是可解釋的規則式排名。
+1. [Overview](#1-overview)
+2. [Design Rationale](#2-design-rationale)
+3. [System Responsibility](#3-system-responsibility)
+4. [Recommendation Flow](#4-recommendation-flow)
+5. [Candidate Filtering](#5-candidate-filtering)
+6. [Scoring Design](#6-scoring-design)
+   - [6.1 Student Similarity](#61-student-similarity)
+   - [6.2 Capacity Score](#62-capacity-score)
+   - [6.3 Deadline Urgency Score](#63-deadline-urgency-score)
+7. [Sorting and Tie-breaking](#7-sorting-and-tie-breaking)
+8. [Correctness Boundaries](#8-correctness-boundaries)
+9. [Complexity](#9-complexity)
 
-推薦流程只處理「目前可以申請，而且學生尚未加入或申請同課程組別」的候選群組，再依學生相似度、剩餘容量比例與招募期限排序。
+## 1. Overview
 
-## Responsibility
+The group recommendation feature is used on the Find Teammates page to help students discover suitable groups for a course. It is designed as an explainable rule-based ranking algorithm.
+
+The system first filters out groups that the student cannot currently apply to. These include closed, full, hidden, expired, already joined, or already applied groups. The remaining groups are then ranked by student similarity, available capacity, and recruitment deadline urgency.
+
+This keeps the recommendation logic predictable and makes it easier to separate what each part of the system is responsible for.
+
+## 2. Design Rationale
+
+The group recommendation feature helps students find suitable groups more quickly on the Find Teammates page. In this case, “suitable” is defined by a few clear factors: student background similarity, remaining group capacity, and recruitment deadline. Since these rules are simple and stable for now, a rule-based score is enough for the current requirement.
+
+From an OOAD perspective, the feature separates the recommendation flow, data access, score calculation, and result construction. Repositories handle data storage and query-related work, while the service mainly coordinates the recommendation process. This keeps the service from depending too much on database details.
+
+The recommendation result only decides display priority. It does not guarantee that a student can join the group. The actual application and approval workflow still checks group status, capacity, existing memberships, and pending applications again to avoid inconsistent data.
+
+## 3. System Responsibility
+
+The recommendation feature is divided into components with clear responsibilities. The service mainly coordinates the process, repositories provide group and application data, and the scoring module handles the score calculation.
 
 ```mermaid
 classDiagram
@@ -14,92 +41,74 @@ classDiagram
         +recommend_group_results(student_id, course_id)
         +calculate_match_score(student_id, group)
     }
+
+    class GroupRecommendation {
+        +group
+        +score
+        +to_dict()
+    }
+
     class group_recommendation_scoring {
         +calculate_group_match_score(student_id, group)
         +calculate_student_similarity(a, b)
     }
-    class StudentIdParser
+
     class GroupRepository
     class ApplicationRepository
+    class StudentIdParser
 
-    GroupRecommendationService --> GroupRepository : joinable and joined groups
-    GroupRecommendationService --> ApplicationRepository : pending applications
-    GroupRecommendationService --> group_recommendation_scoring : score groups
-    group_recommendation_scoring --> StudentIdParser
+    GroupRecommendationService --> GroupRepository : load joinable and joined groups
+    GroupRecommendationService --> ApplicationRepository : load pending applications
+    GroupRecommendationService --> GroupRecommendation : wrap group with score
+    GroupRecommendationService --> group_recommendation_scoring : calculate score
+    group_recommendation_scoring --> StudentIdParser : parse student ID
 ```
 
 | Component | Responsibility |
 | --- | --- |
-| `GroupRepository` | 先在 MongoDB 排除 closed、full、hidden/deleted groups，再由 domain model 檢查 deadline |
-| `ApplicationRepository` | 找出學生 pending applications 的課程 |
-| `GroupRecommendationService` | 候選排除、排序、回傳 result object |
-| `GroupRecommendation` | 同時攜帶 group 與已計算 score，避免 route 重算 |
-| `group_recommendation_scoring.py` | 集中維護學生相似度、容量、deadline 三個分數 |
-| `StudentIdParser` | 只解析學生證號，不知道推薦權重 |
+| `GroupRecommendationService` | Coordinates the recommendation process, including loading candidate groups, excluding unavailable courses, calculating scores, and sorting results. |
+| `GroupRecommendation` | Wraps a group with its calculated recommendation score so the score can be reused when returning results. |
+| `GroupRepository` | Provides group queries needed by the recommendation flow, such as joinable groups and groups the student has already joined. |
+| `ApplicationRepository` | Provides the student’s pending application data to exclude courses the student has already applied to. |
+| `group_recommendation_scoring.py` | Centralizes scoring logic, including student similarity, capacity score, and deadline urgency score. |
+| `StudentIdParser` | Parses student ID information used for similarity calculation, but does not handle recommendation weights or ranking logic. |
 
-新增規則時先加在 `calculate_group_match_score()` 附近，等規則真的變多、需要 A/B testing 或不同情境替換時，再抽成策略物件。
+## 4. Recommendation Flow
 
-## Candidate Filtering
+The recommendation process starts by loading currently joinable groups. The service then checks which courses the student has already joined a group in, and which courses already have a pending application. Those course IDs are removed from the candidate list.
 
-候選 group 必須同時符合：
-
-1. `visibilityState` 是 `VISIBLE` 或舊資料尚未具有此欄位。
-2. `status == "open"`。
-3. `len(members) < max_members`。
-4. 沒有超過 `recruitment_deadline`。
-5. 學生尚未加入同一課程的其他 group。
-6. 學生沒有同一課程的 pending application。
+Each remaining group is scored once, wrapped as a `GroupRecommendation`, sorted, and returned to the route layer.
 
 ```mermaid
-flowchart TD
-    A[Find DB-level joinable groups] --> B[Load courses already joined]
+flowchart LR
+    A[Load joinable groups] --> B[Load courses already joined by the student]
     B --> C[Load courses with pending applications]
-    C --> D[Exclude unavailable course IDs]
-    D --> E[Score each remaining group once]
-    E --> F[Sort and return results]
+    C --> D[Remove unavailable course groups]
+    D --> E[Calculate each group score once]
+    E --> F[Wrap as GroupRecommendation results]
+    F --> G[Sort and return recommendations]
 ```
 
-這些條件不只是 UI disable 規則。真正的資料一致性仍由 submit/approve use case、atomic repository operation 與 membership unique index 保護。
+## 5. Candidate Filtering
 
-## Student ID Parsing
+Before scoring, the system removes groups that the student should not apply to. This prevents unavailable or irrelevant groups from appearing in the recommendation ranking.
 
-系統預期學生證號格式為八位數字加一個英文字母，例如：
+At the repository level, the system first loads joinable groups for the selected course. This excludes groups that are not open, already full, hidden, deleted, or past their recruitment deadline. The service then applies student-specific filtering by removing courses where the student has already joined a group or already has a pending application.
 
-```text
-41271122H
-```
+| Rule | Purpose |
+| --- | --- |
+| Group must be visible and not deleted | Hidden or deleted groups should not appear in recommendation results. |
+| Group must be open for recruitment | Closed groups should not accept new applications. |
+| Group must not be full | Full groups should not be recommended for application. |
+| Group must not be past its recruitment deadline | Expired recruitment should be excluded before scoring. |
+| Student must not have already joined a group in the same course | A student can only belong to one group per course. |
+| Student must not already have a pending application in the same course | A student should not apply to multiple groups in the same course at the same time. |
 
-| Position | Example | Meaning |
-| --- | --- | --- |
-| 1 | `4` | Program level: bachelor/master/phd |
-| 2-3 | `12` | Admission year |
-| 4-5 | `71` | Department code |
-| 6 | `1` | Class code |
-| 7-8 | `22` | Seat number |
-| 9 | `H` | College code |
+The recommendation step only removes groups that are clearly unavailable at the time of ranking. When the student submits an application or when the leader approves it, the backend checks the conditions again.
 
-解析結果：
+## 6. Scoring Design
 
-```python
-{
-    "student_id": "41271122H",
-    "program_level": "bachelor",
-    "program_level_code": "4",
-    "admission_year": 12,
-    "department": "71",
-    "class_code": "1",
-    "seat_number": "22",
-    "college": "H",
-}
-```
-
-無法解析的學生證號相似度為 `0`，不會讓整個推薦請求失敗。
-
-`_try_parse_student_id()` 使用上限 `4096` 的 LRU cache。學生證號內容不會頻繁變動，因此可避免同一學生在多個 group 中被重複解析，同時限制記憶體成長。
-
-## Scoring Formula
-
-最終分數是三個明確 function 的加總：
+After filtering, each remaining group receives a recommendation score. The score is the sum of student similarity, capacity score, and deadline urgency score.
 
 ```text
 final_score =
@@ -108,9 +117,11 @@ student_similarity_score
 + deadline_urgency_score
 ```
 
-### Student Similarity
+The scoring logic is kept in `group_recommendation_scoring.py`, so `GroupRecommendationService` only needs to call the scoring function.
 
-兩位學生的相似度：
+### 6.1 Student Similarity
+
+Student similarity is calculated from the parsed student ID. The system compares the applicant with the group leader and other members using fields such as department, admission year, program level, class code, and college code.
 
 | Condition | Score |
 | --- | ---: |
@@ -118,162 +129,75 @@ student_similarity_score
 | Same admission year | +10 |
 | Admission year differs by 1 | +5 |
 | Same program level | +5 |
-| Same class | +5 |
-| Same college | +3 |
+| Same class code | +5 |
+| Same college code | +3 |
 
-單一 pair 的最高分是 `43`。
-
-群組相似度會讓 leader 稍微更重要：
+The group-level similarity score gives the leader slightly more weight:
 
 ```text
-leader_similarity = similarity(applicant, leader)
-
-average_member_similarity =
-    average(similarity(applicant, each non-leader member))
-
 student_similarity_score =
-    (1.2 * leader_similarity + average_member_similarity) / 2.2
+(1.2 * leader_similarity + average_member_similarity) / 2.2
 ```
 
-若 group 只有 leader，`average_member_similarity` 使用 `leader_similarity`，避免新 group 被不合理扣分。
+If the group only has a leader, the leader similarity is also used as the member average. This avoids giving new groups an unfairly low similarity score.
 
-### Capacity
+### 6.2 Capacity Score
+
+The capacity score gives a small advantage to groups with more available seats. It uses the ratio of available seats instead of the raw number of remaining seats.
 
 ```text
 available_slots = max(max_members - member_count, 0)
 capacity_score = 10 * available_slots / max_members
 ```
 
-容量分數介於 `0` 與小於等於 `10` 之間。使用比例而不是固定 `2 * available_slots`，可避免大型 group 單純因上限較大而支配排名。
+Using a ratio prevents larger groups from ranking higher only because they have a larger member limit. If `max_members` is invalid, the capacity score is set to 0.
 
-### Deadline Urgency
+### 6.3 Deadline Urgency Score
+
+The deadline urgency score gives a small boost to groups whose recruitment deadline is close.
 
 | Remaining time | Score |
 | --- | ---: |
-| Expired | 0 and group should already be filtered out |
+| Expired | 0 |
 | Within 24 hours | +5 |
 | Within 72 hours | +3 |
 | No deadline or more than 72 hours | +0 |
 
-Naive datetime 會被視為 UTC；正式資料應由 persistence layer 優先儲存 timezone-aware datetime。
+Naive datetime values are treated as UTC before calculating the remaining time. Expired groups should normally be filtered out before scoring, but the scoring function still returns 0 as a safe fallback.
 
-## Sorting And Tie Breaking
+## 7. Sorting and Tie-breaking
 
-每個 group 只計算一次，結果包裝成 `GroupRecommendation` 後排序：
+After scoring, groups are sorted by recommendation score in descending order.
 
-```text
-1. recommendation score, descending
-2. lower occupancy ratio first
-3. group ID, descending as deterministic final key
-```
-
-實作 key：
+If two groups have the same score, the system uses occupancy ratio as a tie-breaker. Groups with a lower occupancy ratio are ranked earlier. If both score and occupancy ratio are the same, the group ID is used as the final deterministic tie-breaker.
 
 ```python
 (
     recommendation.score,
-    -len(group.members) / group.max_members,
-    group.group_id,
+    -len(recommendation.group.members) / recommendation.group.max_members,
+    recommendation.group.group_id,
 )
 ```
 
-排序使用 `reverse=True`。第二個值為負 occupancy ratio，因此成員比例較低的 group 會排前面。
+The list is sorted with `reverse=True`. Because the occupancy ratio is stored as a negative value, a lower occupancy ratio becomes a larger sorting key and appears earlier.
 
-## Complexity
+## 8. Correctness Boundaries
 
-定義：
+The recommendation result only controls display order on the Find Teammates page. It does not guarantee that the student can successfully join the group, because group status may change after the list is generated.
 
-- `G`: repository 回傳的 joinable groups 數量
-- `M`: 每個候選 group 的平均成員數
-- `J`: 學生已加入的 group 數量
-- `P`: 學生 pending applications 數量
+The actual application and approval workflow rechecks the required conditions, including group joinability, course membership, and pending applications.
 
-Application 層的時間複雜度：
+Final membership correctness is handled by the application service and repository-level operations, not by the recommendation algorithm itself.
 
-```text
-candidate filtering: O(G + J + P)
-scoring:             O(G * M)
-sorting:             O(G log G)
+## 9. Complexity
 
-total: O(G * M + G log G + J + P)
-```
+Let $G$ be the number of candidate groups, $M$ the average number of members in each group, $J$ the number of groups the student has already joined, and $P$ the number of pending applications.
 
-額外空間複雜度：
+The main cost comes from scoring each candidate group against its members, which is $O(G \times M)$, followed by sorting, which is $O(G \log G)$. Filtering joined courses and pending applications takes $O(J + P)$.
 
-```text
-unavailable course set and results: O(G + J + P)
-student ID LRU cache:               O(1) bounded by 4096 entries
-```
+$$
+O(G \times M + G \log G + J + P)
+$$
 
-Repository 在 MongoDB 先排除 closed/full groups，可減少進入 Python 的 `G`。推薦 service 也只計分一次，避免排序或 response serialization 再次計算。
+The extra space complexity is mainly from storing unavailable course IDs and recommendation results, which is $O(G + J + P)$. The student ID parsing cache is bounded, so it does not grow with the number of requests.
 
-若資料量明顯增加，下一步不是在 Python 內做更多 micro-optimization，而是：
-
-1. 確認 `groups.course_id`、`groups.status`、`groups.members`、applications pending query 有適合的 indexes。
-2. 使用 course filter 縮小候選集合。
-3. 將常用解析欄位正規化到 student profile，避免依賴學生證號格式。
-4. 需要個人偏好時，再加入可注入的新 strategy，例如 meeting mode、study style 或時間衝突。
-5. 若排序需跨大量 groups，考慮離線 projection 或 precomputed features。
-
-## Example
-
-Applicant:
-
-```text
-41271122H
-```
-
-Group:
-
-```text
-leader_id = 41271105H
-members = [41271105H, 41271218H, 61271103H]
-max_members = 4
-deadline = within 72 hours
-```
-
-假設：
-
-```text
-leader_similarity = 43
-non_leader_scores = [38, 38]
-average_member_similarity = 38
-
-student_similarity = (1.2 * 43 + 38) / 2.2 = 40.73
-capacity_score = 10 * (4 - 3) / 4 = 2.5
-deadline_score = 3
-
-final_score = 46.23
-```
-
-## Correctness Boundaries
-
-推薦結果只是排序與顯示，不是核准保證。使用者送出申請到隊長核准之間，group 可能關閉、額滿、期限到期，或學生已加入其他同課程 group。
-
-因此 `ApplicationService.approve_application()` 必須重新檢查條件，並透過：
-
-- pending application atomic transition
-- `group_memberships` unique claim
-- `GroupRepository.add_member_if_joinable()`
-- 失敗時的 compensating action
-
-保護最終一致性。正式環境執行 group migration 與建立 unique index 後，才能完整抵抗跨 process concurrency。
-
-## Tests
-
-推薦相關 regression tests 位於：
-
-- `backend/tests/test_group_application_use_case.py`
-  - 排除已加入課程的 group
-  - 限制 capacity weight
-  - 每個 group 只計分一次
-- `backend/tests/test_group_api_integration.py`
-  - group/application/dashboard 整合流程
-
-執行：
-
-```bash
-cd backend
-python -m unittest discover -s tests -p "test_group_application_use_case.py" -v
-python -m unittest discover -s tests -p "test_group_api_integration.py" -v
-```
