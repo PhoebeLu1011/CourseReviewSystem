@@ -1,4 +1,4 @@
-# OOAD Group Recommendation Algorithm Design
+# Group Recommendation Algorithm Design
 
 ## Table of Contents
 
